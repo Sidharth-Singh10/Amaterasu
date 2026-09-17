@@ -1,0 +1,15 @@
+{
+  "name": "amaterasu",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @amaterasu/web",
+    "build": "npm run build --workspace @amaterasu/web",
+    "test": "npm run test --workspace @amaterasu/web",
+    "typecheck": "npm run typecheck --workspace @amaterasu/web"
+  }
+}
