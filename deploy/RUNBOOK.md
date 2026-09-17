@@ -228,6 +228,7 @@ Plugin/agent-only changes don't need a rebuild: restart `opencode-charts` (or
 `POST /api/location/reload`).
 
 **Backups worth taking:** `~/.local/share/amaterasu/indmoney-auth.json`,
+`~/.local/share/amaterasu/workspaces.db` (per-symbol drawings + series),
 `~/.local/share/opencode/opencode.db` (OpenCode sessions + MCP credentials), and `.env`.
 
 ## Troubleshooting

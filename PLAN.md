@@ -13,6 +13,11 @@ none) with the verification step in the deploy runbook.
 **Phase 4 runbook shipped** (`deploy/`): nginx vhost (SSE-tuned), systemd user units, env template, a step-by-step
 runbook with per-step verifications, the two one-time consents, upgrades, and a troubleshooting table. User-executed
 on the VPS.
+**Hardening** (2026-09-18): per-symbol workspace documents persisted in SQLite (`/api/workspace/{key}`, payload
+validated by the shared `DocPayloadSchema`); the browser loads a symbol's document with its candles, flushes the
+outgoing symbol's document before switching, and retries once on upstream 5xx. Live-verified: draw → reload →
+restored; TCS shows its own (empty) document; returning to RELIANCE restores its drawings. 83 web tests, 30 Rust
+tests, 14/14 E2E.
 Phase 2 complete — `opencode/` project + Rust bridge verified end to end (agent draws on the live chart,
 source-stamped ops, per-turn undo). Phase 1 complete — Rust data service + live-data shell; live-verified 248
 daily RELIANCE bars, live quote, 302 ms uncached intraday fetch.

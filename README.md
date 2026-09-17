@@ -33,7 +33,10 @@ the agent drew a fib from the swing low to the high, a channel along the last 40
 plotted SMA(20) computed in Code Mode — the plotted last value matched the independently
 computed SMA (₹1289.05) *and* the number it reported. A tool-schema bug (`points` capped at 2)
 was caught by live testing: channels need 3, so the model had been composing them from
-trendlines. 80 web tests, 14/14 demo E2E, 28 Rust tests. Next: execute
+trendlines. 80 web tests, 14/14 demo E2E, 28 Rust tests. **Hardening** (2026-09-18): per-symbol workspace documents persisted server-side in SQLite —
+drawings and computed series survive reloads, are scoped per symbol (switching instruments
+swaps the document; the outgoing one is flushed first), and an upstream 5xx from INDmoney gets
+one retry before the error surfaces. Next: execute
 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) on the VPS (you drive it; everything it needs is
 committed).
 
