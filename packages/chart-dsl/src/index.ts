@@ -19,10 +19,20 @@ export const AnchorSchema = z.object({
 export type Anchor = z.infer<typeof AnchorSchema>
 
 /**
- * Shapes implemented by the overlay engine in Phase 0. Phase 3 adds
- * fib / channel / pitchfork / ellipse / arrow / polyline / marker / measure.
+ * Shapes implemented by the overlay engine. Phase 3 adds fib/channel later in the phase.
  */
-export const KINDS = ["trendline", "ray", "hline", "vline", "rect", "label"] as const
+export const KINDS = [
+  "trendline",
+  "ray",
+  "hline",
+  "vline",
+  "rect",
+  "hzone",
+  "vzone",
+  "marker",
+  "measure",
+  "label",
+] as const
 export const KindSchema = z.enum(KINDS)
 export type Kind = z.infer<typeof KindSchema>
 
@@ -33,6 +43,10 @@ export const MIN_POINTS: Record<Kind, number> = {
   hline: 1,
   vline: 1,
   rect: 2,
+  hzone: 2,
+  vzone: 2,
+  marker: 1,
+  measure: 2,
   label: 1,
 }
 
@@ -46,6 +60,8 @@ export const StyleSchema = z.object({
   fillOpacity: z.number().min(0).max(1).optional(),
   opacity: z.number().min(0).max(1).optional(),
   fontSize: z.number().min(8).max(32).optional(),
+  /** Marker glyph. */
+  shape: z.enum(["circle", "arrowUp", "arrowDown"]).optional(),
 })
 export type Style = z.infer<typeof StyleSchema>
 
@@ -88,6 +104,8 @@ export const DrawOpSchema = z.object({
   style: StyleSchema.optional(),
   label: z.string().max(CAPS.maxLabel).optional(),
   z: z.number().int().optional(),
+  /** Snap mode for the op intake; "none" (default) places points exactly as given. */
+  snap: z.enum(["none", "ohlc", "swing", "level"]).optional(),
   source: SourceSchema.optional(),
 })
 export type DrawOp = z.infer<typeof DrawOpSchema>
