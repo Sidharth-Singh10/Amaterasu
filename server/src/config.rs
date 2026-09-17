@@ -18,6 +18,9 @@ pub struct Config {
     pub opencode_base_url: String,
     pub opencode_password: Option<String>,
     pub opencode_agent: String,
+    /// provider/model (e.g. `opencode-go/deepseek-v4.1-flash`); primary sessions ignore the
+    /// agent's model, so the bridge sets it explicitly when configured.
+    pub opencode_model: Option<String>,
     pub opencode_directory: String,
 }
 
@@ -44,6 +47,7 @@ impl Config {
             opencode_password: env::var("OPENCODE_PASSWORD").ok(),
             opencode_agent: env::var("OPENCODE_AGENT")
                 .unwrap_or_else(|_| "chart-analyst".to_string()),
+            opencode_model: env::var("OPENCODE_MODEL").ok().filter(|value| !value.trim().is_empty()),
             opencode_directory: env::var("OPENCODE_DIRECTORY").unwrap_or_else(|_| {
                 // Walk up from the working directory looking for the agent project
                 // (`<ancestor>/opencode/opencode.jsonc`), the same way config discovery does.

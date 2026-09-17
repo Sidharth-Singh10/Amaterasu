@@ -27,6 +27,7 @@ pub struct Bridge {
     contexts: RwLock<HashMap<String, Value>>,
     active_chart: RwLock<Option<String>>,
     agent: String,
+    model: Option<String>,
     directory: String,
 }
 
@@ -39,6 +40,7 @@ impl Bridge {
             contexts: RwLock::new(HashMap::new()),
             active_chart: RwLock::new(None),
             agent: config.opencode_agent.clone(),
+            model: config.opencode_model.clone(),
             directory: config.opencode_directory.clone(),
         })
     }
@@ -90,7 +92,9 @@ impl Bridge {
 
     pub async fn create_session(&self) -> Result<String> {
         let client = self.client.as_ref().ok_or(BridgeError::NotConfigured)?;
-        Ok(client.create_session(&self.agent, &self.directory).await?)
+        Ok(client
+            .create_session(&self.agent, self.model.as_deref(), &self.directory)
+            .await?)
     }
 
     /// Sends a prompt with a chart preamble and returns the turn id used for traceability.

@@ -58,8 +58,13 @@ impl OpenCodeClient {
         serde_json::from_str(&body).map_err(|error| OpenCodeError::Shape(error.to_string()))
     }
 
-    pub async fn create_session(&self, agent: &str, directory: &str) -> Result<String> {
-        let body = json!({ "agent": agent, "location": { "directory": directory } });
+    pub async fn create_session(&self, agent: &str, model: Option<&str>, directory: &str) -> Result<String> {
+        let mut body = json!({ "agent": agent, "location": { "directory": directory } });
+        if let Some(model) = model {
+            if let Some((provider_id, id)) = model.split_once('/') {
+                body["model"] = json!({ "providerID": provider_id, "id": id });
+            }
+        }
         let value = self
             .ok_json(self.request(reqwest::Method::POST, "/api/session").json(&body).send().await?)
             .await?;
