@@ -22,4 +22,5 @@ export const rayRenderer: Renderer = {
     const distance = distToSegment(pt, points[0], tip)
     return distance <= tol ? distance : null
   },
+  handles: true,
 }

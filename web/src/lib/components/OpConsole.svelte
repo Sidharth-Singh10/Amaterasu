@@ -7,8 +7,10 @@
   const PRESETS: Array<{ kind: Kind; label: string }> = [
     { kind: "trendline", label: "Trendline" },
     { kind: "rect", label: "Range box" },
+    { kind: "hzone", label: "Zone" },
     { kind: "hline", label: "Level" },
-    { kind: "vline", label: "Now marker" },
+    { kind: "marker", label: "Marker" },
+    { kind: "measure", label: "Measure" },
     { kind: "label", label: "Callout" },
   ]
 
@@ -35,7 +37,12 @@
   function insertPreset(kind: Kind): void {
     error = null
     if (!controller) return
-    text = JSON.stringify(controller.exampleOp(kind), null, 2)
+    const op = controller.exampleOp(kind)
+    if (!op) {
+      error = "Load chart data before using presets."
+      return
+    }
+    text = JSON.stringify(op, null, 2)
   }
 </script>
 

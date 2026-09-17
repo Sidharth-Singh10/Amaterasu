@@ -17,6 +17,8 @@ export interface Renderer<A extends Annotation = Annotation> {
   draw(a: A, t: Transform, painter: Painter, env: FrameEnv): void
   /** Pixel distance to the shape, or null on miss. */
   hitTest?(a: A, t: Transform, pt: Point, tol: number): number | null
+  /** Anchor points are draggable handles when the annotation is selected. */
+  readonly handles?: boolean
 }
 
 const registry = new Map<Kind, Renderer>()

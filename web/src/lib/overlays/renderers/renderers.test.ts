@@ -197,3 +197,117 @@ describe("painter geometry", () => {
     expect(painter.ops.some((o) => o.name === "line")).toBe(false)
   })
 })
+
+describe("hzone renderer", () => {
+  const points = [
+    { t: BARS[110], p: 1200 },
+    { t: BARS[130], p: 1150 },
+  ]
+
+  it("draws a full-width band between the two prices", () => {
+    const { op } = render("hzone", points)
+    const rect = op("rect")
+    expect(rect).toBeDefined()
+    const [x, y, w, h] = rect!.args as [number, number, number, number]
+    const top = 400 * ((1300 - 1200) / 300)
+    const bottom = 400 * ((1300 - 1150) / 300)
+    expect(x).toBe(0)
+    expect(close(w, 800)).toBe(true)
+    expect(close(y, top)).toBe(true)
+    expect(close(h, bottom - top)).toBe(true)
+  })
+
+  it("hits inside the band and misses outside the tolerance", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("hzone")!
+    const t = makeTransform()
+    const ann = annotation("hzone", points)
+    const inside = 400 * ((1300 - 1175) / 300)
+    expect(renderer.hitTest!(ann, t, { x: 100, y: inside }, 6)).toBe(0)
+    const above = 400 * ((1300 - 1100) / 300)
+    expect(renderer.hitTest!(ann, t, { x: 100, y: above }, 6)).toBeNull()
+  })
+})
+
+describe("vzone renderer", () => {
+  const points = [
+    { t: BARS[110], p: 1200 },
+    { t: BARS[130], p: 1200 },
+  ]
+
+  it("draws a full-height band between the two times", () => {
+    const { op } = render("vzone", points)
+    const rect = op("rect")
+    expect(rect).toBeDefined()
+    const [x, y, w, h] = rect!.args as [number, number, number, number]
+    expect(close(x, 80)).toBe(true)
+    expect(y).toBe(0)
+    expect(close(w, 160)).toBe(true)
+    expect(close(h, 400)).toBe(true)
+  })
+
+  it("hits inside the time band", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("vzone")!
+    const t = makeTransform()
+    const ann = annotation("vzone", points)
+    expect(renderer.hitTest!(ann, t, { x: 160, y: 200 }, 6)).toBe(0)
+    expect(renderer.hitTest!(ann, t, { x: 320, y: 200 }, 6)).toBeNull()
+  })
+})
+
+describe("marker renderer", () => {
+  it("draws the configured glyph and label", () => {
+    const { op } = render(
+      "marker",
+      [{ t: BARS[110], p: 1200 }],
+      { label: "swing low", style: { shape: "arrowUp", color: "#26a69a" } },
+    )
+    const icon = op("markerIcon")
+    expect(icon).toBeDefined()
+    expect(icon!.args[0]).toBe("arrowUp")
+    const text = op("text")
+    expect(text).toBeDefined()
+    expect(text!.args[2]).toBe("swing low")
+  })
+
+  it("hit-tests within a 12px radius", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("marker")!
+    const t = makeTransform()
+    const ann = annotation("marker", [{ t: BARS[110], p: 1200 }])
+    const point = { x: 80, y: 400 * ((1300 - 1200) / 300) }
+    expect(renderer.hitTest!(ann, t, point, 6)).not.toBeNull()
+    expect(renderer.hitTest!(ann, t, { x: point.x + 30, y: point.y }, 6)).toBeNull()
+  })
+})
+
+describe("measure renderer", () => {
+  const points = [
+    { t: BARS[100], p: 1100 },
+    { t: BARS[130], p: 1200 },
+  ]
+
+  it("draws a connector and a badge with the deltas", () => {
+    const { op } = render("measure", points)
+    expect(op("dashedLine")).toBeDefined()
+    const text = op("text")
+    expect(text).toBeDefined()
+    const label = String(text!.args[2])
+    expect(label).toContain("+100.00")
+    expect(label).toContain("+9.09%")
+    expect(label).toContain("30 bars")
+  })
+
+  it("hit-tests along the connector", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("measure")!
+    const t = makeTransform()
+    const ann = annotation("measure", points)
+    const from = { x: 0, y: 400 * ((1300 - 1100) / 300) }
+    const to = { x: 240, y: 400 * ((1300 - 1200) / 300) }
+    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+    expect(renderer.hitTest!(ann, t, mid, 6)).not.toBeNull()
+    expect(renderer.hitTest!(ann, t, { x: mid.x, y: mid.y + 40 }, 6)).toBeNull()
+  })
+})

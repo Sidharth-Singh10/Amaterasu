@@ -23,4 +23,5 @@ export const rectRenderer: Renderer = {
     const distance = distToRect(pt, rect)
     return distance <= tol ? distance : null
   },
+  handles: true,
 }

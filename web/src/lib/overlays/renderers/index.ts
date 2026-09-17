@@ -1,10 +1,14 @@
 import { registerRenderer } from "../registry"
 import { hlineRenderer } from "./hline"
+import { hzoneRenderer } from "./hzone"
 import { labelRenderer } from "./label"
+import { markerRenderer } from "./marker"
+import { measureRenderer } from "./measure"
 import { rayRenderer } from "./ray"
 import { rectRenderer } from "./rect"
 import { trendlineRenderer } from "./trendline"
 import { vlineRenderer } from "./vline"
+import { vzoneRenderer } from "./vzone"
 
 let registered = false
 
@@ -18,6 +22,10 @@ export function registerBuiltinRenderers(): void {
     hlineRenderer,
     vlineRenderer,
     rectRenderer,
+    hzoneRenderer,
+    vzoneRenderer,
+    markerRenderer,
+    measureRenderer,
     labelRenderer,
   ]) {
     registerRenderer(renderer)

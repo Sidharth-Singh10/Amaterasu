@@ -16,4 +16,5 @@ export const trendlineRenderer: Renderer = {
   hitTest(a, t, pt, tol) {
     return segmentHit(a, t, pt, tol)
   },
+  handles: true,
 }

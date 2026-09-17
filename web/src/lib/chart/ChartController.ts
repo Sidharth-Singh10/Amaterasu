@@ -16,6 +16,9 @@ import { diffCandles } from "@/lib/data/diff"
 import { DocStore, type AnchorCheck } from "@/lib/ops/reducer"
 import { OverlaySurface, type EphemeralShape } from "@/lib/overlays/surface"
 import { registerBuiltinRenderers } from "@/lib/overlays/renderers"
+import { resolvePoints } from "@/lib/overlays/renderers/common"
+import { getRenderer } from "@/lib/overlays/registry"
+import { SnapEngine, type SnapKind, type SnapResult } from "@/lib/overlays/snap"
 import type { Point } from "@/lib/overlays/painter"
 
 export type Tool = "select" | Kind
@@ -80,6 +83,8 @@ export class ChartController {
   private hovered: string | null = null
   private drawing: DrawingState | null = null
   private dragging: DraggingState | null = null
+  private resizing: { id: string; handleIndex: number; draft: Anchor[] } | null = null
+  private readonly snap = new SnapEngine()
   private meta = { symbol: "unknown", interval: "1day" }
   private disposed = false
 
@@ -178,11 +183,42 @@ export class ChartController {
   }
 
   applyOp(raw: unknown, label?: string): OpResult {
-    const result = this.store.applyOp(raw)
+    const { op, snappedTo } = this.withDataSnap(raw)
+    const result = this.store.applyOp(op)
+    if (result.ok && snappedTo.length > 0) result.snappedTo = snappedTo
     this.surface.invalidate("all")
     this.listeners.onLog?.({ label: label ?? describeOp(raw), result })
     this.emitChange()
     return result
+  }
+
+  /**
+   * Agent-op snapping (§6.3.7): data-space tolerance so the same op resolves identically
+   * at any zoom. `snap: "ohlc" | "swing" | "level"` snaps each anchor to the nearest
+   * structural value (and its bar time); "none"/absent leaves points untouched.
+   */
+  private withDataSnap(raw: unknown): { op: unknown; snappedTo: string[] } {
+    if (typeof raw !== "object" || raw === null) return { op: raw, snappedTo: [] }
+    const candidate = raw as { op?: string; snap?: string; points?: Anchor[] }
+    if (candidate.op !== "draw" || !candidate.snap || candidate.snap === "none" || !Array.isArray(candidate.points)) {
+      return { op: raw, snappedTo: [] }
+    }
+    const kinds: SnapKind[] =
+      candidate.snap === "ohlc" ? ["ohlc"] : candidate.snap === "swing" ? ["swing"] : ["round"]
+    const snappedTo: string[] = []
+    const points = candidate.points.map((anchor) => {
+      const result = this.snap.snapPrice(anchor.p, this.snapTolerance(anchor.p), kinds)
+      if (!result) return anchor
+      snappedTo.push(result.label)
+      return result.time !== undefined ? { t: result.time, p: result.price } : { ...anchor, p: result.price }
+    })
+    return { op: { ...raw, points, snap: "none" }, snappedTo }
+  }
+
+  /** min(0.1% of price, 0.25 × ATR14) — viewport-independent agent tolerance. */
+  private snapTolerance(price: number): number {
+    const atr = this.snap.atr(14)
+    return Math.min(Math.abs(price) * 0.001, atr ? atr * 0.25 : Number.POSITIVE_INFINITY)
   }
 
   undo(): void {
@@ -206,11 +242,50 @@ export class ChartController {
   }
 
   /** Valid sample op for the dev console, built from the currently loaded bars. */
-  exampleOp(kind: Kind): Op {
+  exampleOp(kind: Kind): Op | null {
     const bars = this.bars
+    if (bars.length < 3) return null
     const last = bars[bars.length - 1]
     const first = bars[Math.max(0, bars.length - 61)]
     switch (kind) {
+      case "hzone": {
+        const window = bars.slice(-20)
+        const low = Math.min(...window.map((c) => c.low))
+        const high = Math.max(...window.map((c) => c.high))
+        return {
+          op: "draw",
+          kind,
+          points: [
+            { t: last.time, p: low },
+            { t: last.time, p: high },
+          ],
+          label: "band",
+        }
+      }
+      case "marker": {
+        const window = bars.slice(-30)
+        const lowest = window.reduce((a, b) => (b.low < a.low ? b : a), window[0])
+        return {
+          op: "draw",
+          kind,
+          points: [{ t: lowest.time, p: lowest.low }],
+          label: "swing low",
+          style: { shape: "arrowUp", color: "#26a69a" },
+        }
+      }
+      case "measure": {
+        const window = bars.slice(-60)
+        const lowest = window.reduce((a, b) => (b.low < a.low ? b : a), window[0])
+        const highest = window.reduce((a, b) => (b.high > a.high ? b : a), window[0])
+        return {
+          op: "draw",
+          kind,
+          points: [
+            { t: lowest.time, p: lowest.low },
+            { t: highest.time, p: highest.high },
+          ],
+        }
+      }
       case "hline":
         return { op: "draw", kind, points: [{ t: last.time, p: last.close }], label: `close ${last.close.toFixed(2)}` }
       case "vline":
@@ -262,6 +337,7 @@ export class ChartController {
   applyCandles(candles: Candle[], opts?: { preserveView?: boolean }): void {
     const previous = this.bars
     this.bars = candles
+    this.snap.setBars(candles)
     const diff = diffCandles(previous, candles)
     if (diff.mode === "update") {
       for (const candle of diff.candles) {
@@ -471,6 +547,23 @@ export class ChartController {
     const pt = this.localPoint(event)
 
     if (this.tool === "select") {
+      const t = this.transform()
+      const handle = t ? this.handleAt(pt, t) : null
+      if (handle) {
+        const annotation = this.store.annotations.find((a) => a.id === handle.id)
+        if (annotation) {
+          this.selected = new Set([handle.id])
+          this.resizing = {
+            id: handle.id,
+            handleIndex: handle.index,
+            draft: annotation.points.map((point) => ({ ...point })),
+          }
+          this.consume(event)
+          this.emitChange()
+          this.surface.invalidate("all")
+          return
+        }
+      }
       const hit = this.surface.hitTest(pt, 6)
       if (hit) {
         const annotation = this.store.annotations.find((a) => a.id === hit.id)
@@ -490,7 +583,7 @@ export class ChartController {
     this.consume(event)
     const t = this.transform()
     if (!t) return
-    const anchor = t.anchorAt(pt.x, pt.y)
+    const { anchor } = this.anchorWithSnap(pt, t)
     if (!anchor) return
 
     if (this.tool === "hline" || this.tool === "vline" || this.tool === "label") {
@@ -506,13 +599,31 @@ export class ChartController {
       this.surface.setEphemeral([{ kind: "point", points: [pt] }])
       return
     }
-    const end = t.anchorAt(pt.x, pt.y)
+    const { anchor: end } = this.anchorWithSnap(pt, t)
     if (end) this.finishDrawing(this.drawing, end)
   }
 
   private onPointerMove = (event: PointerEvent): void => {
     if (event.pointerType !== "mouse" && event.pointerType !== "pen") return
     const pt = this.localPoint(event)
+
+    if (this.resizing) {
+      event.stopPropagation()
+      const t = this.transform()
+      if (!t) return
+      const annotation = this.store.annotations.find((a) => a.id === this.resizing?.id)
+      if (!annotation) return
+      const { anchor, snap } = this.anchorWithSnap(pt, t)
+      if (!anchor) return
+      const draft = [...this.resizing.draft]
+      draft[this.resizing.handleIndex] = anchor
+      this.resizing.draft = draft
+      const shapes = this.shapesFor(annotation.kind, draft, t, true)
+      this.surface.setEphemeral(
+        snap ? [...shapes, { kind: "point", points: [{ x: snap.x, y: snap.y }], label: snap.label }] : shapes,
+      )
+      return
+    }
 
     if (this.dragging) {
       event.stopPropagation()
@@ -534,8 +645,12 @@ export class ChartController {
       if (Math.hypot(pt.x - this.drawing.startPx.x, pt.y - this.drawing.startPx.y) > 4) {
         this.drawing.moved = true
       }
+      const t = this.transform()
+      const snap = t ? this.snap.snapPoint(pt, t, { tolPx: 8 }) : null
       const preview = this.previewShapes(this.drawing.kind, this.drawing.startPx, pt)
-      this.surface.setEphemeral(preview)
+      this.surface.setEphemeral(
+        snap ? [...preview, { kind: "point", points: [{ x: snap.x, y: snap.y }], label: snap.label }] : preview,
+      )
       return
     }
 
@@ -550,6 +665,14 @@ export class ChartController {
 
   private onPointerUp = (event: PointerEvent): void => {
     this.ownGesture = false
+    if (this.resizing) {
+      event.stopPropagation()
+      const { id, draft } = this.resizing
+      this.resizing = null
+      this.surface.setEphemeral([])
+      this.applyOp({ op: "update", id, points: draft }, "resize annotation")
+      return
+    }
     if (this.dragging) {
       event.stopPropagation()
       const { id, draft } = this.dragging
@@ -563,7 +686,7 @@ export class ChartController {
       const t = this.transform()
       if (t) {
         const pt = this.localPoint(event)
-        const end = t.anchorAt(pt.x, pt.y)
+        const { anchor: end } = this.anchorWithSnap(pt, t)
         if (end) this.finishDrawing(this.drawing, end)
       }
       this.drawing = null
@@ -621,8 +744,35 @@ export class ChartController {
   private cancelPendingGesture(): void {
     this.drawing = null
     this.dragging = null
+    this.resizing = null
     this.ownGesture = false
     this.surface.setEphemeral([])
+  }
+
+  /** Selected annotations' anchor handles are grabbed before anything else. */
+  private handleAt(pt: Point, t: Transform): { id: string; index: number } | null {
+    for (const id of this.selected) {
+      const annotation = this.store.annotations.find((a) => a.id === id)
+      if (!annotation || annotation.locked) continue
+      if (!getRenderer(annotation.kind)?.handles) continue
+      const points = resolvePoints(annotation, t)
+      if (!points) continue
+      for (let index = 0; index < points.length; index++) {
+        const handle = points[index]
+        if (Math.hypot(pt.x - handle.x, pt.y - handle.y) <= 10) return { id, index }
+      }
+    }
+    return null
+  }
+
+  /** Pointer → anchor with structure snapping applied (human input path). */
+  private anchorWithSnap(pt: Point, t: Transform): { anchor: Anchor | null; snap: SnapResult | null } {
+    const anchor = t.anchorAt(pt.x, pt.y)
+    if (!anchor) return { anchor: null, snap: null }
+    const snap = this.snap.snapPoint(pt, t, { tolPx: 8 })
+    if (!snap) return { anchor, snap: null }
+    const snappedAnchor = t.anchorAt(snap.x, snap.y)
+    return { anchor: snappedAnchor ?? anchor, snap }
   }
 
   private translateAnchor(anchor: Anchor, dx: number, dy: number, t: Transform): Anchor | null {

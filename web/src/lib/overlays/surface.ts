@@ -8,6 +8,8 @@ export interface EphemeralShape {
   points: Point[]
   color?: string
   dash?: boolean
+  /** Optional caption drawn next to the shape (e.g. the snap target label). */
+  label?: string
 }
 
 export interface SurfaceState {
@@ -176,7 +178,16 @@ export class OverlaySurface {
       } else if (shape.kind === "point" && shape.points.length >= 1) {
         painter.markerIcon("circle", shape.points[0], { color, size: 4 })
       }
+      if (shape.label && shape.points.length >= 1) {
+        painter.text(shape.points[0].x + 10, shape.points[0].y - 12, shape.label, {
+          color: "#f0b429",
+          fontSize: 11,
+          align: "left",
+          baseline: "bottom",
+        })
+      }
     }
+    painter.textPass()
     painter.end()
     void t
   }
