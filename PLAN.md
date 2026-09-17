@@ -3,9 +3,10 @@
 **Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 0 complete on the SvelteKit stack (2026-09-17) — overlay engine + chart shell + dev console
-in `web/`; 44 unit tests green; svelte-check clean; E2E verified in Chromium (13 checks: draw, undo/redo, pan,
-zoom, annotation drag, structured op failures); the `server/` Rust skeleton compiles and serves the built SPA.
+**Build status:** Phase 1 implemented (2026-09-17) — Rust data service (INDmoney OAuth + MCP client + candles/
+search/quote + TTL cache, 22 unit tests) and the live-data shell (search, intervals, quote, auto-refresh,
+persistence, `?demo=1`); 53 web tests, svelte-check clean, 13/13 E2E. One-time INDmoney consent pending for the
+live-data verification.
 **Supersedes:** v0.0.3 — frontend migrated from Next.js to SvelteKit. v0.0.2 — backend switched from Node route
 handlers to a Rust (axum) service. v0.0.1 — overlay engine raised to a first-class component after review of the
 Graphite planning artifact (`/home/levi/Graphite/chart-app-plan.md`).
@@ -494,6 +495,9 @@ Postgres option, CRDT-style concurrent editing if ever multi-user.
 4. Verify self-hosted Firecrawl health at `127.0.0.1:3002` (rootful podman not inspectable at planning time).
 5. Verify LWC pane offset source (pane DOM measurement vs `paneSize()`) in Phase 0.
 6. Verify V2 plugin tool context exposes session/message ids in Phase 2.
+7. **INDmoney data-path consent** — one-time browser consent for the Rust service (dev callback
+   `http://127.0.0.1:8787/api/indmoney/oauth/callback`; the VPS registers a second client against the domain
+   callback).
 
 ## Appendix A — Overlay design provenance (v0.0.2)
 

@@ -5,12 +5,15 @@ through a data-space overlay protocol. **`PLAN.md` (v0.0.4) is the design of rec
 
 ## Status
 
-**Phase 0 complete** (2026-09-17) on the final stack: SvelteKit 2 + Svelte 5 (runes) +
-Tailwind 4 via `adapter-static` (SPA), and a Rust (axum) service. Delivered: the overlay
-engine (Transform + resolver, Painter, renderer registry, canvas layers, DOM labels), op DSL
-+ reducer with snapshot undo, chart shell + dev op console, 44 unit tests, svelte-check
-clean, and a 13-check browser E2E harness. The Rust service compiles and serves the built
-SPA. The INDmoney data bridge lands in Phase 1.
+**Phase 1 implemented — live consent pending** (2026-09-17). Phase 0 delivered the overlay
+engine (Transform + resolver, Painter, renderer registry, canvas layers, DOM labels), the op
+DSL + reducer with snapshot undo, the SvelteKit chart shell + dev op console, and a 13-check
+browser E2E harness. Phase 1 adds the Rust data service: INDmoney OAuth (DCR + PKCE S256 +
+refresh, 0600 token store), a streamable-HTTP MCP client, `/api/candles` · `/api/search` ·
+`/api/quote` with timestamp normalization and a single-flight TTL cache, and the live-data
+shell (symbol search, interval tabs, quote header, auto-refresh, view persistence, plus a
+`?demo=1` offline mode for deterministic E2E). Completing the one-time INDmoney consent
+switches the chart from mock to live data.
 
 ## Layout
 
@@ -26,17 +29,20 @@ SPA. The INDmoney data bridge lands in Phase 1.
 
 ```sh
 npm install                                     # repo root; npm workspaces
-npm run dev --workspace @amaterasu/web          # dev server on http://127.0.0.1:3000
-npm run test --workspace @amaterasu/web         # vitest unit suite (44 tests)
+npm run dev --workspace @amaterasu/web          # web dev server on http://127.0.0.1:3000
+npm run test --workspace @amaterasu/web         # vitest unit suite (53 tests)
 npm run verify:e2e --workspace @amaterasu/web   # browser E2E checks (dev server must be running)
 npm run check --workspace @amaterasu/web        # svelte-kit sync + svelte-check
 npm run build --workspace @amaterasu/web        # SPA build into web/build
-cargo check --manifest-path server/Cargo.toml
+
+cargo test --manifest-path server/Cargo.toml                # Rust unit tests (22)
+cargo test --manifest-path server/Cargo.toml -- --ignored   # live OAuth discovery + DCR check
+# API service on :8787 (dev proxies /api from the web server to here):
+AMATERASU_APP_URL=http://127.0.0.1:3000 cargo run --manifest-path server/Cargo.toml
 ```
 
-The Rust service hosts the production bundle:
-`AMATERASU_STATIC_DIR=/home/levi/amaterasu/web/build cargo run --manifest-path server/Cargo.toml`
-(then http://127.0.0.1:8787).
+Production: `AMATERASU_STATIC_DIR=/home/levi/amaterasu/web/build cargo run --manifest-path server/Cargo.toml`
+serves the built SPA with an index.html fallback (then http://127.0.0.1:8787).
 
 ## Dev op console
 
