@@ -81,6 +81,13 @@ interface Pending {
 
 interface ToolContextLike {
   progress?: (input: { status: string }) => Promise<void>
+  sessionID?: string
+  messageID?: string
+}
+
+interface OpSource {
+  sessionID: string
+  messageID: string
 }
 
 export default Plugin.define({
@@ -179,7 +186,7 @@ export default Plugin.define({
         name: string
         description: string
         input: Record<string, unknown>
-        execute: (input: unknown, toolContext: ToolContextLike) => Promise<{ content: string }>
+        execute: (input: unknown, toolContext: ToolContextLike, source?: OpSource) => Promise<{ content: string }>
       }) => {
         editor.add({
           name: tool.name,
@@ -187,11 +194,18 @@ export default Plugin.define({
           input: tool.input as never,
           options: { namespace: "chart" },
           execute: async (input, toolContext) => {
+            const context = (toolContext ?? {}) as ToolContextLike
             if (debug && !toolContextLogged) {
               toolContextLogged = true
               console.log("[chart-bridge] tool context keys:", Object.keys(toolContext ?? {}))
             }
-            return (await tool.execute(input, (toolContext ?? {}) as ToolContextLike)) as never
+            // Traceability: the tool context carries the calling turn, so every op the
+            // agent draws can be stamped with its real originating session/message.
+            const source =
+              context.sessionID && context.messageID
+                ? { sessionID: context.sessionID, messageID: context.messageID }
+                : undefined
+            return (await tool.execute(input, context, source)) as never
           },
         })
       }
@@ -241,7 +255,7 @@ export default Plugin.define({
           },
           ["shapes"],
         ),
-        execute: async (input, tool) => {
+        execute: async (input, tool, source) => {
           await tool.progress?.({ status: "drawing on the chart" })
           const { shapes } = input as { shapes: Array<Record<string, unknown>> }
           const results: unknown[] = []
@@ -256,6 +270,7 @@ export default Plugin.define({
               ...rest,
               ...(label ? { label } : {}),
               ...(Object.keys(style).length > 0 ? { style } : {}),
+              ...(source ? { source } : {}),
             }
             results.push(
               await request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS).catch((error) => ({
@@ -286,12 +301,12 @@ export default Plugin.define({
           },
           ["id"],
         ),
-        execute: async (input) =>
+        execute: async (input, _tool, source) =>
           content(
             await request(
               pendingOps,
               "op.request",
-              { op: { op: "update", ...(input as object) } },
+              { op: { op: "update", ...(input as object), ...(source ? { source } : {}) } },
               OP_TIMEOUT_MS,
             ).catch((error) => ({ ok: false, error: (error as Error).message })),
           ),
@@ -301,12 +316,12 @@ export default Plugin.define({
         name: "remove",
         description: "Remove one annotation by id.",
         input: object({ id: str }, ["id"]),
-        execute: async (input) =>
+        execute: async (input, _tool, source) =>
           content(
             await request(
               pendingOps,
               "op.request",
-              { op: { op: "remove", id: (input as { id: string }).id } },
+              { op: { op: "remove", id: (input as { id: string }).id, ...(source ? { source } : {}) } },
               OP_TIMEOUT_MS,
             ).catch((error) => ({ ok: false, error: (error as Error).message })),
           ),
@@ -316,12 +331,12 @@ export default Plugin.define({
         name: "clear",
         description: "Remove annotations by id list or by kind. Use only when the user asks for it.",
         input: object({ ids: { type: "array", items: str }, kind: str }, []),
-        execute: async (input) =>
+        execute: async (input, _tool, source) =>
           content(
             await request(
               pendingOps,
               "op.request",
-              { op: { op: "clear", ...(input as object) } },
+              { op: { op: "clear", ...(input as object), ...(source ? { source } : {}) } },
               OP_TIMEOUT_MS,
             ).catch((error) => ({ ok: false, error: (error as Error).message })),
           ),
