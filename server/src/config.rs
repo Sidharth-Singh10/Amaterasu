@@ -22,6 +22,8 @@ pub struct Config {
     /// agent's model, so the bridge sets it explicitly when configured.
     pub opencode_model: Option<String>,
     pub opencode_directory: String,
+    /// SQLite file holding per-symbol workspace documents.
+    pub workspaces_db: PathBuf,
 }
 
 impl Config {
@@ -30,12 +32,16 @@ impl Config {
         let base_url =
             env::var("AMATERASU_BASE_URL").unwrap_or_else(|_| format!("http://{bind}"));
         let app_url = env::var("AMATERASU_APP_URL").unwrap_or_else(|_| base_url.clone());
+        let data_dir = env::var("AMATERASU_DATA_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| default_data_dir());
         Self {
             bind,
             static_dir: env::var("AMATERASU_STATIC_DIR").ok().map(PathBuf::from),
-            data_dir: env::var("AMATERASU_DATA_DIR")
+            workspaces_db: env::var("AMATERASU_WORKSPACES_DB")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| default_data_dir()),
+                .unwrap_or_else(|_| data_dir.join("workspaces.db")),
+            data_dir,
             base_url,
             app_url,
             indmoney_mcp_url: env::var("INDMONEY_MCP_URL")

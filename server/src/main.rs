@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use anyhow::Context;
 use amaterasu_server::{
     api::AppState,
     bridge::Bridge,
@@ -7,6 +8,7 @@ use amaterasu_server::{
     cache::Cache,
     config::Config,
     indmoney::IndmoneyClient,
+    workspace::WorkspaceStore,
 };
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::EnvFilter;
@@ -26,11 +28,16 @@ async fn main() -> anyhow::Result<()> {
     let indmoney = Arc::new(IndmoneyClient::new(&config, http).await);
     let bridge = Bridge::new(&config);
     bridge.spawn_event_pump();
+    let workspaces = Arc::new(
+        WorkspaceStore::open(&config.workspaces_db)
+            .with_context(|| format!("opening workspace db {}", config.workspaces_db.display()))?,
+    );
     let state = AppState {
         config: config.clone(),
         indmoney,
         cache: Arc::new(Cache::new()),
         bridge,
+        workspaces,
     };
 
     let mut app = build_router(state);

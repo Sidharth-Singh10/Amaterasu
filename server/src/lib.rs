@@ -4,6 +4,7 @@ pub mod cache;
 pub mod config;
 pub mod indmoney;
 pub mod opencode;
+pub mod workspace;
 
 use axum::Router;
 use tower_http::trace::TraceLayer;

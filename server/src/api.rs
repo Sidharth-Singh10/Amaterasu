@@ -18,6 +18,7 @@ use crate::{
     cache::Cache,
     config::Config,
     indmoney::{IndmoneyClient, IndmoneyError, normalize},
+    workspace::{WorkspaceError, WorkspaceStore},
 };
 
 #[derive(Clone)]
@@ -26,6 +27,7 @@ pub struct AppState {
     pub indmoney: Arc<IndmoneyClient>,
     pub cache: Arc<Cache>,
     pub bridge: Arc<Bridge>,
+    pub workspaces: Arc<WorkspaceStore>,
 }
 
 pub fn routes() -> Router<AppState> {
@@ -47,6 +49,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/chart/sync", post(chart_sync))
         .route("/api/chart/op-ack", post(chart_op_ack))
         .route("/api/chart/state-ack", post(chart_state_ack))
+        .route("/api/workspace/{key}", get(workspace_get).put(workspace_put))
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
@@ -339,6 +342,41 @@ async fn chart_state_ack(
     Json(body): Json<RequestAckBody>,
 ) -> Result<Json<Value>, ApiError> {
     Ok(Json(state.bridge.chart_state_ack(&body.request_id, body.result).await?))
+}
+
+async fn workspace_get(State(state): State<AppState>, Path(key): Path<String>) -> Result<Json<Value>, ApiError> {
+    match state.workspaces.get(&key) {
+        Ok(Some((payload, updated_at))) => {
+            let payload: Value = serde_json::from_str(&payload).unwrap_or(Value::Null);
+            Ok(Json(json!({ "key": key, "payload": payload, "updatedAt": updated_at })))
+        }
+        Ok(None) => Ok(Json(json!({ "key": key, "payload": null, "updatedAt": null }))),
+        Err(error) => Err(ApiError::BadRequest(error.to_string())),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspacePutBody {
+    payload: Value,
+}
+
+async fn workspace_put(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+    Json(body): Json<WorkspacePutBody>,
+) -> Result<Json<Value>, ApiError> {
+    let payload = body.payload.to_string();
+    state
+        .workspaces
+        .put(&key, &payload)
+        .map(|updated_at| Json(json!({ "ok": true, "updatedAt": updated_at })))
+        .map_err(|error| ApiError::BadRequest(error.to_string()))
+}
+
+impl From<WorkspaceError> for ApiError {
+    fn from(error: WorkspaceError) -> Self {
+        ApiError::BadRequest(error.to_string())
+    }
 }
 
 /// TTLs sized to the poll cadence: intraday bars turn over quickly, daily bars slowly.
