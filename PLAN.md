@@ -3,11 +3,14 @@
 **Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 2 in progress (2026-09-17) — the OpenCode project (`opencode/`: chart-analyst agent,
+**Build status:** Phase 2 complete (2026-09-17) — the OpenCode project (`opencode/`: chart-analyst agent,
 chart-bridge plugin with `chart_*` tools + RPC) and the Rust bridge (chat sessions, single upstream event
-subscription fanned out over SSE, chart RPC forwarding) are live and verified: session → prompt → streamed
-reply, attach/sync/op-ack round trips, and the plugin tool context exposes sessionID/messageID (Phase 2 open
-item resolved). Remaining: the chat panel UI and the definitive "agent draws on the live chart" test.
+subscription fanned out over SSE, chart RPC forwarding) are live and verified end to end: the agent reads the
+chart (`state.request` → browser snapshot), draws on it (`op.draw.request` → DocStore → ack), every op is stamped
+with its originating `sessionID`/`messageID`, tool cards render, and per-turn Undo removes exactly that turn's
+shapes. Findings worth carrying to the VPS: **V2 reaches plugin/MCP tools through Code Mode** (`execute` must be
+allowed; nested calls still enforce their own permission actions), and **primary sessions ignore an agent's
+`model`** — the bridge pins it via `OPENCODE_MODEL` (default dev: `opencode-go/deepseek-v4.1-flash`).
 Phase 1 complete — Rust data service (INDmoney OAuth + MCP client + candles/search/quote + TTL cache, 23 unit
 tests) and the live-data shell; 53 web tests, svelte-check clean, 13/13 E2E; live-verified 248 daily RELIANCE
 bars (2025-09-17 → 2026-09-17), live quote, 302 ms uncached intraday fetch, 3.6 ms cached.
@@ -427,6 +430,12 @@ finally { pendingOps.delete(requestId); }
   (`"User is viewing RELIANCE 1d, range …"`). `session.synthetic` pushes are optional, debounced ≈500 ms, idle-only,
   deduped — never on every pan.
 - Op result ordering: browser serializes ops by arrival per chart; the op log (§6.3.9) carries the ordering.
+- **V2 Code Mode caveat (verified live):** plugin and MCP tools are reached through Code Mode's catalog
+  (`tools.chart.*`, `tools.indmoney.*`); the agent must have the `execute` action allowed, and nested calls still
+  enforce their own permission actions. The plugin/RPC/round-trip design is unchanged — only the agent's calling
+  convention (JavaScript in `execute`) and its permission list reflect this.
+- **Session model:** primary sessions ignore an agent's `model` field; the bridge pins the model when creating a
+  session (`OPENCODE_MODEL`, provider/model form).
 
 ### 6.5 Agent tools
 
@@ -498,7 +507,8 @@ Postgres option, CRDT-style concurrent editing if ever multi-user.
 3. **Stack divergence — resolved (v0.0.4)**: frontend = SvelteKit 2 + Svelte 5; backend = Rust (axum).
 4. Verify self-hosted Firecrawl health at `127.0.0.1:3002` (rootful podman not inspectable at planning time).
 5. Verify LWC pane offset source (pane DOM measurement vs `paneSize()`) in Phase 0.
-6. Verify V2 plugin tool context exposes session/message ids in Phase 2.
+6. ~~Verify V2 plugin tool context exposes session/message ids~~ **Resolved (Phase 2):** the tool context
+   exposes `sessionID`/`messageID`; every agent op is stamped with them and per-turn undo clears by source.
 7. **INDmoney data-path consent** — one-time browser consent for the Rust service (dev callback
    `http://127.0.0.1:8787/api/indmoney/oauth/callback`; the VPS registers a second client against the domain
    callback).

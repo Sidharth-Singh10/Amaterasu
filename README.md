@@ -59,7 +59,8 @@ Local agent bridge (Phase 2 development):
 cd opencode && OPENCODE_SERVER_PASSWORD=dev-workspace-secret \
   opencode serve --hostname 127.0.0.1 --port 4096
 # 2. the API service with chat enabled (from the repo root)
-OPENCODE_PASSWORD=dev-workspace-secret AMATERASU_APP_URL=http://127.0.0.1:3000 \
+OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-flash \
+  AMATERASU_APP_URL=http://127.0.0.1:3000 \
   cargo run --manifest-path server/Cargo.toml
 # 3. type-check the plugin/agent project
 cd opencode && npm install && npm run check
