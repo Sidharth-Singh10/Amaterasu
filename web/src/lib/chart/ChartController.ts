@@ -13,9 +13,9 @@ import type { Anchor, Kind, Op, OpResult, SetViewOp } from "@amaterasu/chart-dsl
 import { Transform } from "@/lib/chart/transform"
 import { demoCandles, type Candle } from "@/lib/data/mock"
 import { DocStore, type AnchorCheck } from "@/lib/ops/reducer"
-import { OverlaySurface, type EphemeralShape } from "@/components/overlays/surface"
-import { registerBuiltinRenderers } from "@/components/overlays/renderers"
-import type { Point } from "@/components/overlays/painter"
+import { OverlaySurface, type EphemeralShape } from "@/lib/overlays/surface"
+import { registerBuiltinRenderers } from "@/lib/overlays/renderers"
+import type { Point } from "@/lib/overlays/painter"
 
 export type Tool = "select" | Kind
 
