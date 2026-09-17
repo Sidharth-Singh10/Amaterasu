@@ -228,7 +228,7 @@ export default Plugin.define({
       add({
         name: "draw",
         description:
-          "Draw annotations on the chart. Points are data coordinates { t: bar time in Unix seconds, p: price }. Kinds: trendline (2 points), ray (2 points), hline (1 point, price level), vline (1 point, time), rect (2 points), hzone (2 points, price band across the chart — supply/demand), vzone (2 points, time band), marker (1 point, event glyph), measure (2 points, Δ badge), label (1 point, text). Set `snap` (\"ohlc\" | \"swing\" | \"level\") to place points on structure instead of exact values. Returns the created annotation ids.",
+          "Draw annotations on the chart. Points are data coordinates { t: bar time in Unix seconds, p: price }. Kinds: trendline (2 points), ray (2 points), hline (1 point, price level), vline (1 point, time), rect (2 points), hzone (2 points, price band across the chart — supply/demand), vzone (2 points, time band), marker (1 point, event glyph), measure (2 points, Δ badge), fib (2 points — a real retracement shape with 7 labelled levels; never compose one from hlines), channel (3 points — parallel rails: 0-1 is the first rail, 2 sets the offset; never compose one from two trendlines), label (1 point, text). Set `snap` (\"ohlc\" | \"swing\" | \"level\") to place points on structure instead of exact values. Returns the created annotation ids.",
         input: object(
           {
             shapes: {
@@ -249,13 +249,15 @@ export default Plugin.define({
                       "vzone",
                       "marker",
                       "measure",
+                      "fib",
+                      "channel",
                       "label",
                     ],
                   },
                   points: {
                     type: "array",
                     minItems: 1,
-                    maxItems: 2,
+                    maxItems:  64,
                     items: object({ t: num, p: num, liOffset: num }, ["t", "p"]),
                   },
                   label: str,
@@ -307,7 +309,7 @@ export default Plugin.define({
             points: {
               type: "array",
               minItems: 1,
-              maxItems: 2,
+              maxItems:  64,
               items: object({ t: num, p: num, liOffset: num }, ["t", "p"]),
             },
             label: str,
@@ -368,6 +370,72 @@ export default Plugin.define({
               pendingOps,
               "op.request",
               { op: { op: "set_view", ...(input as object) } },
+              OP_TIMEOUT_MS,
+            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+          ),
+      })
+
+      add({
+        name: "add_series",
+        description:
+          "Plot a computed line series on the chart (e.g. an SMA/EMA you calculate in Code Mode from chart_get_state bars). Re-adding the same id updates the series in place. Up to 12 series, 2500 points each; points are { t: bar time in Unix seconds, v: value }.",
+        input: object(
+          {
+            id: str,
+            name: str,
+            points: {
+              type: "array",
+              minItems: 2,
+              maxItems: 2500,
+              items: object({ t: num, v: num }, ["t", "v"]),
+            },
+            color: str,
+            width: num,
+            dash: bool,
+          },
+          ["id", "name", "points"],
+        ),
+        execute: async (input, tool, source) => {
+          await tool.progress?.({ status: "plotting a series" })
+          const { id, name, points, color, width, dash } = input as {
+            id: string
+            name: string
+            points: unknown[]
+            color?: string
+            width?: number
+            dash?: boolean
+          }
+          const style: Record<string, unknown> = {}
+          if (color) style.color = color
+          if (width) style.width = width
+          if (dash) style.dash = dash
+          const op = {
+            op: "add_series",
+            id,
+            name,
+            points,
+            ...(Object.keys(style).length > 0 ? { style } : {}),
+            ...(source ? { source } : {}),
+          }
+          return content(
+            await request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS).catch((error) => ({
+              ok: false,
+              error: (error as Error).message,
+            })),
+          )
+        },
+      })
+
+      add({
+        name: "remove_series",
+        description: "Remove a computed series by id.",
+        input: object({ id: str }, ["id"]),
+        execute: async (input) =>
+          content(
+            await request(
+              pendingOps,
+              "op.request",
+              { op: { op: "remove_series", id: (input as { id: string }).id } },
               OP_TIMEOUT_MS,
             ).catch((error) => ({ ok: false, error: (error as Error).message })),
           ),
