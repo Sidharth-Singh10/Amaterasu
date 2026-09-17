@@ -2,6 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use amaterasu_server::{
     api::AppState,
+    bridge::Bridge,
     build_router,
     cache::Cache,
     config::Config,
@@ -23,10 +24,13 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
 
     let indmoney = Arc::new(IndmoneyClient::new(&config, http).await);
+    let bridge = Bridge::new(&config);
+    bridge.spawn_event_pump();
     let state = AppState {
         config: config.clone(),
         indmoney,
         cache: Arc::new(Cache::new()),
+        bridge,
     };
 
     let mut app = build_router(state);

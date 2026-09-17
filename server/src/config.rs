@@ -14,6 +14,11 @@ pub struct Config {
     pub app_url: String,
     pub indmoney_mcp_url: String,
     pub indmoney_scope: String,
+    /// OpenCode server used for chat/agent features. Chat is disabled without a password.
+    pub opencode_base_url: String,
+    pub opencode_password: Option<String>,
+    pub opencode_agent: String,
+    pub opencode_directory: String,
 }
 
 impl Config {
@@ -34,6 +39,25 @@ impl Config {
                 .unwrap_or_else(|_| "https://mcp.indmoney.com/mcp".to_string()),
             indmoney_scope: env::var("INDMONEY_SCOPE")
                 .unwrap_or_else(|_| "market:read portfolio:read".to_string()),
+            opencode_base_url: env::var("OPENCODE_BASE_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:4096".to_string()),
+            opencode_password: env::var("OPENCODE_PASSWORD").ok(),
+            opencode_agent: env::var("OPENCODE_AGENT")
+                .unwrap_or_else(|_| "chart-analyst".to_string()),
+            opencode_directory: env::var("OPENCODE_DIRECTORY").unwrap_or_else(|_| {
+                // Walk up from the working directory looking for the agent project
+                // (`<ancestor>/opencode/opencode.jsonc`), the same way config discovery does.
+                let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                let mut candidate = Some(cwd.as_path());
+                while let Some(directory) = candidate {
+                    let nested = directory.join("opencode");
+                    if nested.join("opencode.jsonc").is_file() {
+                        return nested.to_string_lossy().into_owned();
+                    }
+                    candidate = directory.parent();
+                }
+                cwd.to_string_lossy().into_owned()
+            }),
         }
     }
 

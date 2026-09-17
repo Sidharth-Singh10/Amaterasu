@@ -1,16 +1,20 @@
-use std::{sync::Arc, time::Duration};
+use std::{convert::Infallible, sync::Arc, time::Duration};
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
-    response::{IntoResponse, Redirect, Response},
-    routing::get,
+    response::{
+        IntoResponse, Redirect, Response,
+        sse::{Event, KeepAlive, Sse},
+    },
+    routing::{get, post},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
+    bridge::{Bridge, BridgeError},
     cache::Cache,
     config::Config,
     indmoney::{IndmoneyClient, IndmoneyError, normalize},
@@ -21,6 +25,7 @@ pub struct AppState {
     pub config: Config,
     pub indmoney: Arc<IndmoneyClient>,
     pub cache: Arc<Cache>,
+    pub bridge: Arc<Bridge>,
 }
 
 pub fn routes() -> Router<AppState> {
@@ -32,6 +37,16 @@ pub fn routes() -> Router<AppState> {
         .route("/api/search", get(search))
         .route("/api/candles", get(candles))
         .route("/api/quote", get(quote))
+        .route("/api/stream", get(stream))
+        .route("/api/chat/session", post(chat_session))
+        .route("/api/chat/{sessionID}/prompt", post(chat_prompt))
+        .route("/api/chat/{sessionID}/interrupt", post(chat_interrupt))
+        .route("/api/chat/{sessionID}/messages", get(chat_messages))
+        .route("/api/chart/attach", post(chart_attach))
+        .route("/api/chart/detach", post(chart_detach))
+        .route("/api/chart/sync", post(chart_sync))
+        .route("/api/chart/op-ack", post(chart_op_ack))
+        .route("/api/chart/state-ack", post(chart_state_ack))
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
@@ -206,6 +221,126 @@ async fn quote(
     Ok(Json(quote))
 }
 
+/// Unified SSE stream: chat streaming events, step boundaries, and chart-bridge requests.
+async fn stream(State(state): State<AppState>) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
+    let receiver = state.bridge.subscribe();
+    let stream = futures_util::stream::unfold(receiver, |mut receiver| async move {
+        use tokio::sync::broadcast::error::RecvError;
+        match receiver.recv().await {
+            Ok(value) => Some((Ok(Event::default().data(value.to_string())), receiver)),
+            Err(RecvError::Lagged(skipped)) => {
+                let notice = json!({ "type": "stream.lagged", "data": { "skipped": skipped } });
+                Some((Ok(Event::default().data(notice.to_string())), receiver))
+            }
+            Err(RecvError::Closed) => None,
+        }
+    });
+    Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
+}
+
+async fn chat_session(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+    let session_id = state.bridge.create_session().await?;
+    Ok(Json(json!({ "sessionID": session_id })))
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptBody {
+    text: String,
+}
+
+async fn chat_prompt(
+    State(state): State<AppState>,
+    Path(session_id): Path<String>,
+    Json(body): Json<PromptBody>,
+) -> Result<Json<Value>, ApiError> {
+    if body.text.trim().is_empty() {
+        return Err(ApiError::BadRequest("text is required".into()));
+    }
+    let turn_id = state.bridge.prompt(&session_id, &body.text).await?;
+    Ok(Json(json!({ "turnId": turn_id })))
+}
+
+async fn chat_interrupt(
+    State(state): State<AppState>,
+    Path(session_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    state.bridge.interrupt(&session_id).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn chat_messages(
+    State(state): State<AppState>,
+    Path(session_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let messages = state.bridge.messages(&session_id).await?;
+    Ok(Json(json!({ "messages": messages })))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChartIdBody {
+    chart_id: String,
+}
+
+async fn chart_attach(
+    State(state): State<AppState>,
+    Json(body): Json<ChartIdBody>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(state.bridge.chart_attach(&body.chart_id).await?))
+}
+
+async fn chart_detach(
+    State(state): State<AppState>,
+    Json(body): Json<ChartIdBody>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(state.bridge.chart_detach(&body.chart_id).await?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChartSyncBody {
+    chart_id: String,
+    symbol: String,
+    interval: String,
+    from: Option<f64>,
+    to: Option<f64>,
+}
+
+async fn chart_sync(
+    State(state): State<AppState>,
+    Json(body): Json<ChartSyncBody>,
+) -> Result<Json<Value>, ApiError> {
+    let payload = json!({
+        "chartId": body.chart_id,
+        "symbol": body.symbol,
+        "interval": body.interval,
+        "from": body.from,
+        "to": body.to,
+    });
+    Ok(Json(state.bridge.chart_sync(payload).await?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RequestAckBody {
+    request_id: String,
+    result: Value,
+}
+
+async fn chart_op_ack(
+    State(state): State<AppState>,
+    Json(body): Json<RequestAckBody>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(state.bridge.chart_op_ack(&body.request_id, body.result).await?))
+}
+
+async fn chart_state_ack(
+    State(state): State<AppState>,
+    Json(body): Json<RequestAckBody>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(state.bridge.chart_state_ack(&body.request_id, body.result).await?))
+}
+
 /// TTLs sized to the poll cadence: intraday bars turn over quickly, daily bars slowly.
 fn candles_ttl(interval: &str) -> Duration {
     match interval {
@@ -219,9 +354,19 @@ fn candles_ttl(interval: &str) -> Duration {
 pub enum ApiError {
     NotConnected,
     Unauthorized,
+    ChatNotConfigured,
     BadRequest(String),
     Upstream(String),
     Internal(String),
+}
+
+impl From<BridgeError> for ApiError {
+    fn from(error: BridgeError) -> Self {
+        match error {
+            BridgeError::NotConfigured => ApiError::ChatNotConfigured,
+            BridgeError::OpenCode(inner) => ApiError::Upstream(inner.to_string()),
+        }
+    }
 }
 
 impl From<IndmoneyError> for ApiError {
@@ -253,6 +398,11 @@ impl IntoResponse for ApiError {
                 StatusCode::UNAUTHORIZED,
                 "unauthorized",
                 "INDmoney authorization expired; reconnect required".to_string(),
+            ),
+            ApiError::ChatNotConfigured => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "chat_not_configured",
+                "the agent bridge is not configured (OPENCODE_PASSWORD is unset)".to_string(),
             ),
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
             ApiError::Upstream(message) => (StatusCode::BAD_GATEWAY, "upstream", message),
