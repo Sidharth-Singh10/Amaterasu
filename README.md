@@ -28,6 +28,7 @@ lands in Phase 1.
 npm install                                   # repo root; npm workspaces
 npm run dev --workspace @amaterasu/web        # dev server on :3000 (access via localhost or 127.0.0.1)
 npm run test --workspace @amaterasu/web       # vitest unit suite
+npm run verify:e2e --workspace @amaterasu/web # browser E2E checks (dev server must be running)
 npm run build --workspace @amaterasu/web      # static export into web/out (served by the Rust service)
 npm run typecheck --workspace @amaterasu/web
 cargo check --manifest-path server/Cargo.toml
