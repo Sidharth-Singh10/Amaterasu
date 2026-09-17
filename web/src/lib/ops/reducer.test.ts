@@ -224,3 +224,63 @@ describe("DocStore computed series", () => {
     expect(store.series).toHaveLength(1)
   })
 })
+
+describe("DocStore persistence documents", () => {
+  const restored = {
+    v: 1 as const,
+    annotations: [
+      {
+        id: "restored",
+        kind: "hline" as const,
+        points: [{ t: 1000, p: 10 }],
+        style: {},
+        z: 0,
+        hidden: false,
+        locked: false,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+    series: [],
+  }
+
+  it("replaces the document and clears history", () => {
+    const store = makeStore()
+    store.applyOp(trendline())
+    const result = store.replaceDoc(restored)
+    expect(result.ok).toBe(true)
+    expect(store.annotations).toHaveLength(1)
+    expect(store.annotations[0].id).toBe("restored")
+    expect(store.canUndo).toBe(false)
+    expect(store.canRedo).toBe(false)
+  })
+
+  it("rejects malformed documents without touching state", () => {
+    const store = makeStore()
+    store.applyOp(trendline())
+    expect(store.replaceDoc({ v: 1, annotations: [{ id: "x" }], series: [] }).ok).toBe(false)
+    expect(store.replaceDoc("nope").ok).toBe(false)
+    expect(store.replaceDoc({ v: 2, annotations: [], series: [] }).ok).toBe(false)
+    expect(store.annotations).toHaveLength(1)
+  })
+
+  it("round-trips through exportDoc", () => {
+    const store = makeStore()
+    store.applyOp(trendline())
+    store.applyOp({
+      op: "add_series",
+      id: "s1",
+      name: "S1",
+      points: [
+        { t: 1000, v: 1 },
+        { t: 2000, v: 2 },
+      ],
+    })
+    const exported = store.exportDoc()
+    const clone = makeStore()
+    expect(clone.replaceDoc(exported).ok).toBe(true)
+    expect(clone.annotations).toHaveLength(1)
+    expect(clone.series).toHaveLength(1)
+    expect(clone.series[0].id).toBe("s1")
+  })
+})

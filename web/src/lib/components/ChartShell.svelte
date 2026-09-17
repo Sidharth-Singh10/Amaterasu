@@ -55,6 +55,9 @@ import { bridge } from "@/lib/api/bridge"
 
   let refreshTimer: number | undefined
   let searchTimer: number | undefined
+  let docTimer: number | undefined
+  let docSaveSuspended = false
+  const EMPTY_DOC = { v: 1 as const, annotations: [], series: [] }
 
   const intervalOptions = INTERVALS
 
@@ -74,6 +77,7 @@ import { bridge } from "@/lib/api/bridge"
         listeners: {
           onChange: () => {
             summary = instance.summary
+            scheduleDocSave()
           },
           onLog: (entry) => {
             log = [entry, ...log].slice(0, 100)
@@ -120,6 +124,7 @@ import { bridge } from "@/lib/api/bridge"
       window.removeEventListener("beforeunload", saveState)
       window.clearInterval(refreshTimer)
       window.clearTimeout(searchTimer)
+      window.clearTimeout(docTimer)
       chartBridge?.dispose()
       instance.dispose()
       if (dev) delete (window as unknown as { __amaterasu?: ChartController }).__amaterasu
@@ -162,8 +167,17 @@ import { bridge } from "@/lib/api/bridge"
     }
     loading = true
     try {
+      // Upstream 5xx (an INDmoney blip) gets one retry before surfacing the error.
       const option = intervalOption(interval)
-      const response = await api.candles(symbol.indKey, interval, option.lookback)
+      const indKey = symbol.indKey
+      let response
+      try {
+        response = await api.candles(indKey, interval, option.lookback)
+      } catch (cause) {
+        if (!(cause instanceof ApiError) || cause.status < 500) throw cause
+        await new Promise((resolve) => setTimeout(resolve, 800))
+        response = await api.candles(indKey, interval, option.lookback)
+      }
       controller.applyCandles(response.candles, { preserveView: opts.preserveView })
       if (opts.applyStoredView) {
         const view = readState()?.view
@@ -175,6 +189,7 @@ import { bridge } from "@/lib/api/bridge"
       void loadQuote()
       saveState()
       chartBridge?.scheduleSync()
+      void loadWorkspaceDoc()
     } catch (cause) {
       handleError(cause)
     } finally {
@@ -232,11 +247,20 @@ import { bridge } from "@/lib/api/bridge"
 
   async function selectSymbol(result: SearchResult): Promise<void> {
     if (mode === "demo") return
-    symbol = result
-    quote = null
-    searchOpen = false
-    query = ""
-    results = []
+    // Persist the outgoing symbol's document, then switch identity and clear stale
+    // drawings immediately — the incoming document loads with the incoming candles.
+    docSaveSuspended = true
+    try {
+      await flushDocSave()
+      symbol = result
+      quote = null
+      searchOpen = false
+      query = ""
+      results = []
+      controller?.loadDoc(EMPTY_DOC)
+    } finally {
+      docSaveSuspended = false
+    }
     await loadCandles({ preserveView: false })
   }
 
@@ -268,6 +292,47 @@ import { bridge } from "@/lib/api/bridge"
     } catch {
       // Storage unavailable (private mode); persistence is best-effort.
     }
+  }
+
+  /** Loads this symbol's persisted document (annotations + series); empty until drawn. */
+  async function loadWorkspaceDoc(): Promise<void> {
+    if (mode !== "live" || !symbol || !controller) return
+    const key = symbol.indKey
+    try {
+      const response = await api.getWorkspace(key)
+      if (symbol?.indKey !== key || !controller) return
+      if (response.payload) {
+        // Programmatic replacement must not trigger a save of what we just loaded.
+        docSaveSuspended = true
+        try {
+          const result = controller.loadDoc(response.payload)
+          if (!result.ok) console.warn("workspace document rejected", result.warnings)
+        } finally {
+          docSaveSuspended = false
+        }
+      }
+    } catch (cause) {
+      handleError(cause)
+    }
+  }
+
+  /** Persists the current document immediately (cancels a pending debounce). */
+  async function flushDocSave(): Promise<void> {
+    if (mode !== "live" || !symbol || !controller) return
+    window.clearTimeout(docTimer)
+    await api.putWorkspace(symbol.indKey, controller.exportDoc()).catch(() => {})
+  }
+
+  /** Debounced persistence of the current document under the symbol it belongs to. */
+  function scheduleDocSave(): void {
+    if (docSaveSuspended || mode !== "live" || !symbol || !controller) return
+    const key = symbol.indKey
+    window.clearTimeout(docTimer)
+    docTimer = window.setTimeout(() => {
+      // A symbol switch mid-debounce must not write this doc under the old symbol.
+      if (!controller || symbol?.indKey !== key) return
+      void api.putWorkspace(key, controller.exportDoc()).catch(() => {})
+    }, 800)
   }
 
   function readState(): { symbol: SearchResult; interval: string; view: { from: number; to: number } | null } | null {

@@ -41,6 +41,12 @@ export interface ConnectionStatus {
   scope?: string | null
 }
 
+export interface WorkspaceResponse {
+  key: string
+  payload: unknown | null
+  updatedAt: number | null
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -99,4 +105,11 @@ export const api = {
     ),
   quote: (indKey: string, signal?: AbortSignal) =>
     request<Quote>(`/api/quote?ind_key=${encodeURIComponent(indKey)}`, signal),
+  getWorkspace: (key: string, signal?: AbortSignal) =>
+    request<WorkspaceResponse>(`/api/workspace/${encodeURIComponent(key)}`, signal),
+  putWorkspace: (key: string, payload: unknown) =>
+    apiRequest<{ ok: boolean; updatedAt: number }>(`/api/workspace/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify({ payload }),
+    }),
 }

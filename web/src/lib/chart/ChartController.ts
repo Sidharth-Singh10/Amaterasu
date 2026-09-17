@@ -12,7 +12,7 @@ import {
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts"
-import type { Anchor, Kind, Op, OpResult, SetViewOp } from "@amaterasu/chart-dsl"
+import type { Anchor, DocPayload, Kind, Op, OpResult, SetViewOp } from "@amaterasu/chart-dsl"
 import { Transform } from "@/lib/chart/transform"
 import { demoCandles, type Candle } from "@/lib/data/mock"
 import { diffCandles } from "@/lib/data/diff"
@@ -196,6 +196,22 @@ export class ChartController {
     this.listeners.onLog?.({ label: label ?? describeOp(raw), result })
     this.emitChange()
     return result
+  }
+
+  /** Replaces the document from a persisted workspace payload (per symbol). */
+  loadDoc(raw: unknown): { ok: boolean; warnings: string[] } {
+    const result = this.store.replaceDoc(raw)
+    if (result.ok) {
+      this.syncSeries()
+      this.surface.invalidate("all")
+      this.emitChange()
+    }
+    return result
+  }
+
+  /** Current document, ready to persist. */
+  exportDoc(): DocPayload {
+    return this.store.exportDoc()
   }
 
   /**

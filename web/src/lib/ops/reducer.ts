@@ -1,11 +1,13 @@
 import {
   CAPS,
+  DocPayloadSchema,
   MIN_POINTS,
   OpSchema,
   type AddSeriesOp,
   type Anchor,
   type Annotation,
   type ClearOp,
+  type DocPayload,
   type DrawOp,
   type Op,
   type OpResult,
@@ -63,6 +65,33 @@ export class DocStore {
 
   get series(): readonly Series[] {
     return this.state.series
+  }
+
+  /** Replaces the document from a persisted payload; restored state starts a fresh history. */
+  replaceDoc(raw: unknown): { ok: boolean; warnings: string[] } {
+    const parsed = DocPayloadSchema.safeParse(raw)
+    if (!parsed.success) {
+      return {
+        ok: false,
+        warnings: parsed.error.issues.map(
+          (issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`,
+        ),
+      }
+    }
+    this.state = { v: 1, annotations: parsed.data.annotations, series: parsed.data.series }
+    this.undoStack = []
+    this.redoStack = []
+    this.turn = null
+    return { ok: true, warnings: [] }
+  }
+
+  /** Snapshot for persistence; a deep copy so callers cannot mutate the document. */
+  exportDoc(): DocPayload {
+    return {
+      v: 1,
+      annotations: structuredClone(this.state.annotations),
+      series: structuredClone(this.state.series),
+    }
   }
 
   get canUndo(): boolean {
