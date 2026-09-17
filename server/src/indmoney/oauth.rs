@@ -227,17 +227,23 @@ pub async fn exchange_code(
     code: &str,
     verifier: &str,
 ) -> Result<TokenSet, OAuthError> {
-    token_request(
-        http,
-        metadata,
-        client,
-        vec![
-            ("grant_type".into(), "authorization_code".into()),
-            ("code".into(), code.into()),
-            ("code_verifier".into(), verifier.into()),
-        ],
-    )
-    .await
+    token_request(http, metadata, client, authorization_code_form(client, code, verifier)).await
+}
+
+/// RFC 6749 §4.1.3: `redirect_uri` is required at token time when it was used at
+/// authorize time. INDmoney enforces this — verified live, a token request without it
+/// fails 400 `redirect_uri did not match the one used when creating auth code`.
+pub fn authorization_code_form(
+    client: &RegisteredClient,
+    code: &str,
+    verifier: &str,
+) -> Vec<(String, String)> {
+    vec![
+        ("grant_type".into(), "authorization_code".into()),
+        ("code".into(), code.into()),
+        ("code_verifier".into(), verifier.into()),
+        ("redirect_uri".into(), client.redirect_uri.clone()),
+    ]
 }
 
 pub async fn refresh(
@@ -321,6 +327,25 @@ mod tests {
             candidates,
             vec!["https://example.com/.well-known/oauth-protected-resource"]
         );
+    }
+
+    #[test]
+    fn token_form_carries_redirect_uri_and_verifier() {
+        let client = RegisteredClient {
+            client_id: "c1".into(),
+            client_secret: None,
+            redirect_uri: "http://127.0.0.1:8787/api/indmoney/oauth/callback".into(),
+        };
+        let form = authorization_code_form(&client, "CODE", "VERIFIER");
+        let lookup = |key: &str| {
+            form.iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.clone())
+        };
+        assert_eq!(lookup("grant_type").unwrap(), "authorization_code");
+        assert_eq!(lookup("code").unwrap(), "CODE");
+        assert_eq!(lookup("code_verifier").unwrap(), "VERIFIER");
+        assert_eq!(lookup("redirect_uri").unwrap(), client.redirect_uri);
     }
 
     #[test]
