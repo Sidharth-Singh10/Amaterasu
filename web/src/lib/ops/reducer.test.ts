@@ -176,3 +176,51 @@ describe("DocStore", () => {
     expect(result.ok).toBe(false)
   })
 })
+
+describe("DocStore computed series", () => {
+  const line = (id = "s1", v = 10) => ({
+    op: "add_series",
+    id,
+    name: "SMA 20",
+    points: [
+      { t: 1000, v },
+      { t: 2000, v: v + 1 },
+    ],
+  })
+
+  it("adds a series and upserts by id", () => {
+    const store = makeStore()
+    expect(store.applyOp(line()).ok).toBe(true)
+    expect(store.series).toHaveLength(1)
+    expect(store.applyOp(line("s1", 20)).ok).toBe(true)
+    expect(store.series).toHaveLength(1)
+    expect(store.series[0].points[0].v).toBe(20)
+  })
+
+  it("removes a series and rejects unknown ids", () => {
+    const store = makeStore()
+    store.applyOp(line())
+    expect(store.applyOp({ op: "remove_series", id: "s1" }).ok).toBe(true)
+    expect(store.series).toHaveLength(0)
+    expect(store.applyOp({ op: "remove_series", id: "nope" }).ok).toBe(false)
+  })
+
+  it("caps the number of series", () => {
+    const store = makeStore()
+    for (let i = 0; i < CAPS.maxSeries; i++) {
+      expect(store.applyOp(line(`s${i}`)).ok).toBe(true)
+    }
+    const overflow = store.applyOp(line("overflow"))
+    expect(overflow.ok).toBe(false)
+    expect(overflow.warnings?.[0]).toContain("cap")
+  })
+
+  it("undoes and redoes series changes", () => {
+    const store = makeStore()
+    store.applyOp(line())
+    expect(store.undo()).toBe(true)
+    expect(store.series).toHaveLength(0)
+    expect(store.redo()).toBe(true)
+    expect(store.series).toHaveLength(1)
+  })
+})

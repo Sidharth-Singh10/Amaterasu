@@ -311,3 +311,63 @@ describe("measure renderer", () => {
     expect(renderer.hitTest!(ann, t, { x: mid.x, y: mid.y + 40 }, 6)).toBeNull()
   })
 })
+
+describe("fib renderer", () => {
+  const points = [
+    { t: BARS[100], p: 1100 },
+    { t: BARS[130], p: 1200 },
+  ]
+
+  it("draws seven levels with price labels", () => {
+    const { painter } = render("fib", points)
+    const lines = painter.ops.filter((o) => o.name === "line")
+    expect(lines).toHaveLength(7)
+    // 50% sits midway: p = 1150 → y = 200
+    const midLine = lines.find((line) => close((line.args as number[])[1], 200))
+    expect(midLine).toBeDefined()
+    const text = painter.ops.find(
+      (op) => op.name === "text" && String((op.args as unknown[])[2]).includes("50.0%"),
+    )
+    expect(text).toBeDefined()
+    expect(String((text!.args as unknown[])[2])).toContain("1150.00")
+  })
+
+  it("hits on a level line and misses between levels", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("fib")!
+    const t = makeTransform()
+    const ann = annotation("fib", points)
+    expect(renderer.hitTest!(ann, t, { x: 100, y: 200 }, 6)).toBe(0)
+    expect(renderer.hitTest!(ann, t, { x: 100, y: 250 }, 6)).toBeNull()
+  })
+})
+
+describe("channel renderer", () => {
+  const points = [
+    { t: BARS[100], p: 1100 },
+    { t: BARS[130], p: 1200 },
+    { t: BARS[100], p: 1150 },
+  ]
+
+  it("draws two parallel rails and a fill", () => {
+    const { painter, op } = render("channel", points)
+    expect(op("polygon")).toBeDefined()
+    const lines = painter.ops.filter((o) => o.name === "line")
+    expect(lines).toHaveLength(2)
+    const [x1, y1, x2, y2] = lines[0].args as [number, number, number, number]
+    expect(close(x1, 0)).toBe(true)
+    expect(close(y1, 400 * (200 / 300))).toBe(true)
+    expect(close(x2, 240)).toBe(true)
+    expect(close(y2, 400 * (100 / 300))).toBe(true)
+  })
+
+  it("hit-tests either rail", () => {
+    registerBuiltinRenderers()
+    const renderer = getRenderer("channel")!
+    const t = makeTransform()
+    const ann = annotation("channel", points)
+    const midRail = { x: 120, y: (400 * (200 / 300) + 400 * (100 / 300)) / 2 }
+    expect(renderer.hitTest!(ann, t, midRail, 6)).not.toBeNull()
+    expect(renderer.hitTest!(ann, t, { x: midRail.x, y: midRail.y + 80 }, 6)).toBeNull()
+  })
+})

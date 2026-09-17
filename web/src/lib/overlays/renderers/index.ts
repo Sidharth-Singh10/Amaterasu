@@ -1,4 +1,6 @@
 import { registerRenderer } from "../registry"
+import { channelRenderer } from "./channel"
+import { fibRenderer } from "./fib"
 import { hlineRenderer } from "./hline"
 import { hzoneRenderer } from "./hzone"
 import { labelRenderer } from "./label"
@@ -26,6 +28,8 @@ export function registerBuiltinRenderers(): void {
     vzoneRenderer,
     markerRenderer,
     measureRenderer,
+    fibRenderer,
+    channelRenderer,
     labelRenderer,
   ]) {
     registerRenderer(renderer)

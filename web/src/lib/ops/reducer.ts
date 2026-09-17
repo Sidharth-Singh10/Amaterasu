@@ -2,12 +2,15 @@ import {
   CAPS,
   MIN_POINTS,
   OpSchema,
+  type AddSeriesOp,
   type Anchor,
   type Annotation,
   type ClearOp,
   type DrawOp,
   type Op,
   type OpResult,
+  type RemoveSeriesOp,
+  type Series,
   type SetViewOp,
   type UpdateOp,
 } from "@amaterasu/chart-dsl"
@@ -21,6 +24,7 @@ import {
 export interface DocState {
   v: 1
   annotations: Annotation[]
+  series: Series[]
 }
 
 export interface AnchorCheck {
@@ -41,7 +45,7 @@ export interface DocDeps {
 type MutatingOp = Exclude<Op, { op: "set_view" }>
 
 export class DocStore {
-  private state: DocState = { v: 1, annotations: [] }
+  private state: DocState = { v: 1, annotations: [], series: [] }
   private undoStack: DocState[] = []
   private redoStack: DocState[] = []
   private turn: { snapshot: DocState } | null = null
@@ -55,6 +59,10 @@ export class DocStore {
 
   get annotations(): readonly Annotation[] {
     return this.state.annotations
+  }
+
+  get series(): readonly Series[] {
+    return this.state.series
   }
 
   get canUndo(): boolean {
@@ -135,6 +143,10 @@ export class DocStore {
         return this.remove(op)
       case "clear":
         return this.clear(op)
+      case "add_series":
+        return this.addSeries(op)
+      case "remove_series":
+        return this.removeSeries(op)
     }
   }
 
@@ -147,6 +159,40 @@ export class DocStore {
       warnings.push(...check.warnings)
     }
     return { unresolved, warnings }
+  }
+
+  private addSeries(op: AddSeriesOp): OpResult {
+    const existing = this.state.series.find((series) => series.id === op.id)
+    if (!existing && this.state.series.length >= CAPS.maxSeries) {
+      return { ok: false, warnings: [`series cap (${CAPS.maxSeries}) reached`] }
+    }
+    const now = this.now()
+    if (existing) {
+      existing.name = op.name
+      existing.points = op.points.map((point) => ({ ...point }))
+      if (op.style) existing.style = { ...op.style }
+      if (op.source) existing.source = op.source
+      existing.updatedAt = now
+      return { ok: true, id: existing.id }
+    }
+    const created: Series = {
+      id: op.id,
+      name: op.name,
+      points: op.points.map((point) => ({ ...point })),
+      style: op.style ? { ...op.style } : {},
+      source: op.source,
+      createdAt: now,
+      updatedAt: now,
+    }
+    this.state.series.push(created)
+    return { ok: true, id: created.id }
+  }
+
+  private removeSeries(op: RemoveSeriesOp): OpResult {
+    const index = this.state.series.findIndex((series) => series.id === op.id)
+    if (index < 0) return { ok: false, warnings: [`no series with id ${op.id}`] }
+    this.state.series.splice(index, 1)
+    return { ok: true, id: op.id }
   }
 
   private draw(op: DrawOp): OpResult {

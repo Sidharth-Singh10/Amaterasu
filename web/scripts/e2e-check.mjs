@@ -132,6 +132,21 @@ await page.waitForTimeout(300)
 steps.invalidOp = await probe()
 const failureCardVisible = await page.locator("li", { hasText: "failed" }).count()
 
+// Computed series: plot a deterministic line built from the last three bars.
+const seriesOp = await page.evaluate(() => {
+  const bars = window.__amaterasu.getSnapshot().bars.slice(-3)
+  return {
+    op: "add_series",
+    id: "e2e-line",
+    name: "E2E line",
+    points: bars.map((bar) => ({ t: bar.time, v: bar.close })),
+  }
+})
+await page.locator("#op-json").fill(JSON.stringify(seriesOp))
+await page.getByRole("button", { name: "Apply op" }).click()
+await page.waitForTimeout(400)
+const series = await page.evaluate(() => window.__amaterasu.getSnapshot().series)
+
 await browser.close()
 
 const checks = {
@@ -150,6 +165,7 @@ const checks = {
     Math.abs(steps.drag.linePixels[0].y - (steps.zoom.linePixels[0].y - 60)) < 0.01,
   dragDoesNotPan: steps.drag.range.from === steps.zoom.range.from,
   invalidOpUnchanged: steps.invalidOp.annotations === 2 && failureCardVisible >= 1,
+  seriesPlots: series.length === 1 && series[0].id === "e2e-line" && series[0].points === 3,
   noConsoleErrors: consoleErrors.length === 0,
 }
 

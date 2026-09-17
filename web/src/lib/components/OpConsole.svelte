@@ -11,6 +11,8 @@
     { kind: "hline", label: "Level" },
     { kind: "marker", label: "Marker" },
     { kind: "measure", label: "Measure" },
+    { kind: "fib", label: "Fib" },
+    { kind: "channel", label: "Channel" },
     { kind: "label", label: "Callout" },
   ]
 

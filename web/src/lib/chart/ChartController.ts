@@ -3,9 +3,12 @@ import {
   ColorType,
   CrosshairMode,
   HistogramSeries,
+  LineSeries,
+  LineStyle,
   createChart,
   type IChartApi,
   type ISeriesApi,
+  type LineWidth,
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts"
@@ -73,6 +76,8 @@ export class ChartController {
   private readonly candleSeries: ISeriesApi<"Candlestick">
   private readonly volumeSeries: ISeriesApi<"Histogram">
   private readonly surface: OverlaySurface
+  private readonly lineSeries = new Map<string, ISeriesApi<"Line">>()
+  private readonly seriesSignature = new Map<string, number>()
   private bars: Candle[]
   private readonly host: HTMLElement
   private readonly resizeObserver: ResizeObserver
@@ -186,10 +191,48 @@ export class ChartController {
     const { op, snappedTo } = this.withDataSnap(raw)
     const result = this.store.applyOp(op)
     if (result.ok && snappedTo.length > 0) result.snappedTo = snappedTo
+    this.syncSeries()
     this.surface.invalidate("all")
     this.listeners.onLog?.({ label: label ?? describeOp(raw), result })
     this.emitChange()
     return result
+  }
+
+  /**
+   * Mirrors the document's computed series onto the chart. Cheap to call on every
+   * mutation: series are only pushed to lightweight-charts when their `updatedAt` changed.
+   */
+  private syncSeries(): void {
+    const seen = new Set<string>()
+    for (const series of this.store.series) {
+      seen.add(series.id)
+      if (this.seriesSignature.get(series.id) === series.updatedAt) continue
+      const options = {
+        color: series.style.color ?? "#f0b429",
+        lineWidth: Math.min(4, Math.max(1, Math.round(series.style.width ?? 1.5))) as LineWidth,
+        lineStyle: series.style.dash ? LineStyle.Dashed : LineStyle.Solid,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      }
+      const points = series.points.map((point) => ({ time: point.t as UTCTimestamp, value: point.v }))
+      const existing = this.lineSeries.get(series.id)
+      if (existing) {
+        existing.applyOptions(options)
+        existing.setData(points)
+      } else {
+        const created = this.chart.addSeries(LineSeries, options)
+        created.setData(points)
+        this.lineSeries.set(series.id, created)
+      }
+      this.seriesSignature.set(series.id, series.updatedAt)
+    }
+    for (const [id, series] of this.lineSeries) {
+      if (seen.has(id)) continue
+      this.chart.removeSeries(series)
+      this.lineSeries.delete(id)
+      this.seriesSignature.delete(id)
+    }
   }
 
   /**
@@ -223,6 +266,7 @@ export class ChartController {
 
   undo(): void {
     if (!this.store.undo()) return
+    this.syncSeries()
     this.surface.invalidate("all")
     this.listeners.onLog?.({ label: "undo", result: { ok: true } })
     this.emitChange()
@@ -230,6 +274,7 @@ export class ChartController {
 
   redo(): void {
     if (!this.store.redo()) return
+    this.syncSeries()
     this.surface.invalidate("all")
     this.listeners.onLog?.({ label: "redo", result: { ok: true } })
     this.emitChange()
@@ -260,6 +305,34 @@ export class ChartController {
             { t: last.time, p: high },
           ],
           label: "band",
+        }
+      }
+      case "fib": {
+        const window = bars.slice(-60)
+        const lowest = window.reduce((a, b) => (b.low < a.low ? b : a), window[0])
+        const highest = window.reduce((a, b) => (b.high > a.high ? b : a), window[0])
+        return {
+          op: "draw",
+          kind,
+          points: [
+            { t: lowest.time, p: lowest.low },
+            { t: highest.time, p: highest.high },
+          ],
+          label: "fib",
+        }
+      }
+      case "channel": {
+        const window = bars.slice(-40)
+        const start = window[0]
+        return {
+          op: "draw",
+          kind,
+          points: [
+            { t: start.time, p: start.low },
+            { t: last.time, p: last.low },
+            { t: start.time, p: start.high },
+          ],
+          label: "channel",
         }
       }
       case "marker": {
@@ -380,9 +453,14 @@ export class ChartController {
     this.surface.invalidate("all")
   }
 
-  /** Surgical undo for one agent turn: removes the shapes that turn drew. */
-  undoTurnBySource(messageID: string): OpResult {
-    return this.applyOp({ op: "clear", sourceMessageID: messageID }, "undo agent turn")
+  /** Surgical undo for one agent turn: removes that turn's shapes and computed series. */
+  undoTurnBySource(messageID: string): void {
+    this.applyOp({ op: "clear", sourceMessageID: messageID }, "undo agent turn")
+    for (const series of this.store.series) {
+      if (series.source?.messageID === messageID) {
+        this.applyOp({ op: "remove_series", id: series.id }, "undo agent series")
+      }
+    }
   }
 
   /** Current visible logical range, for persistence across reloads. */
@@ -421,6 +499,12 @@ export class ChartController {
           }
         : null,
       annotations: this.store.annotations,
+      series: this.store.series.map((series) => ({
+        id: series.id,
+        name: series.name,
+        points: series.points.length,
+        lastValue: series.points[series.points.length - 1]?.v ?? null,
+      })),
     }
   }
 
