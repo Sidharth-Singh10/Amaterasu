@@ -1,13 +1,13 @@
 # Amaterasu — Implementation Plan
 
-**Version:** v0.0.3
+**Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 0 complete (2026-09-17) — overlay engine + chart shell + dev console in `web/`;
-44 unit tests green; E2E verified in Chromium (draw, undo/redo, pan, zoom, annotation drag, structured op
-failures); the `server/` Rust skeleton compiles.
-**Supersedes:** v0.0.2 — backend switched from Node route handlers to a Rust (axum) service; frontend and overlay
-engine unchanged. v0.0.1 — overlay engine raised to a first-class, deeply specified component after review of the
+**Build status:** Phase 0 complete on the SvelteKit stack (2026-09-17) — overlay engine + chart shell + dev console
+in `web/`; 44 unit tests green; svelte-check clean; E2E verified in Chromium (13 checks: draw, undo/redo, pan,
+zoom, annotation drag, structured op failures); the `server/` Rust skeleton compiles and serves the built SPA.
+**Supersedes:** v0.0.3 — frontend migrated from Next.js to SvelteKit. v0.0.2 — backend switched from Node route
+handlers to a Rust (axum) service. v0.0.1 — overlay engine raised to a first-class component after review of the
 Graphite planning artifact (`/home/levi/Graphite/chart-app-plan.md`).
 
 TradingView-style chart webapp for Indian stocks sourced from the INDmoney MCP, with an embedded OpenCode agent
@@ -18,7 +18,13 @@ that draws and writes over the charts via a structured, screenshot-free overlay 
 
 ## Revision history
 
-**v0.0.3** (this document) — stack revision.
+**v0.0.4** (this document) — frontend framework revision: Next.js replaced by **SvelteKit 2 + Svelte 5** with
+`adapter-static` (SPA mode, `ssr = false`), served by the Rust service from `web/build`. Rationale: every Next
+feature except the component shell was unused (no SSR/SEO/routing/image optimization needed) while its dev-loop
+costs were real. The overlay engine, DSL, tests, and E2E harness carried over unchanged; only the ~255-line shell
+was rewritten (React → runes), and the engine moved under `src/lib/`.
+
+**v0.0.3** — stack revision.
 - Backend replaced by a Rust (axum + tokio) service in `server/`: MCP client (`rmcp`), OAuth token store, cache,
   OpenCode bridge, SSE fan-out, SQLite, and hosting for the built frontend. Node route handlers from v0.0.2 are
   dropped; the Next.js app becomes a static-export client (dev server still used during development).
@@ -62,7 +68,7 @@ overlay protocol sketch, phases, risks.
 | Decision | Choice |
 |---|---|
 | Hosting | All on the VPS (`paradis`); nginx + TLS + custom domain; no Vercel |
-| Frontend | Next.js (App Router, TS, Tailwind), static export; `lightweight-charts` v5 |
+| Frontend | SvelteKit 2 + Svelte 5 (runes) + Tailwind 4, `adapter-static` SPA; `lightweight-charts` v5 |
 | Backend | Rust (axum, tokio) in `server/`: REST + SSE, MCP client (`rmcp`), OpenCode bridge, SQLite, static hosting |
 | Firecrawl | Self-hosted at `http://127.0.0.1:3002`, no key (stdio MCP with `FIRECRAWL_API_URL`) |
 | OpenCode | Existing install; dedicated `opencode serve` instance for the webapp |
@@ -70,9 +76,8 @@ overlay protocol sketch, phases, risks.
 | Agent draw protocol | Ack-based op requests over plugin RPC; agent receives normalized results |
 | v1 scope | Single chart, stocks + indices; agent chat + agent drawing; core shape set |
 
-Stack divergence note (resolved): backend is Rust (axum) — the Graphite artifact's service design is compatible
-with this plan's requirements. Frontend remains Next.js from v0.0.1; the overlay engine spec in §6 is
-framework-free and unchanged.
+Stack decision (v0.0.4, resolved): frontend = SvelteKit 2 + Svelte 5 (`adapter-static` SPA); backend = Rust
+(axum). The overlay engine spec in §6 is framework-free and unchanged by this decision.
 
 ## 3. Verified environment facts
 
@@ -101,9 +106,9 @@ Internet ── HTTPS ── nginx (:443, TLS + basic auth) ── Rust service 
                          └─ (localhost only, never proxied)  ├─ INDmoney MCP client (rmcp) + OAuth token store
                                                              ├─ OpenCode client (Basic, :4096) + RPC bridge
                                                              ├─ SQLite: workspaces, annotations, chats, op log
-                                                             └─ serves the built Next.js frontend
+                                                             └─ serves the built SvelteKit frontend
 
-Browser (Next.js client)
+Browser (SvelteKit client)
   ├─ lightweight-charts v5 (candles, volume, panes)
   ├─ overlay stack: annotations canvas · ephemeral canvas · labels (DOM) · hit surface
   ├─ ops reducer + undo transactions + op log
@@ -123,15 +128,15 @@ Three decoupled channels: **data** (webapp → INDmoney MCP directly), **agent**
 
 ```
 /home/levi/amaterasu/
-├─ web/                             # Next.js App Router + TS + Tailwind (static export)
+├─ web/                             # SvelteKit 2 + Svelte 5 + Tailwind 4 (adapter-static SPA)
 │  └─ src/
-│     ├─ app/                       # shell page (no server routes)
-│     ├─ components/
-│     │  ├─ chart/                  # LWC wrapper + Transform (per pane) + controller
-│     │  ├─ overlays/               # registry, layers, painter, hit-test, snap
-│     │  ├─ dev/                    # op console (Phase 0)
-│     │  └─ chat/                   # chat panel, tool cards (Phase 2)
-│     └─ lib/                       # ops reducer · mock data · chart-dsl glue
+│     ├─ routes/                    # +page.svelte · +layout(.svelte/.ts) — SPA, ssr = false
+│     ├─ lib/
+│     │  ├─ chart/                  # Transform (pane-aware) + ChartController
+│     │  ├─ overlays/               # registry, layers, painter, hit-test, renderers
+│     │  ├─ ops/ · data/ · testing/
+│     │  └─ components/             # ChartShell.svelte · OpConsole.svelte (chat in Phase 2)
+│     └─ app.css · app.html
 ├─ server/                          # Rust (axum): MCP + OAuth · cache · OpenCode bridge · SSE · SQLite · static hosting
 ├─ packages/chart-dsl/              # zod op + state schemas (shared browser ↔ plugin)
 ├─ opencode/                        # the agent's project (clean of app code)
@@ -447,7 +452,7 @@ annotation id.
 
 | # | Phase | Deliverable | Done when |
 |---|---|---|---|
-| 0 | Scaffold + **overlay engine core** | Next.js app, LWC chart on mock data, `Transform.forPane`, Painter, registry, two-canvas stack, 3 renderers (trendline, rect, label), hit-test + drag, reducer + transactions, resolver, dev op console | Ops pasted into the console render correctly; pan/zoom/interval switch keep shapes on bars/prices per resolver tiers; hit/drag/one-step undo work; round-trip + RecordingPainter tests pass; **disjoint-window/interval test passes**; pane offset verified against axes |
+| 0 | Scaffold + **overlay engine core** | SvelteKit app, LWC chart on mock data, pane-aware `Transform`, Painter, registry, two-canvas stack, 6 renderers (trendline, ray, hline, vline, rect, label), hit-test + drag, reducer + transactions, resolver, dev op console | Ops pasted into the console render correctly; pan/zoom/interval switch keep shapes on bars/prices per resolver tiers; hit/drag/one-step undo work; round-trip + RecordingPainter tests pass; **disjoint-window/interval test passes**; pane offset verified against axes |
 | 1 | Data layer | Rust service: MCP client + OAuth + token store; `/api/candles`, `/api/search`, `/api/quote`; normalization (§6.2); cache/backoff; watchlist rail; workspaces + recents in SQLite | Real RELIANCE 1d loads <2 s; refresh updates live candle without flicker; daily/intraday quirk handled; reload restores symbol/interval/view exactly |
 | 2 | Bridge + chat | Dedicated `opencode serve` (systemd) + `opencode/` project; Rust bridge (RPC calls + event fan-out + SSE); chart-bridge plugin (RPC + tools + instructions); ack protocol; chat panel (streaming, tool cards); undo-per-turn; traceability | "Mark the March low, draw 1250 support, summarize the trend" → correct drawings, streamed answer; two agent turns undo independently; `source` ids verified or fallback implemented; chartId routing tolerates a second tab |
 | 3 | Shapes + snap UI + series + firecrawl | Full shape set (fib, channel, pitchfork, ellipse, arrow, polyline, measure), handle editing, snap badges/UI, `chart_add_series` indicators, firecrawl MCP wired to :3002, permissions polish | Fib/channel edited via handles and patched via `chart_update`; agent-computed SMA matches its own numbers; "Latest RELIANCE news?" uses firecrawl and cites sources |
@@ -485,8 +490,7 @@ Postgres option, CRDT-style concurrent editing if ever multi-user.
 
 1. **Domain name** for the nginx server block + TLS.
 2. **Basic auth confirmation** and htpasswd user (Phase 0).
-3. **Stack divergence decision**: this plan retains Next.js + Node; the Graphite artifact proposes Svelte 5 +
-   Rust. Overlay spec is stack-neutral. Decide before Phase 0 coding.
+3. **Stack divergence — resolved (v0.0.4)**: frontend = SvelteKit 2 + Svelte 5; backend = Rust (axum).
 4. Verify self-hosted Firecrawl health at `127.0.0.1:3002` (rootful podman not inspectable at planning time).
 5. Verify LWC pane offset source (pane DOM measurement vs `paneSize()`) in Phase 0.
 6. Verify V2 plugin tool context exposes session/message ids in Phase 2.
