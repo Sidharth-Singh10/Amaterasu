@@ -58,8 +58,11 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal, headers: { accept: "application/json" } })
+export async function apiRequest<T>(path: string, init?: RequestInit & { signal?: AbortSignal }): Promise<T> {
+  const response = await fetch(path, {
+    headers: { accept: "application/json", ...(init?.body ? { "content-type": "application/json" } : {}) },
+    ...init,
+  })
   const text = await response.text()
   let body: unknown = null
   if (text) {
@@ -79,6 +82,10 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
     )
   }
   return body as T
+}
+
+async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return apiRequest<T>(path, { signal })
 }
 
 export const api = {

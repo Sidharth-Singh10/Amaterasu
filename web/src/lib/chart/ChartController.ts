@@ -36,6 +36,8 @@ export interface ControllerSummary {
 export interface ControllerListeners {
   onChange?: () => void
   onLog?: (entry: LogEntry) => void
+  /** Fired when the visible range changes (pan/zoom/resize) — used for context sync. */
+  onViewportChange?: () => void
 }
 
 export interface ControllerElements {
@@ -302,6 +304,11 @@ export class ChartController {
     this.surface.invalidate("all")
   }
 
+  /** Surgical undo for one agent turn: removes the shapes that turn drew. */
+  undoTurnBySource(messageID: string): OpResult {
+    return this.applyOp({ op: "clear", sourceMessageID: messageID }, "undo agent turn")
+  }
+
   /** Current visible logical range, for persistence across reloads. */
   getViewport(): { from: number; to: number } | null {
     const range = this.chart.timeScale().getVisibleLogicalRange()
@@ -438,6 +445,7 @@ export class ChartController {
   private handleViewportChange = (): void => {
     this.layout()
     this.surface.invalidate("all")
+    this.listeners.onViewportChange?.()
   }
 
   // ── Pointer interaction ───────────────────────────────────────────────────

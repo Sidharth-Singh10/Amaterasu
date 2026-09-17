@@ -3,6 +3,9 @@
   import { dev } from "$app/environment"
   import { ChartController, type ControllerSummary, type LogEntry, type Tool } from "@/lib/chart/ChartController"
   import OpConsole from "@/lib/components/OpConsole.svelte"
+  import ChatPanel from "@/lib/components/ChatPanel.svelte"
+  import { startChartBridge } from "@/lib/chart/bridge-wiring"
+import { bridge } from "@/lib/api/bridge"
   import { ApiError, api, type Quote, type SearchResult } from "@/lib/api/client"
   import { INTERVALS, intervalOption } from "@/lib/api/intervals"
   import { demoCandles } from "@/lib/data/mock"
@@ -45,6 +48,10 @@
   let query = $state("")
   let results = $state<SearchResult[]>([])
   let searchOpen = $state(false)
+  let tab = $state<"agent" | "console">("console")
+  let bridgeError = $state<string | null>(null)
+  let chartId = ""
+  let chartBridge: ReturnType<typeof startChartBridge> | null = null
 
   let refreshTimer: number | undefined
   let searchTimer: number | undefined
@@ -71,6 +78,7 @@
           onLog: (entry) => {
             log = [entry, ...log].slice(0, 100)
           },
+          onViewportChange: () => chartBridge?.scheduleSync(),
         },
       },
     )
@@ -88,11 +96,31 @@
       void bootstrap()
     }
 
+    chartId = sessionStorage.getItem("amaterasu.chartId") ?? crypto.randomUUID()
+    sessionStorage.setItem("amaterasu.chartId", chartId)
+    if (mode === "live") {
+      bridge.startStream()
+    }
+    chartBridge = startChartBridge({
+      controller: instance,
+      chartId,
+      enabled: () => mode === "live",
+      context: () => (symbol ? { symbol: symbol.name, interval } : null),
+      onAgentError: (message) => {
+        bridgeError = message
+      },
+    })
+    if (mode === "live") {
+      tab = "agent"
+      void chartBridge.attach()
+    }
+
     window.addEventListener("beforeunload", saveState)
     return () => {
       window.removeEventListener("beforeunload", saveState)
       window.clearInterval(refreshTimer)
       window.clearTimeout(searchTimer)
+      chartBridge?.dispose()
       instance.dispose()
       if (dev) delete (window as unknown as { __amaterasu?: ChartController }).__amaterasu
       controller = null
@@ -146,6 +174,7 @@
       needsConnection = false
       void loadQuote()
       saveState()
+      chartBridge?.scheduleSync()
     } catch (cause) {
       handleError(cause)
     } finally {
@@ -186,6 +215,12 @@
 
   function refreshNow(): void {
     void loadCandles({ preserveView: true })
+  }
+
+  /** Surgical undo for one agent turn: removes the shapes that turn drew. */
+  function undoTurn(messageIDs: string[]): void {
+    if (!controller) return
+    for (const messageID of messageIDs) controller.undoTurnBySource(messageID)
   }
 
   function selectInterval(value: string): void {
@@ -408,7 +443,37 @@
           class="{buttonBase} {buttonIdle}">Clear all</button
         >
       </div>
-      <OpConsole {controller} {log} />
+
+      <div class="flex border-b border-white/10" role="tablist" aria-label="Panels">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "agent"}
+          onclick={() => (tab = "agent")}
+          class="flex-1 px-3 py-1.5 text-xs {tab === 'agent'
+            ? 'bg-white/5 text-[#d7dee8]'
+            : 'text-[#8b98a9] hover:text-[#c9d4e3]'}">Agent</button
+        >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "console"}
+          onclick={() => (tab = "console")}
+          class="flex-1 px-3 py-1.5 text-xs {tab === 'console'
+            ? 'bg-white/5 text-[#d7dee8]'
+            : 'text-[#8b98a9] hover:text-[#c9d4e3]'}">Console</button
+        >
+      </div>
+      {#if bridgeError}
+        <p class="border-b border-[#ef5350]/40 bg-[#ef5350]/10 px-3 py-1 text-[10px] text-[#ef5350]" role="alert">
+          {bridgeError}
+        </p>
+      {/if}
+      {#if tab === "agent"}
+        <ChatPanel {mode} onUndoTurn={undoTurn} />
+      {:else}
+        <OpConsole {controller} {log} />
+      {/if}
     </aside>
   </main>
 </div>
