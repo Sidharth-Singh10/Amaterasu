@@ -16,12 +16,26 @@ shell (symbol search, interval tabs, quote header, auto-refresh, view persistenc
 (2025-09-17 → 2026-09-17), live quote, 302 ms uncached intraday fetch, 3.6 ms cached reads,
 annotations drawn on real data.
 
-**Phase 2 in progress** (2026-09-17): the `opencode/` project (chart-analyst agent +
-chart-bridge plugin exposing `chart_*` tools over RPC) and the Rust bridge (chat sessions,
-a single upstream event subscription fanned out to browsers, chart RPC forwarding) are live
-and verified — session → prompt → streamed reply, attach/sync/op-ack round trips, and the
-plugin tool context exposes `sessionID`/`messageID` for per-turn traceability. Remaining:
-the chat panel UI and the definitive "agent draws on the live chart" test.
+**Phase 2 complete** (2026-09-17): the `opencode/` project (chart-analyst agent + chart-bridge
+plugin exposing `chart_*` tools over RPC) and the Rust bridge (chat sessions, a single upstream
+event subscription fanned out to browsers, chart RPC forwarding) are live and verified — the
+agent read the chart, drew on it, every op is stamped with its `sessionID`/`messageID`, and
+per-turn undo removes exactly that turn's shapes. Two V2 facts to carry to the VPS: plugin/MCP
+tools are reached through Code Mode (`execute` must be allowed; nested calls still enforce their
+own permissions), and primary sessions ignore an agent's `model` (the bridge pins
+`OPENCODE_MODEL`).
+
+**Phase 3 in progress** (2026-09-17): analysis shapes (`hzone`/`vzone` supply-demand bands,
+`marker` event glyphs, `measure` Δ badges) with renderer tests; a structure snap engine (OHLC
+points, swing pivots, round levels) with pixel-space snapping for the mouse and
+viewport-independent data-space snapping for agent ops (`snap: "ohlc" | "swing" | "level"`);
+and draggable anchor handles (one gesture = one op). Live-verified: the agent drew a range
+band, an arrow at the swing low, a Δ measure, and an OHLC-snapped level in one call — the
+snapped price matched the swing low exactly, every annotation carried its source ids, and one
+per-turn undo reverted all four. Firecrawl is VPS-side by design: the agent already allows
+`firecrawl_*` and is instructed to prefer it for news; the MCP block belongs in the VPS config
+(see the deploy notes) since local dev has no firecrawl. Remaining in Phase 3: fib/channel
+shapes and agent-computed indicator series.
 
 ## Layout
 

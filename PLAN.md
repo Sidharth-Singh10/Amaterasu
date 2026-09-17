@@ -3,17 +3,16 @@
 **Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 2 complete (2026-09-17) — the OpenCode project (`opencode/`: chart-analyst agent,
-chart-bridge plugin with `chart_*` tools + RPC) and the Rust bridge (chat sessions, single upstream event
-subscription fanned out over SSE, chart RPC forwarding) are live and verified end to end: the agent reads the
-chart (`state.request` → browser snapshot), draws on it (`op.draw.request` → DocStore → ack), every op is stamped
-with its originating `sessionID`/`messageID`, tool cards render, and per-turn Undo removes exactly that turn's
-shapes. Findings worth carrying to the VPS: **V2 reaches plugin/MCP tools through Code Mode** (`execute` must be
-allowed; nested calls still enforce their own permission actions), and **primary sessions ignore an agent's
-`model`** — the bridge pins it via `OPENCODE_MODEL` (default dev: `opencode-go/deepseek-v4.1-flash`).
-Phase 1 complete — Rust data service (INDmoney OAuth + MCP client + candles/search/quote + TTL cache, 23 unit
-tests) and the live-data shell; 53 web tests, svelte-check clean, 13/13 E2E; live-verified 248 daily RELIANCE
-bars (2025-09-17 → 2026-09-17), live quote, 302 ms uncached intraday fetch, 3.6 ms cached.
+**Build status:** Phase 3 in progress (2026-09-17) — analysis shapes (`hzone`/`vzone`, `marker`,
+`measure`) with renderer tests; structure snapping (OHLC/swing/round) with pixel mode for the mouse and
+view-independent data mode for agent ops; draggable anchor handles. Live-verified: the agent drew a band, a
+swing-low arrow, a Δ measure, and an OHLC-snapped level in one call (snapped price matched the low exactly;
+all source-stamped; one per-turn undo reverted all four); 72 web tests, svelte-check clean, 13/13 demo E2E.
+Firecrawl: agent permission + prompt done; the MCP block belongs in the VPS config (local dev has none).
+Remaining: fib/channel shapes, agent-computed indicator series.
+Phase 2 complete — the `opencode/` project + Rust bridge verified end to end (agent draws on the live chart,
+source-stamped ops, per-turn undo). Phase 1 complete — Rust data service + live-data shell; 53 web tests,
+13/13 E2E; live-verified 248 daily RELIANCE bars, live quote, 302 ms uncached intraday fetch, 3.6 ms cached.
 **Supersedes:** v0.0.3 — frontend migrated from Next.js to SvelteKit. v0.0.2 — backend switched from Node route
 handlers to a Rust (axum) service. v0.0.1 — overlay engine raised to a first-class component after review of the
 Graphite planning artifact (`/home/levi/Graphite/chart-app-plan.md`).
