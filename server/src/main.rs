@@ -28,8 +28,8 @@ async fn main() -> anyhow::Result<()> {
     if let Some(dir) = static_dir {
         let index = dir.join("index.html");
         anyhow::ensure!(index.is_file(), "static index not found: {}", index.display());
-        // SPA fallback: unknown paths serve index.html so client-side routing works.
-        app = app.fallback_service(ServeDir::new(&dir).not_found_service(ServeFile::new(&index)));
+        // SPA fallback: unknown paths serve index.html with a 200 (not_found_service would force 404).
+        app = app.fallback_service(ServeDir::new(&dir).fallback(ServeFile::new(&index)));
         tracing::info!(static_dir = %dir.display(), "serving built frontend");
     }
 
