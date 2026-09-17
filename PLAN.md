@@ -3,10 +3,10 @@
 **Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 1 implemented (2026-09-17) — Rust data service (INDmoney OAuth + MCP client + candles/
-search/quote + TTL cache, 22 unit tests) and the live-data shell (search, intervals, quote, auto-refresh,
-persistence, `?demo=1`); 53 web tests, svelte-check clean, 13/13 E2E. One-time INDmoney consent pending for the
-live-data verification.
+**Build status:** Phase 1 complete (2026-09-17) — Rust data service (INDmoney OAuth + MCP client + candles/
+search/quote + TTL cache, 23 unit tests) and the live-data shell (search, intervals, quote, auto-refresh,
+persistence, `?demo=1`); 53 web tests, svelte-check clean, 13/13 E2E. Live-verified: 248 daily RELIANCE bars
+(2025-09-17 → 2026-09-17), live quote, 302 ms uncached intraday fetch, 3.6 ms cached, annotations on real data.
 **Supersedes:** v0.0.3 — frontend migrated from Next.js to SvelteKit. v0.0.2 — backend switched from Node route
 handlers to a Rust (axum) service. v0.0.1 — overlay engine raised to a first-class component after review of the
 Graphite planning artifact (`/home/levi/Graphite/chart-app-plan.md`).
