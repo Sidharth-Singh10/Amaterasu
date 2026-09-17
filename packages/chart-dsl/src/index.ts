@@ -127,6 +127,17 @@ export const SeriesSchema = z.object({
 })
 export type Series = z.infer<typeof SeriesSchema>
 
+/**
+ * A workspace document: everything the browser persists per symbol. The server stores it
+ * verbatim; both sides validate against this schema.
+ */
+export const DocPayloadSchema = z.object({
+  v: z.literal(1),
+  annotations: z.array(AnnotationSchema).max(CAPS.maxAnnotations),
+  series: z.array(SeriesSchema).max(CAPS.maxSeries),
+})
+export type DocPayload = z.infer<typeof DocPayloadSchema>
+
 // ── Ops ──────────────────────────────────────────────────────────────────────
 
 export const DrawOpSchema = z.object({
