@@ -10,6 +10,9 @@ independently computed and reported SMA (₹1289.05). Live testing caught a tool
 been silently forcing channel-by-trendlines workarounds. 80 web tests, svelte-check clean, 14/14 demo E2E,
 28 Rust tests. Firecrawl: agent permission + prompt done; the MCP block belongs in the VPS config (local dev has
 none) with the verification step in the deploy runbook.
+**Phase 4 runbook shipped** (`deploy/`): nginx vhost (SSE-tuned), systemd user units, env template, a step-by-step
+runbook with per-step verifications, the two one-time consents, upgrades, and a troubleshooting table. User-executed
+on the VPS.
 Phase 2 complete — `opencode/` project + Rust bridge verified end to end (agent draws on the live chart,
 source-stamped ops, per-turn undo). Phase 1 complete — Rust data service + live-data shell; live-verified 248
 daily RELIANCE bars, live quote, 302 ms uncached intraday fetch.

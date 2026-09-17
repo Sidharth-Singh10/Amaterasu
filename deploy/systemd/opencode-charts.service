@@ -1,0 +1,20 @@
+# OpenCode server for the Amaterasu chart agent.
+# Install: cp deploy/systemd/opencode-charts.service ~/.config/systemd/user/
+#          systemctl --user daemon-reload && systemctl --user enable --now opencode-charts
+# Logs:    journalctl --user -u opencode-charts -f
+# Adjust ExecStart if `which opencode` differs on this machine.
+[Unit]
+Description=OpenCode server for the Amaterasu chart agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/amaterasu/opencode
+EnvironmentFile=%h/amaterasu/.env
+ExecStart=%h/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 4096
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,21 @@
+# Amaterasu app service (Rust API + static SPA).
+# Install: cp deploy/systemd/amaterasu-web.service ~/.config/systemd/user/
+#          systemctl --user daemon-reload && systemctl --user enable --now amaterasu-web
+# Logs:    journalctl --user -u amaterasu-web -f
+[Unit]
+Description=Amaterasu web app and API (Rust)
+After=network-online.target
+Wants=network-online.target
+# The agent bridge is optional for the app, but start after it when present.
+After=opencode-charts.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/amaterasu
+EnvironmentFile=%h/amaterasu/.env
+ExecStart=%h/amaterasu/server/target/release/amaterasu-server
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -33,8 +33,9 @@ the agent drew a fib from the swing low to the high, a channel along the last 40
 plotted SMA(20) computed in Code Mode — the plotted last value matched the independently
 computed SMA (₹1289.05) *and* the number it reported. A tool-schema bug (`points` capped at 2)
 was caught by live testing: channels need 3, so the model had been composing them from
-trendlines. 80 web tests, 14/14 demo E2E, 28 Rust tests. Next: Firecrawl on the VPS and the
-Phase 4 deployment runbook.
+trendlines. 80 web tests, 14/14 demo E2E, 28 Rust tests. Next: execute
+[`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) on the VPS (you drive it; everything it needs is
+committed).
 
 ## Layout
 
@@ -78,6 +79,9 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 # 3. type-check the plugin/agent project
 cd opencode && npm install && npm run check
 ```
+
+**Production deployment:** see [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) — nginx + TLS + systemd
+on the VPS, the Firecrawl check, the INDmoney consent, upgrades, and troubleshooting.
 
 ## Dev op console
 
