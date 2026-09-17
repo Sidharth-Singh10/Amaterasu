@@ -12,6 +12,7 @@ import {
 import type { Anchor, Kind, Op, OpResult, SetViewOp } from "@amaterasu/chart-dsl"
 import { Transform } from "@/lib/chart/transform"
 import { demoCandles, type Candle } from "@/lib/data/mock"
+import { diffCandles } from "@/lib/data/diff"
 import { DocStore, type AnchorCheck } from "@/lib/ops/reducer"
 import { OverlaySurface, type EphemeralShape } from "@/lib/overlays/surface"
 import { registerBuiltinRenderers } from "@/lib/overlays/renderers"
@@ -67,7 +68,7 @@ export class ChartController {
   private readonly candleSeries: ISeriesApi<"Candlestick">
   private readonly volumeSeries: ISeriesApi<"Histogram">
   private readonly surface: OverlaySurface
-  private readonly bars: Candle[]
+  private bars: Candle[]
   private readonly host: HTMLElement
   private readonly resizeObserver: ResizeObserver
   private readonly listeners: ControllerListeners
@@ -107,13 +108,7 @@ export class ChartController {
       lastValueVisible: false,
       priceLineVisible: false,
     })
-    this.volumeSeries.setData(
-      this.bars.map((candle) => ({
-        time: candle.time as UTCTimestamp,
-        value: candle.volume,
-        color: candle.close >= candle.open ? "rgba(38,166,154,.35)" : "rgba(239,83,80,.35)",
-      })),
-    )
+    this.volumeSeries.setData([])
     this.chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
 
     this.candleSeries = this.chart.addSeries(CandlestickSeries, {
@@ -124,16 +119,7 @@ export class ChartController {
       borderVisible: false,
       priceFormat: { type: "price", precision: 2, minMove: 0.05 },
     })
-    this.candleSeries.setData(
-      this.bars.map((candle) => ({
-        time: candle.time as UTCTimestamp,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-      })),
-    )
-    this.chart.timeScale().fitContent()
+    this.candleSeries.setData([])
 
     this.store = new DocStore({
       checkAnchor: (anchor) => this.checkAnchor(anchor),
@@ -165,6 +151,7 @@ export class ChartController {
     elements.host.addEventListener("mousemove", this.onMouseCompat, true)
     elements.host.addEventListener("mouseup", this.onMouseCompat, true)
     window.addEventListener("keydown", this.onKeyDown)
+    this.applyCandles(this.bars)
     this.layout()
   }
 
@@ -265,15 +252,75 @@ export class ChartController {
     return points
   }
 
+  /**
+   * Replaces the series data. `preserveView` keeps the current logical range (refresh);
+   * otherwise the chart fits the new content (symbol/interval change).
+   */
+  applyCandles(candles: Candle[], opts?: { preserveView?: boolean }): void {
+    const previous = this.bars
+    this.bars = candles
+    const diff = diffCandles(previous, candles)
+    if (diff.mode === "update") {
+      for (const candle of diff.candles) {
+        const time = candle.time as UTCTimestamp
+        this.candleSeries.update({
+          time,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+        })
+        this.volumeSeries.update({
+          time,
+          value: candle.volume,
+          color: candle.close >= candle.open ? "rgba(38,166,154,.35)" : "rgba(239,83,80,.35)",
+        })
+      }
+    } else {
+      this.candleSeries.setData(
+        candles.map((candle) => ({
+          time: candle.time as UTCTimestamp,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+        })),
+      )
+      this.volumeSeries.setData(
+        candles.map((candle) => ({
+          time: candle.time as UTCTimestamp,
+          value: candle.volume,
+          color: candle.close >= candle.open ? "rgba(38,166,154,.35)" : "rgba(239,83,80,.35)",
+        })),
+      )
+    }
+    if (!opts?.preserveView) {
+      this.chart.timeScale().fitContent()
+    }
+    this.layout()
+    this.surface.invalidate("all")
+  }
+
+  /** Current visible logical range, for persistence across reloads. */
+  getViewport(): { from: number; to: number } | null {
+    const range = this.chart.timeScale().getVisibleLogicalRange()
+    return range ? { from: range.from, to: range.to } : null
+  }
+
+  setViewport(range: { from: number; to: number }): void {
+    this.chart.timeScale().setVisibleLogicalRange(range)
+    this.surface.invalidate("all")
+  }
+
   /** Compact chart state for the dev console and (Phase 2) the agent bridge. */
-  getSnapshot() {
+  getSnapshot(meta?: { symbol?: string; interval?: string }) {
     const t = this.transform()
     const visibleRange = this.chart.timeScale().getVisibleRange()
     const priceRange = t?.visiblePriceRange() ?? null
     const logicalRange = t?.visibleLogicalRange() ?? null
     return {
-      symbol: "RELIANCE (mock)",
-      interval: "1day",
+      symbol: meta?.symbol ?? "RELIANCE (mock)",
+      interval: meta?.interval ?? "1day",
       bars: this.bars.slice(-250),
       visible: visibleRange
         ? {

@@ -52,7 +52,7 @@ page.on("console", (m) => {
 })
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${e.message}`))
 
-await page.goto(BASE_URL, { waitUntil: "domcontentloaded" })
+await page.goto(`${BASE_URL}/?demo=1`, { waitUntil: "domcontentloaded" })
 await page.waitForFunction(() => !!window.__amaterasu, null, { timeout: 20000 })
 await page.waitForTimeout(500)
 
