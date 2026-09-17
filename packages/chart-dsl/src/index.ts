@@ -31,6 +31,8 @@ export const KINDS = [
   "vzone",
   "marker",
   "measure",
+  "fib",
+  "channel",
   "label",
 ] as const
 export const KindSchema = z.enum(KINDS)
@@ -47,6 +49,8 @@ export const MIN_POINTS: Record<Kind, number> = {
   vzone: 2,
   marker: 1,
   measure: 2,
+  fib: 2,
+  channel: 3,
   label: 1,
 }
 
@@ -76,6 +80,8 @@ export const CAPS = {
   maxAnnotations: 500,
   maxPoints: 64,
   maxLabel: 256,
+  maxSeries: 12,
+  maxSeriesPoints: 2500,
 } as const
 
 // ── Annotations ──────────────────────────────────────────────────────────────
@@ -94,6 +100,32 @@ export const AnnotationSchema = z.object({
   updatedAt: z.number(),
 })
 export type Annotation = z.infer<typeof AnnotationSchema>
+
+// ── Series (agent-computed lines: SMA/EMA/custom) ─────────────────────────────
+
+export const SeriesPointSchema = z.object({
+  t: z.number().finite(),
+  v: z.number().finite(),
+})
+export type SeriesPoint = z.infer<typeof SeriesPointSchema>
+
+export const SeriesStyleSchema = z.object({
+  color: z.string().regex(HEX).optional(),
+  width: z.number().min(0.5).max(8).optional(),
+  dash: z.boolean().optional(),
+})
+export type SeriesStyle = z.infer<typeof SeriesStyleSchema>
+
+export const SeriesSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(64),
+  points: z.array(SeriesPointSchema).min(2).max(CAPS.maxSeriesPoints),
+  style: SeriesStyleSchema,
+  source: SourceSchema.optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+export type Series = z.infer<typeof SeriesSchema>
 
 // ── Ops ──────────────────────────────────────────────────────────────────────
 
@@ -146,12 +178,34 @@ export const SetViewOpSchema = z.object({
 })
 export type SetViewOp = z.infer<typeof SetViewOpSchema>
 
+/**
+ * Adds or replaces a computed line series by id (upsert: re-adding the same id updates it,
+ * which is how the agent refreshes an indicator).
+ */
+export const AddSeriesOpSchema = z.object({
+  op: z.literal("add_series"),
+  id: z.string().min(1),
+  name: z.string().min(1).max(64),
+  points: z.array(SeriesPointSchema).min(2).max(CAPS.maxSeriesPoints),
+  style: SeriesStyleSchema.optional(),
+  source: SourceSchema.optional(),
+})
+export type AddSeriesOp = z.infer<typeof AddSeriesOpSchema>
+
+export const RemoveSeriesOpSchema = z.object({
+  op: z.literal("remove_series"),
+  id: z.string().min(1),
+})
+export type RemoveSeriesOp = z.infer<typeof RemoveSeriesOpSchema>
+
 export const OpSchema = z.discriminatedUnion("op", [
   DrawOpSchema,
   UpdateOpSchema,
   RemoveOpSchema,
   ClearOpSchema,
   SetViewOpSchema,
+  AddSeriesOpSchema,
+  RemoveSeriesOpSchema,
 ])
 export type Op = z.infer<typeof OpSchema>
 
