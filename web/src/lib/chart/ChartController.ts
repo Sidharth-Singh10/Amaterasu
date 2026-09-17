@@ -78,6 +78,7 @@ export class ChartController {
   private hovered: string | null = null
   private drawing: DrawingState | null = null
   private dragging: DraggingState | null = null
+  private meta = { symbol: "unknown", interval: "1day" }
   private disposed = false
 
   constructor(elements: ControllerElements, opts?: { candles?: Candle[]; listeners?: ControllerListeners }) {
@@ -312,6 +313,11 @@ export class ChartController {
     this.surface.invalidate("all")
   }
 
+  /** Display identity of the loaded data; used by `getSnapshot` (and Phase 2's agent state). */
+  setSymbolMeta(meta: { symbol: string; interval: string }): void {
+    this.meta = meta
+  }
+
   /** Compact chart state for the dev console and (Phase 2) the agent bridge. */
   getSnapshot(meta?: { symbol?: string; interval?: string }) {
     const t = this.transform()
@@ -319,8 +325,8 @@ export class ChartController {
     const priceRange = t?.visiblePriceRange() ?? null
     const logicalRange = t?.visibleLogicalRange() ?? null
     return {
-      symbol: meta?.symbol ?? "RELIANCE (mock)",
-      interval: meta?.interval ?? "1day",
+      symbol: meta?.symbol ?? this.meta.symbol,
+      interval: meta?.interval ?? this.meta.interval,
       bars: this.bars.slice(-250),
       visible: visibleRange
         ? {

@@ -51,12 +51,13 @@
 
   const intervalOptions = INTERVALS
 
-  function snapshotMeta() {
-    return {
-      symbol: mode === "demo" ? "RELIANCE (mock)" : (symbol?.name ?? "unknown"),
+  $effect(() => {
+    if (!controller) return
+    controller.setSymbolMeta({
+      symbol: mode === "demo" ? "RELIANCE (mock)" : (symbol?.name ?? "loading…"),
       interval,
-    }
-  }
+    })
+  })
 
   onMount(() => {
     const instance = new ChartController(
