@@ -3,16 +3,16 @@
 **Version:** v0.0.4
 **Date:** 2026-09-17
 **Status:** Approved for implementation
-**Build status:** Phase 3 in progress (2026-09-17) — analysis shapes (`hzone`/`vzone`, `marker`,
-`measure`) with renderer tests; structure snapping (OHLC/swing/round) with pixel mode for the mouse and
-view-independent data mode for agent ops; draggable anchor handles. Live-verified: the agent drew a band, a
-swing-low arrow, a Δ measure, and an OHLC-snapped level in one call (snapped price matched the low exactly;
-all source-stamped; one per-turn undo reverted all four); 72 web tests, svelte-check clean, 13/13 demo E2E.
-Firecrawl: agent permission + prompt done; the MCP block belongs in the VPS config (local dev has none).
-Remaining: fib/channel shapes, agent-computed indicator series.
-Phase 2 complete — the `opencode/` project + Rust bridge verified end to end (agent draws on the live chart,
-source-stamped ops, per-turn undo). Phase 1 complete — Rust data service + live-data shell; 53 web tests,
-13/13 E2E; live-verified 248 daily RELIANCE bars, live quote, 302 ms uncached intraday fetch, 3.6 ms cached.
+**Build status:** Phase 3 complete (2026-09-17) — `fib` + `channel` shapes (handle-editable), computed series
+(`chart_add_series`/`remove_series`, autoscaled, upsert by id, caps), per-turn undo covering shapes *and* series.
+Live-verified: fib from swing low → high, channel along 40 bars, SMA(20) plotted — the plotted value matched the
+independently computed and reported SMA (₹1289.05). Live testing caught a tool-schema cap (`points` ≤ 2) that had
+been silently forcing channel-by-trendlines workarounds. 80 web tests, svelte-check clean, 14/14 demo E2E,
+28 Rust tests. Firecrawl: agent permission + prompt done; the MCP block belongs in the VPS config (local dev has
+none) with the verification step in the deploy runbook.
+Phase 2 complete — `opencode/` project + Rust bridge verified end to end (agent draws on the live chart,
+source-stamped ops, per-turn undo). Phase 1 complete — Rust data service + live-data shell; live-verified 248
+daily RELIANCE bars, live quote, 302 ms uncached intraday fetch.
 **Supersedes:** v0.0.3 — frontend migrated from Next.js to SvelteKit. v0.0.2 — backend switched from Node route
 handlers to a Rust (axum) service. v0.0.1 — overlay engine raised to a first-class component after review of the
 Graphite planning artifact (`/home/levi/Graphite/chart-app-plan.md`).

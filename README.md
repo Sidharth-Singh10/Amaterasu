@@ -25,17 +25,16 @@ tools are reached through Code Mode (`execute` must be allowed; nested calls sti
 own permissions), and primary sessions ignore an agent's `model` (the bridge pins
 `OPENCODE_MODEL`).
 
-**Phase 3 in progress** (2026-09-17): analysis shapes (`hzone`/`vzone` supply-demand bands,
-`marker` event glyphs, `measure` Δ badges) with renderer tests; a structure snap engine (OHLC
-points, swing pivots, round levels) with pixel-space snapping for the mouse and
-viewport-independent data-space snapping for agent ops (`snap: "ohlc" | "swing" | "level"`);
-and draggable anchor handles (one gesture = one op). Live-verified: the agent drew a range
-band, an arrow at the swing low, a Δ measure, and an OHLC-snapped level in one call — the
-snapped price matched the swing low exactly, every annotation carried its source ids, and one
-per-turn undo reverted all four. Firecrawl is VPS-side by design: the agent already allows
-`firecrawl_*` and is instructed to prefer it for news; the MCP block belongs in the VPS config
-(see the deploy notes) since local dev has no firecrawl. Remaining in Phase 3: fib/channel
-shapes and agent-computed indicator series.
+**Phase 3 complete** (2026-09-17): `fib` (7 labelled retracement levels) and `channel` (parallel
+rails with fill) shapes, both handle-editable; computed **series** (`chart_add_series` /
+`chart_remove_series` → autoscaled lightweight-charts lines, upsert by id, 12 series / 2500
+points caps, undo-aware); per-turn undo now clears a turn's shapes *and* its series. Live-verified:
+the agent drew a fib from the swing low to the high, a channel along the last 40 bars, and
+plotted SMA(20) computed in Code Mode — the plotted last value matched the independently
+computed SMA (₹1289.05) *and* the number it reported. A tool-schema bug (`points` capped at 2)
+was caught by live testing: channels need 3, so the model had been composing them from
+trendlines. 80 web tests, 14/14 demo E2E, 28 Rust tests. Next: Firecrawl on the VPS and the
+Phase 4 deployment runbook.
 
 ## Layout
 
