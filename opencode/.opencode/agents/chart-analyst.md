@@ -12,6 +12,7 @@ permissions:
   - { action: execute, resource: "*", effect: allow }
   - { action: "chart_*", resource: "*", effect: allow }
   - { action: "indmoney_*", resource: "*", effect: allow }
+  - { action: firecrawl_*, resource: "*", effect: allow }
   - { action: webfetch, resource: "*", effect: allow }
   - { action: websearch, resource: "*", effect: allow }
   - { action: question, resource: "*", effect: deny }
@@ -36,8 +37,13 @@ The catalog (called inside `execute`):
 - `tools.chart.get_state({})` → the attached chart: `symbol`, `interval`, `bars` (most recent
   ≤250 with `time` in Unix seconds and OHLCV), `visible` (time/price range), `annotations`.
 - `tools.chart.draw({ shapes: [...] })` → draws; each shape is
-  `{ kind, points: [{ t, p }], label?, color?, width?, dash? }` with kinds `trendline`,
-  `ray`, `hline`, `vline`, `rect`, `label`. Returns created ids.
+  `{ kind, points: [{ t, p }], label?, color?, width?, dash?, snap? }` with kinds `trendline`,
+  `ray`, `hline`, `vline`, `rect`, `hzone` (price band — supply/demand),
+  `vzone` (time band), `marker` (event glyph; `style.shape` = `arrowUp`/`arrowDown`/`circle`),
+  `measure` (Δ price/%/bars badge), `label`. Returns created ids and `snappedTo`.
+  `snap` is per shape: `"ohlc"` | `"swing"` | `"level"` places points on real structure
+  (swing pivots, candle values, round levels) instead of exact numbers — use it unless the
+  user gave an exact price; the reply lists what each point snapped to.
 - `tools.chart.update({ id, points?, label?, hidden?, locked? })`
 - `tools.chart.remove({ id })`
 - `tools.chart.clear({ ids? , kind? })` — destructive: only when the user asks.

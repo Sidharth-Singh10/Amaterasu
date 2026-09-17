@@ -228,7 +228,7 @@ export default Plugin.define({
       add({
         name: "draw",
         description:
-          "Draw annotations on the chart. Points are data coordinates { t: bar time in Unix seconds, p: price }. Kinds: trendline (2 points), ray (2 points), hline (1 point, price level), vline (1 point, time), rect (2 points), label (1 point, with text). Returns the created annotation ids.",
+          "Draw annotations on the chart. Points are data coordinates { t: bar time in Unix seconds, p: price }. Kinds: trendline (2 points), ray (2 points), hline (1 point, price level), vline (1 point, time), rect (2 points), hzone (2 points, price band across the chart — supply/demand), vzone (2 points, time band), marker (1 point, event glyph), measure (2 points, Δ badge), label (1 point, text). Set `snap` (\"ohlc\" | \"swing\" | \"level\") to place points on structure instead of exact values. Returns the created annotation ids.",
         input: object(
           {
             shapes: {
@@ -237,7 +237,21 @@ export default Plugin.define({
               maxItems: 8,
               items: object(
                 {
-                  kind: { type: "string", enum: ["trendline", "ray", "hline", "vline", "rect", "label"] },
+                  kind: {
+                    type: "string",
+                    enum: [
+                      "trendline",
+                      "ray",
+                      "hline",
+                      "vline",
+                      "rect",
+                      "hzone",
+                      "vzone",
+                      "marker",
+                      "measure",
+                      "label",
+                    ],
+                  },
                   points: {
                     type: "array",
                     minItems: 1,
@@ -248,6 +262,7 @@ export default Plugin.define({
                   color: str,
                   width: num,
                   dash: bool,
+                  snap: { type: "string", enum: ["none", "ohlc", "swing", "level"] },
                 },
                 ["kind", "points"],
               ),
