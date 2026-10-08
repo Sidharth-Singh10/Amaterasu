@@ -1,15 +1,227 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
+/*
+ * Amaterasu design tokens.
+ *
+ * The canvas-side mirror of this palette lives in `src/lib/theme/palette.ts`
+ * (lightweight-charts options and overlay renderers cannot read CSS variables).
+ * Keep both in sync when changing colors.
+ */
+@theme {
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* surfaces — cool, layered, never pure black */
+  --color-canvas: #0b0f14;
+  --color-surface-1: #10161f;
+  --color-surface-2: #151d28;
+  --color-surface-3: #1c2635;
+
+  /* text */
+  --color-ink-1: #e3e9f2;
+  --color-ink-2: #94a1b3;
+  --color-ink-3: #5f6d80;
+
+  /* hairlines */
+  --color-line-1: rgba(148, 161, 179, 0.14);
+  --color-line-2: rgba(148, 161, 179, 0.28);
+
+  /* interactive accent (desaturated enough to sit with the neutrals) */
+  --color-accent: #5d91e9;
+  --color-accent-soft: rgba(93, 145, 233, 0.14);
+
+  /* chart-editing / selection accent */
+  --color-select: #e6ad33;
+  --color-select-soft: rgba(230, 173, 51, 0.16);
+
+  /* market semantics */
+  --color-up: #26a69a;
+  --color-up-soft: rgba(38, 166, 154, 0.14);
+  --color-down: #ef5350;
+  --color-down-soft: rgba(239, 83, 80, 0.12);
+
+  /* elevation — tinted toward the canvas hue, never pure black */
+  --shadow-pop: 0 16px 40px -16px rgba(3, 7, 14, 0.9), 0 4px 12px -4px rgba(3, 7, 14, 0.55);
+  --shadow-raised: 0 1px 2px rgba(3, 7, 14, 0.45);
+
+  --animate-live: live-pulse 2.4s ease-in-out infinite;
+  @keyframes live-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
 }
 
-html,
-body {
-  height: 100%;
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    color: #ffffff;
+  }
 }
 
-body {
-  background-color: #0b0f14;
-  color: #d7dee8;
+@layer components {
+  /* ---- buttons -------------------------------------------------------- */
+  .btn {
+    @apply inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-line-1 bg-surface-2 px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-ink-2 transition-[background-color,border-color,color,transform] duration-150 ease-out select-none hover:border-line-2 hover:bg-surface-3 hover:text-ink-1 active:translate-y-px disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas focus-visible:outline-none;
+  }
+
+  .btn[aria-pressed="true"] {
+    @apply border-select/50 bg-surface-3 text-select hover:border-select/70 hover:bg-surface-3 hover:text-select;
+  }
+
+  .btn-primary {
+    @apply border-accent/40 bg-accent-soft text-accent hover:border-accent/60 hover:bg-accent/20 hover:text-accent;
+  }
+
+  .btn-primary:disabled {
+    @apply border-line-1 bg-surface-2 text-ink-3 opacity-100;
+  }
+
+  .btn-icon {
+    @apply h-7 w-7 px-0;
+  }
+
+  /* Touch devices and narrow viewports get finger-sized icon buttons (glyphs stay 16px). */
+  @media (pointer: coarse), (max-width: 640px) {
+    .btn-icon {
+      @apply h-11 w-11;
+    }
+  }
+
+  .chip {
+    @apply inline-flex shrink-0 cursor-pointer items-center rounded-sm border border-line-1 bg-surface-2 px-2 py-1 text-[11px] leading-none text-ink-2 transition-[background-color,border-color,color,transform] duration-150 hover:border-line-2 hover:bg-surface-3 hover:text-ink-1 active:translate-y-px focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none;
+  }
+
+  /* ---- inputs --------------------------------------------------------- */
+  .input {
+    @apply rounded-md border border-line-1 bg-canvas/70 px-2.5 py-1.5 text-xs text-ink-1 transition-colors duration-150 placeholder:text-ink-3 focus:border-accent/50 focus:ring-2 focus:ring-accent/25 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  /* ---- segmented control (intervals) ---------------------------------- */
+  .seg {
+    @apply cursor-pointer rounded-sm px-1.5 py-1 font-mono text-[10px] font-medium tracking-tight text-ink-3 transition-colors duration-150 hover:text-ink-1 disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-1 focus-visible:ring-accent/70 focus-visible:outline-none;
+  }
+
+  .seg[aria-pressed="true"] {
+    @apply bg-accent-soft text-accent hover:text-accent;
+  }
+
+  /* ---- tabs ----------------------------------------------------------- */
+  .tab {
+    @apply relative flex-1 cursor-pointer px-3 py-2 text-xs font-medium text-ink-3 transition-colors duration-150 hover:text-ink-1 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 focus-visible:outline-none;
+  }
+
+  .tab[aria-selected="true"] {
+    @apply text-ink-1;
+  }
+
+  .tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.75rem;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-accent);
+  }
+
+  /* ---- tooltips (CSS-only, anchored to the control) ------------------- */
+  .tip {
+    position: relative;
+  }
+
+  .tip-text {
+    pointer-events: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 60;
+    transform: translate(-50%, -2px);
+    white-space: nowrap;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-line-2);
+    background: var(--color-surface-2);
+    padding: 0.125rem 0.375rem;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--color-ink-2);
+    box-shadow: var(--shadow-pop);
+    opacity: 0;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+
+  .tip:hover .tip-text,
+  .tip:focus-within .tip-text {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .tip-left .tip-text {
+    left: auto;
+    right: 0;
+    transform: translate(0, -2px);
+  }
+
+  .tip-left:hover .tip-text,
+  .tip-left:focus-within .tip-text {
+    transform: translate(0, 0);
+  }
+
+  /* ---- misc ----------------------------------------------------------- */
+  .kbd {
+    @apply rounded-sm border border-line-1 bg-surface-2 px-1 py-px font-mono text-[9px] leading-normal text-ink-2;
+  }
+
+  .scroll-area {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+
+  .scroll-area::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-area::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-area::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background-color: var(--color-line-2);
+    background-clip: content-box;
+  }
+
+  .scroll-area::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-ink-3);
+    background-clip: content-box;
+  }
+
+  /* Subtle film grain for chrome surfaces; the chart canvas stays clean. */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  }
 }
