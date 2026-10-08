@@ -1,5 +1,6 @@
 import type { Renderer } from "../registry"
 import { baseColor, drawShapeLabel, lineStyle } from "./common"
+import { palette } from "@/lib/theme/palette"
 
 /**
  * Price band spanning the full pane width between `points[0].p` and `points[1].p`
@@ -20,7 +21,7 @@ export const hzoneRenderer: Renderer = {
       width: Math.max(stroke.width - 0.5, 0.5),
     })
     if (env.selected) {
-      for (const y of [y1, y2]) p.markerIcon("circle", { x: t.cssWidth / 2, y }, { color: "#f0b429", size: 4 })
+      for (const y of [y1, y2]) p.markerIcon("circle", { x: t.cssWidth / 2, y }, { color: palette.selection, size: 4 })
     }
     drawShapeLabel(p, a, 6, top - 4)
   },

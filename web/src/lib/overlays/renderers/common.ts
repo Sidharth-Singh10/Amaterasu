@@ -3,9 +3,10 @@ import type { Transform } from "@/lib/chart/transform"
 import type { LineStyle, Painter, Point } from "../painter"
 import type { FrameEnv } from "../registry"
 import { distToSegment } from "../hit"
+import { palette } from "@/lib/theme/palette"
 
-export const SELECTED_COLOR = "#f0b429"
-export const DEFAULT_COLOR = "#4c8dff"
+export const SELECTED_COLOR = palette.selection
+export const DEFAULT_COLOR = palette.accent
 export const HANDLE_SIZE = 4
 
 /** Resolve every anchor of an annotation to pixels; null if any is unresolvable. */
@@ -21,6 +22,11 @@ export function resolvePoints(a: Annotation, t: Transform): Point[] | null {
 
 export function baseColor(a: Annotation): string {
   return a.style.color ?? DEFAULT_COLOR
+}
+
+/** The color a shape's geometry draws with: selection overrides the base color. */
+export function activeColor(a: Annotation, env: FrameEnv): string {
+  return env.selected ? SELECTED_COLOR : baseColor(a)
 }
 
 export function baseWidth(a: Annotation): number {
@@ -43,7 +49,7 @@ export function drawHandles(p: Painter, points: readonly Point[], color = SELECT
 export function drawShapeLabel(p: Painter, a: Annotation, x: number, y: number): void {
   if (!a.label) return
   p.text(x, y, a.label, {
-    color: a.style.color ?? "#c9d4e3",
+    color: a.style.color ?? palette.shapeText,
     fontSize: a.style.fontSize ?? 11,
     align: "left",
     baseline: "bottom",

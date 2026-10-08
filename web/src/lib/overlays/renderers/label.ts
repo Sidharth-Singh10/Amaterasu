@@ -1,5 +1,5 @@
 import type { Renderer } from "../registry"
-import { baseColor } from "./common"
+import { activeColor } from "./common"
 
 /**
  * Text callout. The pill itself is rendered by the DOM labels layer (selectable text,
@@ -11,7 +11,7 @@ export const labelRenderer: Renderer = {
   draw(a, t, p, env) {
     const resolved = t.resolve(a.points[0])
     if (!resolved.ok) return
-    const color = env.selected ? "#f0b429" : baseColor(a)
+    const color = activeColor(a, env)
     p.markerIcon("circle", { x: resolved.x, y: resolved.y }, { color, size: 3 })
   },
   hitTest(a, t, pt, tol) {

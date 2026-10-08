@@ -1,5 +1,6 @@
 import type { Renderer } from "../registry"
 import { baseColor, drawShapeLabel, lineStyle } from "./common"
+import { palette } from "@/lib/theme/palette"
 
 /**
  * Time band spanning the full pane height between the resolved x of `points[0]` and
@@ -20,7 +21,7 @@ export const vzoneRenderer: Renderer = {
       width: Math.max(stroke.width - 0.5, 0.5),
     })
     if (env.selected) {
-      for (const x of [first.x, second.x]) p.markerIcon("circle", { x, y: t.cssHeight / 2 }, { color: "#f0b429", size: 4 })
+      for (const x of [first.x, second.x]) p.markerIcon("circle", { x, y: t.cssHeight / 2 }, { color: palette.selection, size: 4 })
     }
     drawShapeLabel(p, a, left + 6, 14)
   },

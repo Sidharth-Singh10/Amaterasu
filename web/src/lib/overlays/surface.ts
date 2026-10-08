@@ -2,6 +2,7 @@ import type { Annotation } from "@amaterasu/chart-dsl"
 import type { Transform } from "@/lib/chart/transform"
 import { CanvasPainter, type Point } from "./painter"
 import { getRenderer } from "./registry"
+import { palette } from "@/lib/theme/palette"
 
 export interface EphemeralShape {
   kind: "line" | "rect" | "point"
@@ -26,8 +27,8 @@ export interface SurfaceOptions {
   getState: () => SurfaceState
 }
 
-const SELECTED_COLOR = "#f0b429"
-const EPHEMERAL_COLOR = "#f0b429"
+const SELECTED_COLOR = palette.selection
+const EPHEMERAL_COLOR = palette.selection
 
 /**
  * Owns the canvas stack: one layer for persisted annotations (repaints only when data,
@@ -180,7 +181,7 @@ export class OverlaySurface {
       }
       if (shape.label && shape.points.length >= 1) {
         painter.text(shape.points[0].x + 10, shape.points[0].y - 12, shape.label, {
-          color: "#f0b429",
+          color: palette.selection,
           fontSize: 11,
           align: "left",
           baseline: "bottom",
@@ -215,9 +216,9 @@ export class OverlaySurface {
           "line-height:1.3",
           "white-space:nowrap",
           "pointer-events:none",
-          "background:rgba(13,18,26,.88)",
-          "border:1px solid rgba(240,180,41,.55)",
-          "color:#e6edf6",
+          `background:${palette.labelBg}`,
+          `border:1px solid ${palette.labelBorder}`,
+          `color:${palette.shapeText}`,
           "max-width:220px",
           "overflow:hidden",
           "text-overflow:ellipsis",

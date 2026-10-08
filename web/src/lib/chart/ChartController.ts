@@ -23,6 +23,7 @@ import { resolvePoints } from "@/lib/overlays/renderers/common"
 import { getRenderer } from "@/lib/overlays/registry"
 import { SnapEngine, type SnapKind, type SnapResult } from "@/lib/overlays/snap"
 import type { Point } from "@/lib/overlays/painter"
+import { palette } from "@/lib/theme/palette"
 
 export type Tool = "select" | Kind
 
@@ -102,16 +103,16 @@ export class ChartController {
     this.chart = createChart(elements.host, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#0b0f14" },
-        textColor: "#8b98a9",
+        background: { type: ColorType.Solid, color: palette.canvas },
+        textColor: palette.axisText,
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(139,152,169,.10)" },
-        horzLines: { color: "rgba(139,152,169,.10)" },
+        vertLines: { color: palette.gridLine },
+        horzLines: { color: palette.gridLine },
       },
-      rightPriceScale: { borderColor: "rgba(139,152,169,.25)" },
-      timeScale: { borderColor: "rgba(139,152,169,.25)", timeVisible: false, secondsVisible: false },
+      rightPriceScale: { borderColor: palette.axisBorder },
+      timeScale: { borderColor: palette.axisBorder, timeVisible: false, secondsVisible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
 
@@ -125,10 +126,10 @@ export class ChartController {
     this.chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
 
     this.candleSeries = this.chart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
+      upColor: palette.up,
+      downColor: palette.down,
+      wickUpColor: palette.up,
+      wickDownColor: palette.down,
       borderVisible: false,
       priceFormat: { type: "price", precision: 2, minMove: 0.05 },
     })
@@ -224,7 +225,7 @@ export class ChartController {
       seen.add(series.id)
       if (this.seriesSignature.get(series.id) === series.updatedAt) continue
       const options = {
-        color: series.style.color ?? "#f0b429",
+        color: series.style.color ?? palette.accent,
         lineWidth: Math.min(4, Math.max(1, Math.round(series.style.width ?? 1.5))) as LineWidth,
         lineStyle: series.style.dash ? LineStyle.Dashed : LineStyle.Solid,
         priceLineVisible: false,
@@ -359,7 +360,7 @@ export class ChartController {
           kind,
           points: [{ t: lowest.time, p: lowest.low }],
           label: "swing low",
-          style: { shape: "arrowUp", color: "#26a69a" },
+          style: { shape: "arrowUp", color: palette.up },
         }
       }
       case "measure": {
@@ -441,7 +442,7 @@ export class ChartController {
         this.volumeSeries.update({
           time,
           value: candle.volume,
-          color: candle.close >= candle.open ? "rgba(38,166,154,.35)" : "rgba(239,83,80,.35)",
+          color: candle.close >= candle.open ? palette.upSoft : palette.downSoft,
         })
       }
     } else {
@@ -458,7 +459,7 @@ export class ChartController {
         candles.map((candle) => ({
           time: candle.time as UTCTimestamp,
           value: candle.volume,
-          color: candle.close >= candle.open ? "rgba(38,166,154,.35)" : "rgba(239,83,80,.35)",
+          color: candle.close >= candle.open ? palette.upSoft : palette.downSoft,
         })),
       )
     }

@@ -1,6 +1,7 @@
 import type { Renderer } from "../registry"
 import { distToSegment } from "../hit"
 import { lineStyle, resolvePoints } from "./common"
+import { palette } from "@/lib/theme/palette"
 
 /**
  * Measurement between two anchors: a dashed connector and a badge with Δ price, Δ %
@@ -30,12 +31,12 @@ export const measureRenderer: Renderer = {
     const midY = (from.y + to.y) / 2
     const fontSize = a.style.fontSize ?? 11
     const width = text.length * fontSize * 0.62 + 12
-    p.rect(midX - width / 2, midY - 20, width, 18, { color: "rgba(13,18,26,0.9)", opacity: 1 }, {
+    p.rect(midX - width / 2, midY - 20, width, 18, { color: palette.labelBg, opacity: 1 }, {
       color: style.color,
       width: 1,
     })
     p.text(midX, midY - 11, text, {
-      color: a.style.color ?? "#c9d4e3",
+      color: a.style.color ?? palette.shapeText,
       fontSize,
       align: "center",
       baseline: "middle",

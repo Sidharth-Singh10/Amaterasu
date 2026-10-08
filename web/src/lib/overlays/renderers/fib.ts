@@ -1,5 +1,6 @@
 import type { Renderer } from "../registry"
-import { baseColor, baseWidth, drawHandles, drawShapeLabel, resolvePoints } from "./common"
+import { activeColor, baseWidth, drawHandles, drawShapeLabel, resolvePoints } from "./common"
+import { palette } from "@/lib/theme/palette"
 
 /** Standard retracement levels drawn between the two anchors. */
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const
@@ -14,7 +15,7 @@ export const fibRenderer: Renderer = {
     const points = resolvePoints(a, t)
     if (!points || points.length < 2) return
     const [from, to] = points
-    const color = env.selected ? "#f0b429" : baseColor(a)
+    const color = activeColor(a, env)
     const width = baseWidth(a)
     const left = Math.min(from.x, to.x)
     const right = Math.max(from.x, to.x)
@@ -28,7 +29,7 @@ export const fibRenderer: Renderer = {
       const isEdge = level === 0 || level === 1
       p.line(left, y, right, y, { color, width: isEdge ? width + 0.5 : width })
       p.text(right + 6, y + 1, `${(level * 100).toFixed(1)}%  ${price.toFixed(2)}`, {
-        color: a.style.color ?? "#c9d4e3",
+        color: a.style.color ?? palette.shapeText,
         fontSize: a.style.fontSize ?? 10,
         align: "left",
         baseline: "middle",

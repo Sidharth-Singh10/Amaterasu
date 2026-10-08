@@ -1,5 +1,5 @@
 import type { Renderer } from "../registry"
-import { baseColor, baseWidth } from "./common"
+import { activeColor, baseWidth } from "./common"
 
 /** Vertical line at the resolved x of `points[0]` (supports liOffset projection). */
 export const vlineRenderer: Renderer = {
@@ -7,7 +7,7 @@ export const vlineRenderer: Renderer = {
   draw(a, t, p, env) {
     const resolved = t.resolve(a.points[0])
     if (!resolved.ok) return
-    const color = env.selected ? "#f0b429" : baseColor(a)
+    const color = activeColor(a, env)
     const width = env.selected ? baseWidth(a) + 0.5 : baseWidth(a)
     const snapX = p.snapCenter(resolved.x)
     if (a.style.dash) p.dashedLine(snapX, 0, snapX, t.cssHeight, { color, width, dash: [6, 4] })
