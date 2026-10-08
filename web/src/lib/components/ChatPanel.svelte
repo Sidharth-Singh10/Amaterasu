@@ -2,6 +2,7 @@
   import { onMount } from "svelte"
   import { ApiError } from "@/lib/api/client"
   import { bridge, onStreamEvent, type RawMessage, type StreamEvent } from "@/lib/api/bridge"
+  import Icon from "@/lib/components/Icon.svelte"
 
   let {
     mode = "live",
@@ -25,6 +26,8 @@
 
   const SESSION_KEY = "amaterasu.chat.session"
 
+  const PROMPTS = ["Analyze this setup", "Mark support and resistance", "Where's the invalidation?"]
+
   let sessionID = $state<string | null>(null)
   let items = $state<ChatItem[]>([])
   let input = $state("")
@@ -32,14 +35,12 @@
   let error = $state<string | null>(null)
   let notice = $state<string | null>(null)
   let listEl = $state<HTMLDivElement | null>(null)
+  let inputEl = $state<HTMLTextAreaElement | null>(null)
   let hydrateTimer: number | undefined
-
-  const buttonBase =
-    "rounded border border-white/15 bg-white/5 px-2 py-1 text-xs text-[#c9d4e3] transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#4c8dff]"
 
   onMount(() => {
     if (mode === "demo") {
-      notice = "The agent is unavailable in demo mode."
+      notice = "Demo data — the agent is unavailable in demo mode."
       return
     }
     const unsubscribe = onStreamEvent(handleEvent)
@@ -198,6 +199,13 @@
     }
   }
 
+  function statusDot(status: string): string {
+    const value = status.toLowerCase()
+    if (value.includes("error") || value.includes("fail")) return "bg-down"
+    if (value.includes("run") || value.includes("pending") || value.includes("progress")) return "bg-select animate-pulse"
+    return "bg-up"
+  }
+
   /** Assistant message ids of the turn containing `index` (since the previous user message). */
   function turnMessageIDs(index: number): string[] {
     let start = index
@@ -216,6 +224,11 @@
 
   function isTurnTail(index: number): boolean {
     return index === items.length - 1 || items[index + 1].role === "user"
+  }
+
+  function insertPrompt(prompt: string): void {
+    input = prompt
+    inputEl?.focus()
   }
 
   async function send(): Promise<void> {
@@ -256,47 +269,71 @@
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
-  <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3" bind:this={listEl} aria-live="polite">
+  <div class="scroll-area min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3" bind:this={listEl} aria-live="polite">
     {#if notice}
-      <p class="rounded border border-white/10 bg-white/5 p-2 text-[11px] text-[#8b98a9]">{notice}</p>
+      <p class="rounded-md border border-line-1 bg-surface-2/60 px-2.5 py-2 text-[11px] leading-relaxed text-ink-3">
+        {notice}
+      </p>
     {/if}
     {#if error}
-      <p class="rounded border border-[#ef5350]/40 bg-[#ef5350]/10 p-2 text-[11px] text-[#ef5350]" role="alert">
+      <p class="rounded-md border border-down/30 bg-down-soft px-2.5 py-2 text-[11px] leading-relaxed text-down" role="alert">
         {error}
       </p>
     {/if}
+
     {#if items.length === 0 && !notice}
-      <p class="text-[11px] text-[#8b98a9]">
-        Ask the analyst about the chart — e.g. “Mark the recent range and tell me what to watch.”
-      </p>
+      <div class="flex flex-col gap-3 pt-1">
+        <p class="text-[10px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Chart analyst</p>
+        <p class="text-[11px] leading-relaxed text-ink-2">
+          Ask about the instrument on screen. The agent reads the visible bars, draws levels and zones, and plots
+          indicators — every drawing lands in your undo history.
+        </p>
+        <div class="flex flex-col gap-0.5">
+          {#each PROMPTS as prompt (prompt)}
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-sm px-1.5 py-1 text-left font-mono text-[11px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink-1 focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+              onclick={() => insertPrompt(prompt)}
+            >
+              <span class="text-accent" aria-hidden="true">&gt;</span>
+              <span class="truncate">{prompt}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
     {/if}
 
     {#each items as item, index (item.id)}
       {#if item.role === "user"}
-        <div class="ml-6 rounded border border-[#4c8dff]/30 bg-[#4c8dff]/10 p-2 text-xs text-[#d7dee8]">
+        <div class="ml-auto max-w-[88%] rounded-lg rounded-br-xs border border-accent/25 bg-accent-soft px-2.5 py-2 text-[13px] leading-relaxed text-ink-1">
           {item.text}
         </div>
       {:else}
         <div class="space-y-2">
           {#if item.text}
-            <div class="rounded border border-white/10 bg-white/5 p-2 text-xs leading-relaxed text-[#d7dee8] whitespace-pre-wrap">
-              {item.text}{#if item.streaming}<span class="text-[#8b98a9]">▍</span>{/if}
+            <div class="text-[13px] leading-relaxed whitespace-pre-wrap text-ink-1">
+              {item.text}{#if item.streaming}<span
+                  class="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-[1px] bg-accent align-text-bottom"
+                ></span>{/if}
             </div>
           {/if}
           {#each item.tools as tool (tool.id)}
-            <div class="rounded border border-white/10 bg-[#0d121a] p-2">
+            <div class="rounded-md bg-surface-2/70 px-2.5 py-1.5">
               <div class="flex items-center gap-2">
-                <span class="font-mono text-[10px] text-[#8b98a9]">{tool.status}</span>
-                <span class="text-[11px] font-medium text-[#c9d4e3]">{tool.name}</span>
+                <span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDot(tool.status)}" aria-hidden="true"></span>
+                <span class="truncate font-mono text-[11px] text-ink-2">{tool.name}</span>
+                <span class="ml-auto shrink-0 text-[9px] font-semibold tracking-[0.12em] text-ink-3 uppercase"
+                  >{tool.status}</span
+                >
               </div>
               {#if tool.detail}
-                <p class="mt-1 truncate font-mono text-[10px] text-[#5c6a7d]">{tool.detail}</p>
+                <p class="mt-1 truncate pl-3.5 font-mono text-[10px] text-ink-2">{tool.detail}</p>
               {/if}
             </div>
           {/each}
           {#if isTurnTail(index) && turnHasChartTools(index) && onUndoTurn}
-            <button type="button" class={buttonBase} onclick={() => onUndoTurn(turnMessageIDs(index))}>
-              Undo this turn
+            <button type="button" class="btn" onclick={() => onUndoTurn(turnMessageIDs(index))}>
+              <Icon name="undo" size={12} /> Undo this turn
             </button>
           {/if}
         </div>
@@ -304,10 +341,11 @@
     {/each}
   </div>
 
-  <div class="border-t border-white/10 p-3">
+  <div class="border-t border-line-1 p-3">
     <label for="chat-input" class="sr-only">Message the chart analyst</label>
     <textarea
       id="chat-input"
+      bind:this={inputEl}
       bind:value={input}
       rows={2}
       placeholder="Ask about this chart…"
@@ -318,15 +356,26 @@
           void send()
         }
       }}
-      class="w-full resize-none rounded border border-white/15 bg-[#0d121a] p-2 text-xs text-[#d7dee8] placeholder:text-[#5c6a7d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#4c8dff]"
+      class="input w-full resize-none leading-relaxed"
     ></textarea>
     <div class="mt-2 flex items-center gap-2">
-      <button type="button" class={buttonBase} onclick={() => void send()} disabled={running || !sessionID || input.trim() === ""}>
-        {running ? "Running…" : "Send"}
+      <button
+        type="button"
+        class="btn btn-primary"
+        onclick={() => void send()}
+        disabled={running || !sessionID || input.trim() === ""}
+      >
+        {#if running}
+          <span class="h-3 w-3 animate-spin rounded-full border border-line-2 border-t-accent" aria-hidden="true"></span>
+          Running…
+        {:else}
+          Send
+        {/if}
       </button>
       {#if running}
-        <button type="button" class={buttonBase} onclick={() => void interrupt()}>Interrupt</button>
+        <button type="button" class="btn" onclick={() => void interrupt()}>Interrupt</button>
       {/if}
+      <span class="ml-auto hidden text-[10px] text-ink-2 sm:inline">Enter sends · Shift+Enter adds a line</span>
     </div>
   </div>
 </div>
