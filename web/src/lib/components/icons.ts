@@ -13,3 +13,5 @@ export type IconName =
   | "refresh"
   | "search"
   | "chevron"
+  | "candles"
+  | "line"

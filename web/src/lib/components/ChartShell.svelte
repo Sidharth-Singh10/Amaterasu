@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { dev } from "$app/environment"
-  import { ChartController, type ControllerSummary, type LogEntry, type Tool } from "@/lib/chart/ChartController"
+  import { ChartController, type ChartType, type ControllerSummary, type LogEntry, type Tool } from "@/lib/chart/ChartController"
   import OpConsole from "@/lib/components/OpConsole.svelte"
   import ChatPanel from "@/lib/components/ChatPanel.svelte"
   import Icon from "@/lib/components/Icon.svelte"
@@ -93,6 +93,8 @@ import { bridge } from "@/lib/api/bridge"
     // Seed the summary so the active-tool and undo/redo states render before
     // the first document change.
     summary = instance.summary
+    const restoredType = readState()?.chartType
+    if (restoredType) instance.setChartType(restoredType)
     if (dev) {
       ;(window as unknown as { __amaterasu?: ChartController }).__amaterasu = instance
     }
@@ -326,11 +328,17 @@ import { bridge } from "@/lib/api/bridge"
     queueMicrotask(() => document.getElementById(id)?.focus())
   }
 
+  function selectChartType(type: ChartType): void {
+    controller?.setChartType(type)
+    saveState()
+  }
+
   function saveState(): void {
     if (mode !== "live" || !symbol) return
     const view = controller?.getViewport() ?? null
+    const chartType = controller?.summary.chartType ?? "candles"
     try {
-      localStorage.setItem(STATE_KEY, JSON.stringify({ symbol, interval, view }))
+      localStorage.setItem(STATE_KEY, JSON.stringify({ symbol, interval, view, chartType }))
     } catch {
       // Storage unavailable (private mode); persistence is best-effort.
     }
@@ -377,7 +385,12 @@ import { bridge } from "@/lib/api/bridge"
     }, 800)
   }
 
-  function readState(): { symbol: SearchResult; interval: string; view: { from: number; to: number } | null } | null {
+  function readState(): {
+    symbol: SearchResult
+    interval: string
+    view: { from: number; to: number } | null
+    chartType: ChartType
+  } | null {
     try {
       const raw = localStorage.getItem(STATE_KEY)
       if (!raw) return null
@@ -385,12 +398,14 @@ import { bridge } from "@/lib/api/bridge"
         symbol?: SearchResult
         interval?: string
         view?: { from: number; to: number } | null
+        chartType?: string
       }
       if (!parsed.symbol?.indKey) return null
       return {
         symbol: parsed.symbol,
         interval: intervalOption(parsed.interval ?? "1day").value,
         view: parsed.view ?? null,
+        chartType: parsed.chartType === "line" ? "line" : "candles",
       }
     } catch {
       return null
@@ -507,6 +522,31 @@ import { bridge } from "@/lib/api/bridge"
           {option.label}
         </button>
       {/each}
+    </div>
+
+    <div
+      class="flex items-center rounded-md border border-line-1 bg-surface-2 p-0.5"
+      role="group"
+      aria-label="Chart type"
+    >
+      <button
+        type="button"
+        class="seg flex items-center"
+        aria-pressed={(summary?.chartType ?? "candles") === "candles"}
+        aria-label="Candlestick chart"
+        onclick={() => selectChartType("candles")}
+      >
+        <Icon name="candles" size={14} />
+      </button>
+      <button
+        type="button"
+        class="seg flex items-center"
+        aria-pressed={summary?.chartType === "line"}
+        aria-label="Line chart"
+        onclick={() => selectChartType("line")}
+      >
+        <Icon name="line" size={14} />
+      </button>
     </div>
 
     <div class="ml-auto flex items-center gap-3 text-[11px] text-ink-3">

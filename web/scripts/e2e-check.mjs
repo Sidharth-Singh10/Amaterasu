@@ -85,6 +85,13 @@ const has = (v) => v !== null && v !== undefined
 
 steps.load = await probe()
 
+await page.getByRole("button", { name: "Line chart" }).click()
+await page.waitForTimeout(250)
+steps.lineType = await page.evaluate(() => window.__amaterasu.getSnapshot().chartType)
+await page.getByRole("button", { name: "Candlestick chart" }).click()
+await page.waitForTimeout(250)
+steps.candleType = await page.evaluate(() => window.__amaterasu.getSnapshot().chartType)
+
 await page.getByRole("button", { name: "Level", exact: true }).click()
 await page.getByRole("button", { name: "Apply op" }).click()
 await page.waitForTimeout(400)
@@ -151,6 +158,8 @@ await browser.close()
 
 const checks = {
   loadsClean: steps.load.painted === 0 && steps.load.annotations === 0 && has(steps.load.range),
+  lineTypeSwitches: steps.lineType === "line",
+  candleTypeRestores: steps.candleType === "candles",
   presetDraws: steps.presetDraw.annotations === 1 && steps.presetDraw.painted > 0,
   undoRemoves: steps.undo.annotations === 0 && steps.undo.painted === 0,
   redoRestores: steps.redo.annotations === 1 && steps.redo.painted === steps.presetDraw.painted,

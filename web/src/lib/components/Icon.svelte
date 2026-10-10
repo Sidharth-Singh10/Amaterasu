@@ -63,5 +63,14 @@
     <path d="M12.4 12.4L16 16" />
   {:else if name === "chevron"}
     <path d="M8 5.5l4.5 4.5L8 14.5" />
+  {:else if name === "candles"}
+    <path d="M7 3.5v2.6M7 12.9v3.6" />
+    <rect x="5.2" y="6.1" width="3.6" height="6.8" rx="0.8" />
+    <path d="M13 5.5v1.6M13 12.4v2.1" />
+    <rect x="11.2" y="7.1" width="3.6" height="5.3" rx="0.8" />
+  {:else if name === "line"}
+    <path d="M3.5 14.5l4.2-4.6 3.4 2.3 5.4-6.2" />
+    <circle cx="3.5" cy="14.5" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="16.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
   {/if}
 </svg>

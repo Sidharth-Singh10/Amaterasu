@@ -27,6 +27,9 @@ import { palette } from "@/lib/theme/palette"
 
 export type Tool = "select" | Kind
 
+/** Display mode of the primary price series. */
+export type ChartType = "candles" | "line"
+
 export interface LogEntry {
   label: string
   result: OpResult
@@ -36,6 +39,7 @@ export interface ControllerSummary {
   count: number
   selected: string[]
   tool: Tool
+  chartType: ChartType
   canUndo: boolean
   canRedo: boolean
 }
@@ -75,11 +79,13 @@ export class ChartController {
   readonly store: DocStore
   private readonly chart: IChartApi
   private readonly candleSeries: ISeriesApi<"Candlestick">
+  private readonly closeSeries: ISeriesApi<"Line">
   private readonly volumeSeries: ISeriesApi<"Histogram">
   private readonly surface: OverlaySurface
   private readonly lineSeries = new Map<string, ISeriesApi<"Line">>()
   private readonly seriesSignature = new Map<string, number>()
   private bars: Candle[]
+  private chartType: ChartType = "candles"
   private readonly host: HTMLElement
   private readonly resizeObserver: ResizeObserver
   private readonly listeners: ControllerListeners
@@ -135,6 +141,16 @@ export class ChartController {
     })
     this.candleSeries.setData([])
 
+    // Close-line mirror of the candles; kept in sync and toggled via `visible` so
+    // switching chart types never rebuilds series state or loses the viewport.
+    this.closeSeries = this.chart.addSeries(LineSeries, {
+      color: palette.accent,
+      lineWidth: 2,
+      visible: false,
+      priceFormat: { type: "price", precision: 2, minMove: 0.05 },
+    })
+    this.closeSeries.setData([])
+
     this.store = new DocStore({
       checkAnchor: (anchor) => this.checkAnchor(anchor),
       onView: (op) => this.applyView(op),
@@ -176,6 +192,7 @@ export class ChartController {
       count: this.store.annotations.length,
       selected: [...this.selected],
       tool: this.tool,
+      chartType: this.chartType,
       canUndo: this.store.canUndo,
       canRedo: this.store.canRedo,
     }
@@ -185,6 +202,16 @@ export class ChartController {
     this.cancelPendingGesture()
     this.tool = tool
     this.host.style.cursor = tool === "select" ? "default" : "crosshair"
+    this.emitChange()
+  }
+
+  /** Candles ⇄ close line. Both series stay loaded; only visibility flips. */
+  setChartType(type: ChartType): void {
+    if (type === this.chartType) return
+    this.chartType = type
+    this.candleSeries.applyOptions({ visible: type === "candles" })
+    this.closeSeries.applyOptions({ visible: type === "line" })
+    this.surface.invalidate("all")
     this.emitChange()
   }
 
@@ -439,6 +466,7 @@ export class ChartController {
           low: candle.low,
           close: candle.close,
         })
+        this.closeSeries.update({ time, value: candle.close })
         this.volumeSeries.update({
           time,
           value: candle.volume,
@@ -455,6 +483,7 @@ export class ChartController {
           close: candle.close,
         })),
       )
+      this.closeSeries.setData(candles.map((candle) => ({ time: candle.time as UTCTimestamp, value: candle.close })))
       this.volumeSeries.setData(
         candles.map((candle) => ({
           time: candle.time as UTCTimestamp,
@@ -505,6 +534,7 @@ export class ChartController {
     return {
       symbol: meta?.symbol ?? this.meta.symbol,
       interval: meta?.interval ?? this.meta.interval,
+      chartType: this.chartType,
       bars: this.bars.slice(-250),
       visible: visibleRange
         ? {
@@ -548,7 +578,7 @@ export class ChartController {
   private transform(): Transform | null {
     if (this.pane.width <= 0 || this.pane.height <= 0) return null
     const scale = this.chart.timeScale()
-    const series = this.candleSeries
+    const series = this.chartType === "candles" ? this.candleSeries : this.closeSeries
     return new Transform({
       scale: {
         timeToCoordinate: (time) => scale.timeToCoordinate(time as UTCTimestamp) as number | null,
