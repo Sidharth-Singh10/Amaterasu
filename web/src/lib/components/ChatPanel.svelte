@@ -3,6 +3,7 @@
   import { ApiError } from "@/lib/api/client"
   import { bridge, onStreamEvent, type RawMessage, type StreamEvent } from "@/lib/api/bridge"
   import Icon from "@/lib/components/Icon.svelte"
+  import { renderMarkdown } from "@/lib/markdown"
 
   let {
     mode = "live",
@@ -36,6 +37,7 @@
   let notice = $state<string | null>(null)
   let listEl = $state<HTMLDivElement | null>(null)
   let inputEl = $state<HTMLTextAreaElement | null>(null)
+  let expandedTools = $state(new Set<string>())
   let hydrateTimer: number | undefined
 
   onMount(() => {
@@ -193,17 +195,40 @@
     if (value === undefined || value === null) return undefined
     try {
       const text = JSON.stringify(value)
-      return text.length > 140 ? `${text.slice(0, 140)}…` : text
+      return text.length > 2000 ? `${text.slice(0, 2000)}…` : text
     } catch {
       return undefined
     }
   }
 
-  function statusDot(status: string): string {
+  function isRunning(status: string): boolean {
     const value = status.toLowerCase()
-    if (value.includes("error") || value.includes("fail")) return "bg-down"
-    if (value.includes("run") || value.includes("pending") || value.includes("progress")) return "bg-select animate-pulse"
-    return "bg-up"
+    return value.includes("run") || value.includes("pending") || value.includes("progress")
+  }
+
+  function isFailed(status: string): boolean {
+    const value = status.toLowerCase()
+    return value.includes("error") || value.includes("fail")
+  }
+
+  function statusDot(status: string): string {
+    return isFailed(status) ? "bg-down" : "bg-ink-3"
+  }
+
+  /** `chart_get_state` → `Chart get state`, like OpenCode's tool rows. */
+  function toolTitle(name: string): string {
+    const label = name.replaceAll("_", " ").replaceAll("-", " ")
+    return label.charAt(0).toUpperCase() + label.slice(1)
+  }
+
+  function toggleTool(id: string): void {
+    const next = new Set(expandedTools)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    expandedTools = next
   }
 
   /** Assistant message ids of the turn containing `index` (since the previous user message). */
@@ -305,34 +330,48 @@
 
     {#each items as item, index (item.id)}
       {#if item.role === "user"}
-        <div class="ml-auto max-w-[88%] rounded-lg rounded-br-xs border border-accent/25 bg-accent-soft px-2.5 py-2 text-[13px] leading-relaxed text-ink-1">
-          {item.text}
-        </div>
+        <div class="chat-user-bubble">{item.text}</div>
       {:else}
         <div class="space-y-2">
           {#if item.text}
-            <div class="text-[13px] leading-relaxed whitespace-pre-wrap text-ink-1">
-              {item.text}{#if item.streaming}<span
-                  class="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-[1px] bg-accent align-text-bottom"
-                ></span>{/if}
+            <div class="md" class:md-streaming={item.streaming}>
+              {@html renderMarkdown(item.text)}
             </div>
           {/if}
           {#each item.tools as tool (tool.id)}
-            <div class="rounded-md bg-surface-2/70 px-2.5 py-1.5">
-              <div class="flex items-center gap-2">
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDot(tool.status)}" aria-hidden="true"></span>
-                <span class="truncate font-mono text-[11px] text-ink-2">{tool.name}</span>
-                <span class="ml-auto shrink-0 text-[9px] font-semibold tracking-[0.12em] text-ink-3 uppercase"
-                  >{tool.status}</span
-                >
-              </div>
-              {#if tool.detail}
-                <p class="mt-1 truncate pl-3.5 font-mono text-[10px] text-ink-2">{tool.detail}</p>
+            <div class="chat-tool">
+              <button
+                type="button"
+                class="chat-tool-trigger"
+                aria-expanded={tool.detail ? expandedTools.has(tool.id) : undefined}
+                disabled={!tool.detail}
+                onclick={() => tool.detail && toggleTool(tool.id)}
+              >
+                <span class="chat-tool-indicator" aria-hidden="true">
+                  {#if isRunning(tool.status)}
+                    <span class="chat-tool-spinner"></span>
+                  {:else}
+                    <span class="chat-tool-dot {statusDot(tool.status)}"></span>
+                  {/if}
+                </span>
+                <span class="chat-tool-title">{toolTitle(tool.name)}</span>
+                {#if tool.detail}
+                  <span class="chat-tool-arg">{tool.detail}</span>
+                {/if}
+                {#if isFailed(tool.status)}
+                  <span class="chat-tool-failed">failed</span>
+                {/if}
+                {#if tool.detail}
+                  <Icon name="chevron" size={12} class="chat-tool-chevron" />
+                {/if}
+              </button>
+              {#if tool.detail && expandedTools.has(tool.id)}
+                <pre class="chat-tool-detail">{tool.detail}</pre>
               {/if}
             </div>
           {/each}
           {#if isTurnTail(index) && turnHasChartTools(index) && onUndoTurn}
-            <button type="button" class="btn" onclick={() => onUndoTurn(turnMessageIDs(index))}>
+            <button type="button" class="btn btn-ghost -ml-1.5" onclick={() => onUndoTurn(turnMessageIDs(index))}>
               <Icon name="undo" size={12} /> Undo this turn
             </button>
           {/if}
@@ -356,7 +395,7 @@
           void send()
         }
       }}
-      class="input w-full resize-none leading-relaxed"
+      class="chat-input resize-none"
     ></textarea>
     <div class="mt-2 flex items-center gap-2">
       <button

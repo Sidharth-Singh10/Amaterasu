@@ -12,3 +12,4 @@ export type IconName =
   | "trash"
   | "refresh"
   | "search"
+  | "chevron"

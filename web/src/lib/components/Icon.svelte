@@ -61,5 +61,7 @@
   {:else if name === "search"}
     <circle cx="9" cy="9" r="4.5" />
     <path d="M12.4 12.4L16 16" />
+  {:else if name === "chevron"}
+    <path d="M8 5.5l4.5 4.5L8 14.5" />
   {/if}
 </svg>
