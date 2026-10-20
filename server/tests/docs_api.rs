@@ -759,3 +759,34 @@ async fn a_rejected_op_can_self_correct_with_the_suggestion() {
     assert_eq!(body["acks"][0]["status"], "applied");
     assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
 }
+
+#[tokio::test]
+async fn the_graph_adapter_capability_is_seeded_and_scoped() {
+    let mut harness = harness("graph-capability").await;
+    let token = harness.token("cap_graph");
+    let mut envelope = envelope("graph_1");
+    envelope["actor"] = json!({ "kind": "agent", "id": "weave-agent" });
+    envelope["capability"] = json!("cap_graph");
+    envelope["type"] = json!("graph.node.create");
+    envelope["target"] = json!({ "kind": "graph.node" });
+    envelope["payload"] = json!({
+        "op": { "op": "node.create", "id": "n1", "label": "Common Ground", "kind": "concept" }
+    });
+
+    let request = with_token(
+        post("/api/docs/doc_api/ops", json!({ "ops": [envelope] })),
+        &token,
+    );
+    let router = harness.router.clone();
+    let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
+    let (op_id, dispatched) = next_doc_request(&mut harness.events).await;
+    assert_eq!(dispatched["type"], "graph.node.create");
+    assert_eq!(dispatched["payload"]["op"]["op"], "node.create");
+    ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
+
+    let response = submitted.await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["acks"][0]["status"], "applied");
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
+}

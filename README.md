@@ -64,8 +64,10 @@ the client adapter owns projection and anchor resolution.
 - [`spec/conformance/`](spec/conformance/) — six language-agnostic fixtures
 - [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moves, stays, and dies
 
-The six fixtures pass against two adapters: the TypeScript `MemoryTarget` in
+The six fixtures pass against two targets: the TypeScript `MemoryTarget` in
 `packages/canvas-conformance` and the Rust journal harness in `server/tests/conformance.rs`.
+A second product adapter also exists: Weave's canvas applies `graph.*` envelopes, computes
+node/edge inverses, and acks the journal (`weave/frontend/src/lib/common-ground.ts`).
 
 Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journals every agent
 chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
@@ -96,6 +98,8 @@ snapshot or a replay of applied ops. The browser still owns projection and ancho
 | `web/` | SvelteKit 2 + Svelte 5 client — overlay engine, components, chart shell |
 | `packages/canvas-chart/` | Chart adapter: zod op/state schemas, `DocStore` reducer, inverse computation |
 | `packages/canvas-core/` | Common Ground protocol: envelope, ack, capability, audit, turn schemas |
+| `packages/canvas-graph/` | Second adapter: graph nodes/edges, merge, inverses |
+| `weave/` (separate repo) | Weave frontend bridge: `graph.*` envelopes over SSE |
 | `packages/canvas-mcp/` | MCP server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
 | `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
 | `spec/` | Protocol specification, generated JSON Schemas, conformance cases |

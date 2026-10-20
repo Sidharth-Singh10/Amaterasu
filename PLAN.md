@@ -155,6 +155,7 @@ Three decoupled channels: **data** (webapp → INDmoney MCP directly), **agent**
 ├─ server/                          # Rust (axum): MCP + OAuth · cache · OpenCode bridge · SSE · SQLite · static hosting
 ├─ packages/canvas-chart/           # zod op + state schemas · DocStore reducer · inverses
 ├─ packages/canvas-mcp/             # stdio MCP: doc_get · op_apply · turn_undo · state_query
+├─ packages/canvas-graph/           # second adapter domain: graph nodes/edges · merge · inverses
 ├─ opencode/                        # the agent's project (clean of app code)
 │  ├─ opencode.jsonc                # plugins · firecrawl MCP · chart-analyst agent · permissions
 │  └─ .opencode/plugins/chart-bridge/   # RPC contract + tools + instructions
@@ -378,7 +379,9 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   Writes require signed ed25519 capability tokens; local token minting is loopback-only. The server
   also has a replay helper, a ten-shape turn undo test, and a p95 journal ack benchmark (~0.5 ms).
   Reload restores the workspace snapshot, then the journal snapshot, then a replay of applied ops.
-  Browser snapshot undo remains the local UX. See `spec/protocol.md` §6–§10 and §17.
+  A second adapter now lives in Weave: `graph.*` envelopes apply to its Zustand knowledge graph and
+  return node/edge inverses; `cap_graph` is bound to `weave-agent`. Browser snapshot undo remains
+  the local UX. See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 

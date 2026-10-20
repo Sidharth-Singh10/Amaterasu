@@ -587,6 +587,9 @@ chart bridge:
   reject → retry → ack test, and a journal replay helper (`packages/canvas-chart/src/replay.ts`).
 - Reload restore order: workspace snapshot, then the journal snapshot, then replay of applied
   envelopes with stable draw ids.
+- A second product adapter in Weave: `graph.node.create/update/delete`,
+  `graph.edge.create/update/delete`, `graph.merge`, and `graph.view.set` over SSE, with
+  node/edge inverses and a `cap_graph` capability bound to `weave-agent`.
 - A p95 journal ack benchmark (`server/tests/latency.rs`); the local measurement is ~0.5 ms.
 
 Not yet enforced or implemented:
@@ -600,7 +603,8 @@ Not yet enforced or implemented:
   falls back to the journal snapshot/replay; the workspace remains authoritative for human edits.
 - An HTTP/SSE conformance adapter. The Rust harness drives the journal directly and the HTTP
   endpoints have separate integration tests; a target that speaks the wire protocol end to end is
-  still open.
+  still open. The Weave bridge is a product adapter, not a fixture target.
+- Human-authored graph edits are not journaled; only agent envelopes go through Common Ground.
 
 Known inverse limitation in the chart adapter: `update` merges style keys, so an inverse cannot
 remove a key that the original update introduced. `draw` now accepts an explicit id, so re-creating

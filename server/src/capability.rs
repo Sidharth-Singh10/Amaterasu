@@ -250,7 +250,12 @@ impl CapabilityRegistry {
                 session: None,
             },
             documents: vec!["*".into()],
-            op_types: vec!["chart.*.*".into(), "chart.*".into()],
+            op_types: vec![
+                "chart.*.*".into(),
+                "chart.*".into(),
+                "graph.*.*".into(),
+                "graph.merge".into(),
+            ],
             permissions: vec![
                 "read".into(),
                 "apply".into(),
@@ -273,11 +278,38 @@ impl CapabilityRegistry {
                 session: None,
             },
             documents: vec!["*".into()],
-            op_types: vec!["chart.*.*".into()],
+            op_types: vec!["chart.*.*".into(), "graph.*.*".into(), "graph.merge".into()],
             permissions: vec!["read".into(), "apply".into(), "undo".into()],
             approval: ApprovalPolicy {
                 mode: "auto".into(),
                 op_types: vec![],
+            },
+            issued_at: now.to_rfc3339_opts(SecondsFormat::Secs, true),
+            expires_at: (now + Duration::days(3650)).to_rfc3339_opts(SecondsFormat::Secs, true),
+        });
+        registry.mint(CapabilityClaims {
+            v: 1,
+            cap_id: "cap_graph".into(),
+            iss: "cg-local".into(),
+            sub: CapabilitySubject {
+                actor_id: "weave-agent".into(),
+                session: None,
+            },
+            documents: vec!["*".into()],
+            op_types: vec!["graph.*.*".into(), "graph.merge".into()],
+            permissions: vec![
+                "read".into(),
+                "apply".into(),
+                "undo".into(),
+                "export".into(),
+            ],
+            approval: ApprovalPolicy {
+                mode: "human".into(),
+                op_types: vec![
+                    "graph.node.delete".into(),
+                    "graph.edge.delete".into(),
+                    "graph.merge".into(),
+                ],
             },
             issued_at: now.to_rfc3339_opts(SecondsFormat::Secs, true),
             expires_at: (now + Duration::days(3650)).to_rfc3339_opts(SecondsFormat::Secs, true),

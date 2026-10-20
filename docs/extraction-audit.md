@@ -88,7 +88,9 @@ The plan in `COMMON_GROUND.md` says Phase 1 ports the reducer. Reordered:
 5. **Phase 2 (mostly done):** `canvas-mcp` tools, ed25519 capability tokens, approval gate,
    audit/history, ten-shape turn undo, structured self-correction, and replay/latency proofs.
    Remaining: a wire-level HTTP/SSE conformance target.
-6. **Phase 3:** second adapter (Weave), 90-second demo, and 5 external testers.
+6. **Phase 3 (adapter done):** `packages/canvas-graph` + the Weave SSE bridge apply graph
+   envelopes, merge duplicates, and return inverses. The 90-second demo and 5 external testers
+   remain.
 
 The reorder matters because the journal forces the spec to be real. Extracting first would preserve
 today's client-only semantics under new package names.
