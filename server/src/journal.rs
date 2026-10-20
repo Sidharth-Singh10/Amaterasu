@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
 
-use crate::capability::{CapabilityRegistry, Rejection};
+use crate::capability::{CapabilityClaims, CapabilityRegistry, Rejection, TokenError, TokenIssuer};
 
 /// Maximum encoded envelope size accepted by the journal.
 pub const MAX_ENVELOPE_BYTES: usize = 1_048_576;
@@ -31,6 +31,8 @@ pub enum JournalError {
     Sqlite(#[from] rusqlite::Error),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("capability token error: {0}")]
+    Token(#[from] TokenError),
     #[error("invalid op: {0}")]
     InvalidOp(String),
     #[error("idempotency key was already used with a different payload")]
@@ -198,6 +200,46 @@ impl JournalStore {
             connection: Mutex::new(connection),
             capabilities: CapabilityRegistry::local(),
         })
+    }
+
+    /// Opens the journal with a persisted ed25519 capability issuer.
+    pub fn open_with_key(path: &Path, key_path: &Path) -> anyhow::Result<Self> {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let connection = Connection::open(path)?;
+        connection.execute_batch(SCHEMA)?;
+        Ok(Self {
+            connection: Mutex::new(connection),
+            capabilities: CapabilityRegistry::with_issuer(TokenIssuer::load_or_create(key_path)?),
+        })
+    }
+
+    /// Mints a token for a registered capability id.
+    pub fn capability_token(&self, cap_id: &str) -> Result<String, JournalError> {
+        self.capabilities
+            .token_for(cap_id)
+            .map_err(JournalError::from)
+    }
+
+    /// Registers issuer-supplied claims and returns a signed token.
+    pub fn mint_capability_token(&self, claims: Value) -> Result<Value, JournalError> {
+        let claims: CapabilityClaims = serde_json::from_value(claims)?;
+        let token = self.capabilities.token_for_claims(&claims)?;
+        self.capabilities.mint(claims.clone());
+        Ok(json!({ "token": token, "claims": claims }))
+    }
+
+    pub fn verify_capability_token(&self, token: &str) -> Result<CapabilityClaims, TokenError> {
+        self.capabilities.verify_token(token)
+    }
+
+    pub fn register_capability(&self, claims: CapabilityClaims) {
+        self.capabilities.mint(claims);
+    }
+
+    pub fn capability_public_key(&self) -> String {
+        self.capabilities.public_key()
     }
 
     /// Rebinds the local agent capability when `OPENCODE_AGENT` is not `chart-analyst`.

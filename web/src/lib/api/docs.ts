@@ -1,4 +1,5 @@
 import { apiRequest } from "./client"
+import { capabilityHeaders } from "./capabilities"
 
 export interface JournalActor {
   kind: string
@@ -93,14 +94,19 @@ export const docs = {
     apiRequest<{ docId: string; entries: unknown[]; verification: AuditVerification }>(
       `${docPath(docId)}/audit`,
     ),
-  undoTurn: (docId: string, turnId: string) =>
-    apiRequest<UndoResult>(`${docPath(docId)}/turns/${encodeURIComponent(turnId)}/undo`, {
+  undoTurn: async (docId: string, turnId: string) => {
+    const headers = await capabilityHeaders("cap_undo")
+    return apiRequest<UndoResult>(`${docPath(docId)}/turns/${encodeURIComponent(turnId)}/undo`, {
       method: "POST",
       body: "{}",
-    }),
-  approve: (docId: string, approvalId: string) =>
-    apiRequest<ApprovalResult>(
+      headers,
+    })
+  },
+  approve: async (docId: string, approvalId: string) => {
+    const headers = await capabilityHeaders("cap_human")
+    return apiRequest<ApprovalResult>(
       `${docPath(docId)}/approvals/${encodeURIComponent(approvalId)}`,
-      { method: "POST" },
-    ),
+      { method: "POST", headers },
+    )
+  },
 }

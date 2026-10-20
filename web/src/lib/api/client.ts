@@ -65,10 +65,12 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init?: RequestInit & { signal?: AbortSignal }): Promise<T> {
-  const response = await fetch(path, {
-    headers: { accept: "application/json", ...(init?.body ? { "content-type": "application/json" } : {}) },
-    ...init,
-  })
+  const headers = new Headers(init?.headers)
+  headers.set("accept", "application/json")
+  if (init?.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json")
+  }
+  const response = await fetch(path, { ...init, headers })
   const text = await response.text()
   let body: unknown = null
   if (text) {

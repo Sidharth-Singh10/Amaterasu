@@ -44,10 +44,22 @@ export class CommonGroundError extends Error {
 export class CommonGroundClient {
   private readonly baseUrl: string
   private readonly fetchImpl: typeof fetch
+  private readonly tokens = new Map<string, string>()
 
   constructor(baseUrl = "http://127.0.0.1:8787", fetchImpl: typeof fetch = fetch) {
     this.baseUrl = baseUrl.replace(/\/+$/, "")
     this.fetchImpl = fetchImpl
+  }
+
+  private async tokenFor(capId: string): Promise<string> {
+    const cached = this.tokens.get(capId)
+    if (cached) return cached
+    const response = await this.request<{ token: string }>(
+      `/api/capabilities/${encodeURIComponent(capId)}/token`,
+    )
+    if (!response.token) throw new Error(`the server did not return a token for ${capId}`)
+    this.tokens.set(capId, response.token)
+    return response.token
   }
 
   async docGet(docId: string): Promise<{ doc: DocMetaResponse; snapshot: SnapshotResponse }> {
@@ -73,27 +85,31 @@ export class CommonGroundClient {
   }
 
   async opApply(docId: string, ops: Array<Record<string, unknown>>): Promise<unknown> {
+    const capability =
+      typeof ops[0]?.capability === "string" ? (ops[0].capability as string) : "cap_local"
+    const token = await this.tokenFor(capability)
     return this.request(`/api/docs/${encodeURIComponent(docId)}/ops`, {
       method: "POST",
       body: JSON.stringify({ ops }),
+      headers: { "x-cg-capability": token },
     })
   }
 
   async turnUndo(docId: string, turnId: string): Promise<unknown> {
+    const token = await this.tokenFor("cap_undo")
     return this.request(
       `/api/docs/${encodeURIComponent(docId)}/turns/${encodeURIComponent(turnId)}/undo`,
-      { method: "POST", body: "{}" },
+      { method: "POST", body: "{}", headers: { "x-cg-capability": token } },
     )
   }
 
   private async request<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
-      headers: {
-        accept: "application/json",
-        ...(init?.body ? { "content-type": "application/json" } : {}),
-      },
-      ...init,
-    })
+    const headers = new Headers(init?.headers)
+    headers.set("accept", "application/json")
+    if (init?.body && !headers.has("content-type")) {
+      headers.set("content-type", "application/json")
+    }
+    const response = await this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers })
     const text = await response.text()
     let body: unknown = null
     if (text) {

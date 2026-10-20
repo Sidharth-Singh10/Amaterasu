@@ -5,11 +5,111 @@
 //! signed-token verifier without changing the journal, because the journal only asks whether an
 //! envelope is allowed and, if not, for a typed rejection.
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, fs, io::Write, path::Path, sync::Mutex};
 
+use anyhow::Context;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+
+#[derive(Debug, thiserror::Error)]
+pub enum TokenError {
+    #[error("unknown capability: {0}")]
+    Unknown(String),
+    #[error("invalid token format")]
+    Format,
+    #[error("invalid token signature")]
+    Signature,
+    #[error("invalid token encoding: {0}")]
+    Encoding(#[from] base64::DecodeError),
+    #[error("invalid token claims: {0}")]
+    Claims(#[from] serde_json::Error),
+}
+
+/// Ed25519 issuer for `cg1.<claims>.<signature>` capability tokens. The local key is persisted
+/// so tokens survive restarts; hosted deployments would publish the public key to verifiers.
+pub struct TokenIssuer {
+    signing: SigningKey,
+}
+
+impl TokenIssuer {
+    pub fn ephemeral() -> Self {
+        Self {
+            signing: SigningKey::from_bytes(&rand::random::<[u8; 32]>()),
+        }
+    }
+
+    pub fn load_or_create(path: &Path) -> anyhow::Result<Self> {
+        let bytes = match fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let bytes = rand::random::<[u8; 32]>();
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("creating capability key directory {}", parent.display())
+                    })?;
+                }
+                let mut options = fs::OpenOptions::new();
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::OpenOptionsExt;
+                    options.mode(0o600);
+                }
+                let mut file = options
+                    .open(path)
+                    .with_context(|| format!("creating capability key {}", path.display()))?;
+                file.write_all(&bytes)?;
+                bytes.to_vec()
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let seed: [u8; 32] = bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("capability key must be exactly 32 bytes"))?;
+        Ok(Self {
+            signing: SigningKey::from_bytes(&seed),
+        })
+    }
+
+    pub fn mint(&self, claims: &CapabilityClaims) -> Result<String, TokenError> {
+        let encoded = URL_SAFE_NO_PAD.encode(serde_json::to_vec(claims)?);
+        let input = format!("cg1.{encoded}");
+        let signature = self.signing.sign(input.as_bytes());
+        Ok(format!(
+            "{input}.{}",
+            URL_SAFE_NO_PAD.encode(signature.to_bytes())
+        ))
+    }
+
+    pub fn verify(&self, token: &str) -> Result<CapabilityClaims, TokenError> {
+        let mut parts = token.split('.');
+        if parts.next() != Some("cg1") {
+            return Err(TokenError::Format);
+        }
+        let payload = parts.next().ok_or(TokenError::Format)?;
+        let signature = parts.next().ok_or(TokenError::Format)?;
+        if parts.next().is_some() {
+            return Err(TokenError::Format);
+        }
+        let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(signature)?)
+            .map_err(|_| TokenError::Signature)?;
+        let input = format!("cg1.{payload}");
+        self.signing
+            .verifying_key()
+            .verify(input.as_bytes(), &signature)
+            .map_err(|_| TokenError::Signature)?;
+        let claims = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
+        Ok(claims)
+    }
+
+    pub fn public_key_base64(&self) -> String {
+        URL_SAFE_NO_PAD.encode(self.signing.verifying_key().to_bytes())
+    }
+}
 
 /// How an op is admitted: immediately, or after a human issues a one-shot approval.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,10 +187,16 @@ pub struct ApprovalTarget {
     pub used: bool,
 }
 
-#[derive(Default)]
 pub struct CapabilityRegistry {
     claims: Mutex<HashMap<String, CapabilityClaims>>,
     approvals: Mutex<HashMap<String, ApprovalRecord>>,
+    issuer: TokenIssuer,
+}
+
+impl Default for CapabilityRegistry {
+    fn default() -> Self {
+        Self::local()
+    }
 }
 
 impl CapabilityRegistry {
@@ -98,8 +204,16 @@ impl CapabilityRegistry {
     /// and a human local capability. Destructive agent ops require a one-shot human approval;
     /// the Journal panel surfaces the pending attempt and applies it on approval.
     pub fn local() -> Self {
+        Self::with_issuer(TokenIssuer::ephemeral())
+    }
+
+    pub fn with_issuer(issuer: TokenIssuer) -> Self {
         let now = Utc::now();
-        let registry = Self::default();
+        let registry = Self {
+            claims: Mutex::new(HashMap::new()),
+            approvals: Mutex::new(HashMap::new()),
+            issuer,
+        };
         registry.mint(CapabilityClaims {
             v: 1,
             cap_id: "cap_local".into(),
@@ -195,6 +309,29 @@ impl CapabilityRegistry {
         {
             claims.sub.actor_id = actor_id.to_string();
         }
+    }
+
+    pub fn token_for(&self, cap_id: &str) -> Result<String, TokenError> {
+        let claims = self
+            .claims
+            .lock()
+            .expect("capability lock poisoned")
+            .get(cap_id)
+            .cloned()
+            .ok_or_else(|| TokenError::Unknown(cap_id.to_string()))?;
+        self.issuer.mint(&claims)
+    }
+
+    pub fn token_for_claims(&self, claims: &CapabilityClaims) -> Result<String, TokenError> {
+        self.issuer.mint(claims)
+    }
+
+    pub fn verify_token(&self, token: &str) -> Result<CapabilityClaims, TokenError> {
+        self.issuer.verify(token)
+    }
+
+    pub fn public_key(&self) -> String {
+        self.issuer.public_key_base64()
     }
 
     /// Returns `None` when the envelope is in scope, otherwise a typed rejection. Approval
@@ -596,6 +733,42 @@ mod tests {
         assert!(registry.verify(&delete, Utc::now(), None).is_none());
         let reused = registry.verify(&delete, Utc::now(), None).unwrap();
         assert_eq!(reused.code, "approval_invalid");
+    }
+
+    #[test]
+    fn tokens_round_trip_and_reject_tampering() {
+        let registry = CapabilityRegistry::default();
+        let token = registry.token_for("cap_local").unwrap();
+        assert!(token.starts_with("cg1."));
+        let claims = registry.verify_token(&token).unwrap();
+        assert_eq!(claims.cap_id, "cap_local");
+        assert!(!registry.public_key().is_empty());
+
+        let parts = token.split('.').collect::<Vec<_>>();
+        let mut payload = parts[1].to_string();
+        let first = payload.remove(0);
+        payload.insert(0, if first == 'A' { 'B' } else { 'A' });
+        let tampered = format!("cg1.{payload}.{}", parts[2]);
+        assert!(registry.verify_token(&tampered).is_err());
+        assert!(registry.token_for("cap_missing").is_err());
+    }
+
+    #[test]
+    fn issuer_persists_the_key_and_reproduces_tokens() {
+        let dir = std::env::temp_dir().join(format!("amaterasu-issuer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("capability.key");
+        let claims = claims("cap_local", "chart-analyst", &["apply"], "auto");
+        let issuer = TokenIssuer::load_or_create(&path).unwrap();
+        let first = issuer.mint(&claims).unwrap();
+        let reloaded = TokenIssuer::load_or_create(&path).unwrap();
+        assert_eq!(first, reloaded.mint(&claims).unwrap());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
     }
 
     #[test]

@@ -7,7 +7,7 @@ use amaterasu_server::{
 use axum::{
     Router,
     body::{Body, to_bytes},
-    http::{Request, StatusCode, header::CONTENT_TYPE},
+    http::{HeaderValue, Request, StatusCode, header::CONTENT_TYPE},
 };
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -17,6 +17,12 @@ struct Harness {
     events: tokio::sync::broadcast::Receiver<Value>,
     journal: Arc<JournalStore>,
     _dir: PathBuf,
+}
+
+impl Harness {
+    fn token(&self, cap_id: &str) -> String {
+        self.journal.capability_token(cap_id).unwrap()
+    }
 }
 
 async fn harness(label: &str) -> Harness {
@@ -105,6 +111,14 @@ fn post(path: &str, body: Value) -> Request<Body> {
         .unwrap()
 }
 
+fn with_token(mut request: Request<Body>, token: &str) -> Request<Body> {
+    request.headers_mut().insert(
+        "x-cg-capability",
+        HeaderValue::from_str(token).expect("valid token"),
+    );
+    request
+}
+
 async fn next_doc_request(events: &mut tokio::sync::broadcast::Receiver<Value>) -> (String, Value) {
     loop {
         let event = tokio::time::timeout(Duration::from_secs(2), events.recv())
@@ -145,9 +159,13 @@ async fn ack(router: Router, doc_id: &str, op_id: &str, status: &str) -> Value {
 #[tokio::test]
 async fn submit_waits_for_the_browser_ack_and_records_history() {
     let mut harness = harness("submit").await;
-    let request = post(
-        "/api/docs/doc_api/ops",
-        json!({ "ops": [envelope("key_1")] }),
+    let token = harness.token("cap_local");
+    let request = with_token(
+        post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("key_1")] }),
+        ),
+        &token,
     );
     let router = harness.router.clone();
     let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
@@ -238,9 +256,13 @@ async fn submit_waits_for_the_browser_ack_and_records_history() {
 #[tokio::test]
 async fn a_retried_batch_replays_the_original_ack_without_redispatching() {
     let mut harness = harness("retry").await;
-    let first = post(
-        "/api/docs/doc_api/ops",
-        json!({ "ops": [envelope("key_1")] }),
+    let token = harness.token("cap_local");
+    let first = with_token(
+        post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("key_1")] }),
+        ),
+        &token,
     );
     let router = harness.router.clone();
     let submitted = tokio::spawn(async move { router.oneshot(first).await.unwrap() });
@@ -252,9 +274,12 @@ async fn a_retried_batch_replays_the_original_ack_without_redispatching() {
     let retried = harness
         .router
         .clone()
-        .oneshot(post(
-            "/api/docs/doc_api/ops",
-            json!({ "ops": [envelope("key_1")] }),
+        .oneshot(with_token(
+            post(
+                "/api/docs/doc_api/ops",
+                json!({ "ops": [envelope("key_1")] }),
+            ),
+            &token,
         ))
         .await
         .unwrap();
@@ -273,11 +298,15 @@ async fn a_retried_batch_replays_the_original_ack_without_redispatching() {
 #[tokio::test]
 async fn malformed_ops_get_a_typed_rejection() {
     let harness = harness("malformed").await;
+    let token = harness.token("cap_local");
     let mut bad = envelope("key_1");
     bad["type"] = json!("shape.create");
     let response = harness
         .router
-        .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [bad] })))
+        .oneshot(with_token(
+            post("/api/docs/doc_api/ops", json!({ "ops": [bad] })),
+            &token,
+        ))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -290,9 +319,14 @@ async fn malformed_ops_get_a_typed_rejection() {
 #[tokio::test]
 async fn undo_dispatches_the_inverse_as_a_new_turn() {
     let mut harness = harness("undo").await;
-    let request = post(
-        "/api/docs/doc_api/ops",
-        json!({ "ops": [envelope("key_1")] }),
+    let token = harness.token("cap_local");
+    let undo_token = harness.token("cap_undo");
+    let request = with_token(
+        post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("key_1")] }),
+        ),
+        &token,
     );
     let router = harness.router.clone();
     let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
@@ -300,7 +334,10 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
     ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
     submitted.await.unwrap();
 
-    let undo_request = post("/api/docs/doc_api/turns/turn_1/undo", json!({}));
+    let undo_request = with_token(
+        post("/api/docs/doc_api/turns/turn_1/undo", json!({})),
+        &undo_token,
+    );
     let router = harness.router.clone();
     let undone = tokio::spawn(async move { router.oneshot(undo_request).await.unwrap() });
     let (undo_op_id, dispatched) = next_doc_request(&mut harness.events).await;
@@ -340,7 +377,10 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
     let second = harness
         .router
         .clone()
-        .oneshot(post("/api/docs/doc_api/turns/turn_1/undo", json!({})))
+        .oneshot(with_token(
+            post("/api/docs/doc_api/turns/turn_1/undo", json!({})),
+            &undo_token,
+        ))
         .await
         .unwrap();
     assert_eq!(second.status(), StatusCode::OK);
@@ -353,13 +393,17 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
 #[tokio::test]
 async fn capability_denials_are_typed_acks_and_not_dispatched() {
     let mut harness = harness("capability-denial").await;
+    let token = harness.token("cap_local");
     let mut denied = envelope("key_1");
     denied["actor"] = json!({ "kind": "agent", "id": "intruder" });
 
     let response = harness
         .router
         .clone()
-        .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [denied] })))
+        .oneshot(with_token(
+            post("/api/docs/doc_api/ops", json!({ "ops": [denied] })),
+            &token,
+        ))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -398,13 +442,18 @@ async fn an_approval_replays_the_rejected_op_once() {
         }))
         .unwrap();
 
+    let guarded_token = harness.token("cap_guarded");
+    let human_token = harness.token("cap_human");
     let mut delete = envelope("key_1");
     delete["type"] = json!("chart.shape.delete");
     delete["capability"] = json!("cap_guarded");
     let response = harness
         .router
         .clone()
-        .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [delete] })))
+        .oneshot(with_token(
+            post("/api/docs/doc_api/ops", json!({ "ops": [delete] })),
+            &guarded_token,
+        ))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -415,9 +464,12 @@ async fn an_approval_replays_the_rejected_op_once() {
         .expect("approval id")
         .to_string();
 
-    let approve_request = Request::post(format!("/api/docs/doc_api/approvals/{approval_id}"))
-        .body(Body::empty())
-        .unwrap();
+    let approve_request = with_token(
+        Request::post(format!("/api/docs/doc_api/approvals/{approval_id}"))
+            .body(Body::empty())
+            .unwrap(),
+        &human_token,
+    );
     let router = harness.router.clone();
     let approved = tokio::spawn(async move { router.oneshot(approve_request).await.unwrap() });
 
@@ -447,11 +499,12 @@ async fn an_approval_replays_the_rejected_op_once() {
     let reused = harness
         .router
         .clone()
-        .oneshot(
+        .oneshot(with_token(
             Request::post(format!("/api/docs/doc_api/approvals/{approval_id}"))
                 .body(Body::empty())
                 .unwrap(),
-        )
+            &human_token,
+        ))
         .await
         .unwrap();
     assert_eq!(reused.status(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -462,17 +515,21 @@ async fn an_approval_replays_the_rejected_op_once() {
 #[tokio::test]
 async fn the_chart_http_path_applies_and_gates_ops() {
     let mut harness = harness("chart-http").await;
-    let request = post(
-        "/api/chart/op",
-        json!({
-            "chartId": "doc_api",
-            "requestId": "req_http_1",
-            "op": {
-                "op": "draw",
-                "kind": "trendline",
-                "points": [{ "t": 1, "p": 10 }, { "t": 2, "p": 20 }]
-            }
-        }),
+    let token = harness.token("cap_local");
+    let request = with_token(
+        post(
+            "/api/chart/op",
+            json!({
+                "chartId": "doc_api",
+                "requestId": "req_http_1",
+                "op": {
+                    "op": "draw",
+                    "kind": "trendline",
+                    "points": [{ "t": 1, "p": 10 }, { "t": 2, "p": 20 }]
+                }
+            }),
+        ),
+        &token,
     );
     let router = harness.router.clone();
     let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
@@ -489,13 +546,16 @@ async fn the_chart_http_path_applies_and_gates_ops() {
     let denied = harness
         .router
         .clone()
-        .oneshot(post(
-            "/api/chart/op",
-            json!({
-                "chartId": "doc_api",
-                "requestId": "req_http_2",
-                "op": { "op": "remove", "id": "shape_1" }
-            }),
+        .oneshot(with_token(
+            post(
+                "/api/chart/op",
+                json!({
+                    "chartId": "doc_api",
+                    "requestId": "req_http_2",
+                    "op": { "op": "remove", "id": "shape_1" }
+                }),
+            ),
+            &token,
         ))
         .await
         .unwrap();
@@ -510,5 +570,192 @@ async fn the_chart_http_path_applies_and_gates_ops() {
             .is_err(),
         "a gated op must not reach the browser"
     );
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
+}
+
+#[tokio::test]
+async fn writes_require_a_signed_capability_token() {
+    let harness = harness("tokens").await;
+    let missing = harness
+        .router
+        .clone()
+        .oneshot(post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("token_missing")] }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::FORBIDDEN);
+
+    let response = harness
+        .router
+        .clone()
+        .oneshot(
+            Request::get("/api/capabilities/cap_local/token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    let token = body["token"].as_str().expect("token").to_string();
+    assert!(token.starts_with("cg1."));
+
+    let key = body_json(
+        harness
+            .router
+            .clone()
+            .oneshot(
+                Request::get("/api/capabilities/key")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(
+        key["publicKey"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+
+    let tampered = harness
+        .router
+        .clone()
+        .oneshot(with_token(
+            post(
+                "/api/docs/doc_api/ops",
+                json!({ "ops": [envelope("token_tampered")] }),
+            ),
+            &format!("{token}x"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(tampered.status(), StatusCode::FORBIDDEN);
+
+    let mut bad = envelope("token_valid");
+    bad["type"] = json!("shape.create");
+    let accepted = harness
+        .router
+        .clone()
+        .oneshot(with_token(
+            post("/api/docs/doc_api/ops", json!({ "ops": [bad] })),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::OK);
+    let accepted = body_json(accepted).await;
+    assert_eq!(accepted["acks"][0]["code"], "invalid_op");
+}
+
+#[tokio::test]
+async fn ten_shapes_in_one_turn_undo_together() {
+    let mut harness = harness("ten-shapes").await;
+    let token = harness.token("cap_local");
+    let undo_token = harness.token("cap_undo");
+    let ops = (1..=10)
+        .map(|index| {
+            let mut envelope = envelope(&format!("bulk_{index}"));
+            envelope["turn_id"] = json!("turn_bulk");
+            envelope["seq"] = json!(index);
+            envelope
+        })
+        .collect::<Vec<_>>();
+
+    let request = with_token(post("/api/docs/doc_api/ops", json!({ "ops": ops })), &token);
+    let router = harness.router.clone();
+    let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
+    for _ in 0..10 {
+        let (op_id, _) = next_doc_request(&mut harness.events).await;
+        ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
+    }
+    let response = submitted.await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["acks"].as_array().unwrap().len(), 10);
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 10);
+    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 10);
+
+    let undo_request = with_token(
+        post("/api/docs/doc_api/turns/turn_bulk/undo", json!({})),
+        &undo_token,
+    );
+    let router = harness.router.clone();
+    let undone = tokio::spawn(async move { router.oneshot(undo_request).await.unwrap() });
+    for _ in 0..10 {
+        let (op_id, _) = next_doc_request(&mut harness.events).await;
+        ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
+    }
+    let response = undone.await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["applied"], true);
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 20);
+    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 20);
+    assert_eq!(
+        harness.journal.list_ops("doc_api", 1).unwrap()[0]["undoes"],
+        json!("turn_bulk")
+    );
+}
+
+#[tokio::test]
+async fn a_rejected_op_can_self_correct_with_the_suggestion() {
+    let mut harness = harness("self-correct").await;
+    let token = harness.token("cap_local");
+    let request = with_token(
+        post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("correct_1")] }),
+        ),
+        &token,
+    );
+    let router = harness.router.clone();
+    let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
+    let (op_id, _) = next_doc_request(&mut harness.events).await;
+
+    let rejected = harness
+        .router
+        .clone()
+        .oneshot(post(
+            "/api/docs/doc_api/acks",
+            json!({
+                "acks": [{
+                    "op_id": op_id,
+                    "status": "rejected",
+                    "rejected_by": "adapter",
+                    "code": "anchor_out_of_range",
+                    "message": "point is before the loaded window",
+                    "retryable": true,
+                    "suggestion": { "t": 1730800000 },
+                    "inverse": [],
+                    "snapshot": { "v": 1, "annotations": [], "series": [] }
+                }]
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), StatusCode::OK);
+    let response = submitted.await.unwrap();
+    let body = body_json(response).await;
+    assert_eq!(body["acks"][0]["status"], "rejected");
+    assert_eq!(body["acks"][0]["suggestion"]["t"], 1730800000);
+
+    let retry = with_token(
+        post(
+            "/api/docs/doc_api/ops",
+            json!({ "ops": [envelope("correct_2")] }),
+        ),
+        &token,
+    );
+    let router = harness.router.clone();
+    let retried = tokio::spawn(async move { router.oneshot(retry).await.unwrap() });
+    let (retry_op_id, _) = next_doc_request(&mut harness.events).await;
+    ack(harness.router.clone(), "doc_api", &retry_op_id, "applied").await;
+    let response = retried.await.unwrap();
+    let body = body_json(response).await;
+    assert_eq!(body["acks"][0]["status"], "applied");
     assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
 }

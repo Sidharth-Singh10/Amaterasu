@@ -13,7 +13,9 @@ ids, revisions, capability checks, and the audit chain; the browser adapter appl
 | `state_query` | `doc_id`, `limit?` | Metadata, recent ops, and audit entries with verification |
 
 `op_apply` takes full protocol envelopes, including `turn_id`, `seq`, `actor`, `capability`,
-`type`, `target`, `payload`, and `idempotency_key`. The server assigns ids and revisions.
+`type`, `target`, `payload`, and `idempotency_key`. The server assigns ids and revisions. The
+client fetches and caches the signed `X-CG-Capability` token for the envelope's capability; the
+server must be reachable for token minting.
 
 ## Run
 

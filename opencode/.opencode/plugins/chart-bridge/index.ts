@@ -102,6 +102,7 @@ export default Plugin.define({
     const pendingOps = new Map<string, Pending>()
     const pendingStates = new Map<string, Pending>()
     let toolContextLogged = false
+    let capabilityToken: string | null = null
 
     const settle = (map: Map<string, Pending>, requestId: string, value: unknown): boolean => {
       const pending = map.get(requestId)
@@ -199,13 +200,30 @@ export default Plugin.define({
      * op to the browser as `doc.request`; the response arrives after the browser acks. Falls back
      * to the legacy RPC path if the service does not expose the endpoint.
      */
+    const chartCapability = async (): Promise<string | null> => {
+      if (capabilityToken) return capabilityToken
+      try {
+        const response = await fetch(`${SERVER_URL}/api/capabilities/cap_local/token`)
+        if (!response.ok) return null
+        const payload = (await response.json()) as { token?: unknown }
+        capabilityToken = typeof payload.token === "string" ? payload.token : null
+        return capabilityToken
+      } catch {
+        return null
+      }
+    }
+
     const submitOp = async (op: Record<string, unknown>): Promise<unknown> => {
       const chart = activeChart()
       if (!chart) throw new Error("no chart is attached — ask the user to open the chart app")
+      const token = await chartCapability()
       try {
         const response = await fetch(`${SERVER_URL}/api/chart/op`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            ...(token ? { "x-cg-capability": token } : {}),
+          },
           body: JSON.stringify({ chartId: chart.chartId, requestId: crypto.randomUUID(), op }),
           signal: AbortSignal.timeout(OP_TIMEOUT_MS + 10_000),
         })

@@ -68,11 +68,20 @@ describe("CommonGroundClient", () => {
     expect(requests).toContain("GET /api/docs/doc_1/ops?limit=10")
   })
 
-  it("posts ops and undo requests", async () => {
-    const seen: Array<{ method?: string; url?: string; body: unknown }> = []
+  it("posts ops and undo requests with capability tokens", async () => {
+    const seen: Array<{ method?: string; url?: string; token?: string; body: unknown }> = []
     const served = await serve(async (request, response) => {
-      seen.push({ method: request.method, url: request.url, body: await body(request) })
       response.setHeader("content-type", "application/json")
+      if (request.url?.startsWith("/api/capabilities/") && request.url.endsWith("/token")) {
+        const capId = request.url.split("/")[3]
+        return response.end(JSON.stringify({ token: `tok_${capId}` }))
+      }
+      seen.push({
+        method: request.method,
+        url: request.url,
+        token: request.headers["x-cg-capability"] as string | undefined,
+        body: await body(request),
+      })
       if (request.url?.endsWith("/ops")) {
         return response.end(JSON.stringify({ docId: "doc_1", acks: [{ status: "applied" }] }))
       }
@@ -94,11 +103,13 @@ describe("CommonGroundClient", () => {
     expect(seen[0]).toEqual({
       method: "POST",
       url: "/api/docs/doc_1/ops",
+      token: "tok_cap_local",
       body: { ops: [envelope] },
     })
     expect(seen[1]).toEqual({
       method: "POST",
       url: "/api/docs/doc_1/turns/turn_1/undo",
+      token: "tok_cap_undo",
       body: {},
     })
   })

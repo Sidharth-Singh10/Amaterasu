@@ -3,7 +3,7 @@ use std::{convert::Infallible, sync::Arc, time::Duration};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{
         IntoResponse, Redirect, Response,
         sse::{Event, KeepAlive, Sse},
@@ -17,6 +17,7 @@ use serde_json::{Value, json};
 use crate::{
     bridge::{Bridge, BridgeError},
     cache::Cache,
+    capability::CapabilityClaims,
     config::Config,
     dispatch::OpDispatch,
     indmoney::{IndmoneyClient, IndmoneyError, normalize},
@@ -38,6 +39,9 @@ pub struct AppState {
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/health", get(health))
+        .route("/api/capabilities", post(capability_mint))
+        .route("/api/capabilities/key", get(capability_key))
+        .route("/api/capabilities/{cap_id}/token", get(capability_token))
         .route("/api/indmoney/status", get(indmoney_status))
         .route("/api/indmoney/connect", get(indmoney_connect))
         .route("/api/indmoney/oauth/callback", get(indmoney_callback))
@@ -69,6 +73,40 @@ pub fn routes() -> Router<AppState> {
             "/api/workspace/{key}",
             get(workspace_get).put(workspace_put),
         )
+}
+
+fn require_local_bind(state: &AppState) -> Result<(), ApiError> {
+    if state.config.bind.starts_with("127.0.0.1")
+        || state.config.bind.starts_with("localhost")
+        || state.config.bind.starts_with("[::1]")
+    {
+        return Ok(());
+    }
+    Err(ApiError::Forbidden(
+        "capability_denied",
+        "local capability minting is disabled on a non-loopback bind".into(),
+    ))
+}
+
+async fn capability_mint(
+    State(state): State<AppState>,
+    Json(claims): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    require_local_bind(&state)?;
+    Ok(Json(state.journal.mint_capability_token(claims)?))
+}
+
+async fn capability_key(State(state): State<AppState>) -> Json<Value> {
+    Json(json!({ "publicKey": state.journal.capability_public_key() }))
+}
+
+async fn capability_token(
+    State(state): State<AppState>,
+    Path(cap_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    require_local_bind(&state)?;
+    let token = state.journal.capability_token(&cap_id)?;
+    Ok(Json(json!({ "capability": cap_id, "token": token })))
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
@@ -377,8 +415,10 @@ struct ChartOpBody {
 /// before the browser sees the op; the request blocks until the adapter acks.
 async fn chart_submit_op(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<ChartOpBody>,
 ) -> Result<Json<Value>, ApiError> {
+    require_token(&state, &headers, "cap_local")?;
     let chart_id = body.chart_id;
     let request_id = body
         .request_id
@@ -472,11 +512,13 @@ struct SubmitOpsBody {
 async fn doc_submit_ops(
     State(state): State<AppState>,
     Path(doc_id): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<SubmitOpsBody>,
 ) -> Result<Json<Value>, ApiError> {
     if body.ops.is_empty() {
         return Err(ApiError::BadRequest("ops must not be empty".into()));
     }
+    require_batch_token(&state, &headers, &body.ops)?;
     let acks = match dispatch_batch(&state, &doc_id, &body.ops).await {
         Ok(acks) => acks,
         Err(ApiError::Protocol("invalid_op", message)) => {
@@ -545,18 +587,19 @@ async fn doc_acks(
 #[derive(Debug, Default, Deserialize)]
 struct UndoBody {
     actor: Option<Value>,
-    capability: Option<String>,
 }
 
 async fn doc_undo(
     State(state): State<AppState>,
     Path((doc_id, turn_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(body): Json<UndoBody>,
 ) -> Result<Json<Value>, ApiError> {
+    let claims = require_token(&state, &headers, "cap_undo")?;
     let actor = body
         .actor
-        .unwrap_or_else(|| json!({ "kind": "human", "id": "local" }));
-    let capability = body.capability.unwrap_or_else(|| "cap_undo".into());
+        .unwrap_or_else(|| json!({ "kind": "human", "id": claims.sub.actor_id }));
+    let capability = claims.cap_id;
     let plan = match state
         .journal
         .plan_undo(&doc_id, &turn_id, actor.clone(), &capability)
@@ -618,7 +661,9 @@ async fn doc_undo(
 async fn doc_approve(
     State(state): State<AppState>,
     Path((doc_id, approval_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
+    require_token(&state, &headers, "cap_human")?;
     let target = state.journal.approval(&approval_id).ok_or_else(|| {
         ApiError::Protocol("approval_invalid", "unknown or expired approval".into())
     })?;
@@ -678,6 +723,56 @@ async fn doc_approve(
         "applied": applied,
         "acks": acks,
     })))
+}
+
+/// Verifies a capability token, requires a specific cap id, and registers its claims for the
+/// journal check. Token verification is signature-only here; expiry and scope are enforced when
+/// the envelope is journaled.
+fn require_token(
+    state: &AppState,
+    headers: &HeaderMap,
+    cap_id: &str,
+) -> Result<CapabilityClaims, ApiError> {
+    let token = headers
+        .get("x-cg-capability")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| {
+            ApiError::Forbidden("capability_denied", "missing X-CG-Capability token".into())
+        })?;
+    let claims = state
+        .journal
+        .verify_capability_token(token)
+        .map_err(|error| ApiError::Forbidden("capability_denied", error.to_string()))?;
+    if claims.cap_id != cap_id {
+        return Err(ApiError::Forbidden(
+            "capability_denied",
+            format!("token is for {}, not {cap_id}", claims.cap_id),
+        ));
+    }
+    state.journal.register_capability(claims.clone());
+    Ok(claims)
+}
+
+fn require_batch_token(
+    state: &AppState,
+    headers: &HeaderMap,
+    ops: &[Value],
+) -> Result<CapabilityClaims, ApiError> {
+    let required = ops
+        .first()
+        .and_then(|envelope| envelope.get("capability"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| ApiError::BadRequest("each envelope needs a capability".into()))?;
+    if !ops
+        .iter()
+        .all(|envelope| envelope.get("capability").and_then(Value::as_str) == Some(required))
+    {
+        return Err(ApiError::Forbidden(
+            "capability_denied",
+            "a batch may only use the token's capability".into(),
+        ));
+    }
+    require_token(state, headers, required)
 }
 
 /// Journals an undo rejection (unknown or already-undone turn) so the attempt is auditable.
@@ -849,6 +944,9 @@ impl From<JournalError> for ApiError {
             }
             JournalError::Sqlite(inner) => ApiError::Internal(inner.to_string()),
             JournalError::Json(inner) => ApiError::Internal(inner.to_string()),
+            JournalError::Token(inner) => {
+                ApiError::Protocol("capability_denied", inner.to_string())
+            }
         }
     }
 }
@@ -870,6 +968,7 @@ pub enum ApiError {
     BadRequest(String),
     /// A protocol-level rejection with a stable machine-readable code.
     Protocol(&'static str, String),
+    Forbidden(&'static str, String),
     Upstream(String),
     Internal(String),
 }
@@ -920,6 +1019,7 @@ impl IntoResponse for ApiError {
             ),
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
             ApiError::Protocol(code, message) => (StatusCode::UNPROCESSABLE_ENTITY, code, message),
+            ApiError::Forbidden(code, message) => (StatusCode::FORBIDDEN, code, message),
             ApiError::Upstream(message) => (StatusCode::BAD_GATEWAY, "upstream", message),
             ApiError::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, "internal", message),
         };

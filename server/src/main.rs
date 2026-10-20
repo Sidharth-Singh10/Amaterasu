@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let indmoney = Arc::new(IndmoneyClient::new(&config, http).await);
     let journal = Arc::new(
-        JournalStore::open(&config.journal_db)
+        JournalStore::open_with_key(&config.journal_db, &config.data_dir.join("capability.key"))
             .with_context(|| format!("opening journal db {}", config.journal_db.display()))?,
     );
     journal.bind_local_agent(&config.opencode_agent);
