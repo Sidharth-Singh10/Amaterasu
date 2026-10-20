@@ -583,6 +583,8 @@ async fn doc_approve(
     // A request id is unique per bridge request; the approval is a new op.
     object.remove("request_id");
     object.remove("op_id");
+    // The human is approving the op against the current document state.
+    object.remove("expected_revision");
 
     let acks = dispatch_batch(&state, &doc_id, &[envelope]).await?;
     let applied = acks

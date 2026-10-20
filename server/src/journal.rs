@@ -705,17 +705,13 @@ fn begin_one_tx(
         params![doc_id, turn_id, actor, now_ms()],
     )?;
 
-    let rejection = capabilities
-        .verify(envelope, chrono::Utc::now(), Some(&op_id))
-        .or_else(|| {
-            let expected = envelope.get("expected_revision").and_then(Value::as_i64)?;
-            let current: i64 = transaction
-                .query_row(
-                    "SELECT revision FROM doc_meta WHERE doc_id = ?1",
-                    params![doc_id],
-                    |row| row.get(0),
-                )
-                .ok()?;
+    let stale_revision = match envelope.get("expected_revision").and_then(Value::as_i64) {
+        Some(expected) => {
+            let current: i64 = transaction.query_row(
+                "SELECT revision FROM doc_meta WHERE doc_id = ?1",
+                params![doc_id],
+                |row| row.get(0),
+            )?;
             (expected != current).then(|| Rejection {
                 code: "revision_conflict",
                 message: format!("expected revision {expected}, current revision {current}"),
@@ -723,7 +719,11 @@ fn begin_one_tx(
                 rejected_by: "server",
                 suggestion: None,
             })
-        });
+        }
+        None => None,
+    };
+    let rejection =
+        stale_revision.or_else(|| capabilities.verify(envelope, chrono::Utc::now(), Some(&op_id)));
     if let Some(rejection) = rejection {
         let ack = finalize_tx(
             transaction,
