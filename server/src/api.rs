@@ -10,6 +10,7 @@ use axum::{
     },
     routing::{get, post},
 };
+use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -58,6 +59,10 @@ pub fn routes() -> Router<AppState> {
         .route("/api/docs/{doc_id}/acks", post(doc_acks))
         .route("/api/docs/{doc_id}/audit", get(doc_audit))
         .route("/api/docs/{doc_id}/turns/{turn_id}/undo", post(doc_undo))
+        .route(
+            "/api/docs/{doc_id}/approvals/{approval_id}",
+            post(doc_approve),
+        )
         .route(
             "/api/workspace/{key}",
             get(workspace_get).put(workspace_put),
@@ -496,6 +501,69 @@ async fn doc_undo(
     })))
 }
 
+async fn doc_approve(
+    State(state): State<AppState>,
+    Path((doc_id, approval_id)): Path<(String, String)>,
+) -> Result<Json<Value>, ApiError> {
+    let target = state.journal.approval(&approval_id).ok_or_else(|| {
+        ApiError::Protocol("approval_invalid", "unknown or expired approval".into())
+    })?;
+    if target.used {
+        return Err(ApiError::Protocol(
+            "approval_invalid",
+            "approval was already used".into(),
+        ));
+    }
+    if target.expires_at <= Utc::now() {
+        return Err(ApiError::Protocol(
+            "approval_invalid",
+            "approval expired".into(),
+        ));
+    }
+    if target.doc_id != doc_id {
+        return Err(ApiError::Protocol(
+            "approval_invalid",
+            "approval belongs to another document".into(),
+        ));
+    }
+    let op_id = target.op_id.clone().ok_or_else(|| {
+        ApiError::Protocol("approval_invalid", "approval has no target op".into())
+    })?;
+    let Some(mut envelope) = state.journal.rejected_envelope(&doc_id, &op_id)? else {
+        return Err(ApiError::Protocol(
+            "approval_invalid",
+            "the rejected op is no longer available".into(),
+        ));
+    };
+
+    let Some(object) = envelope.as_object_mut() else {
+        return Err(ApiError::Internal(
+            "stored envelope is not an object".into(),
+        ));
+    };
+    object.insert("approval".into(), json!(approval_id.clone()));
+    object.insert("turn_id".into(), json!(format!("turn_approval_{op_id}")));
+    object.insert("seq".into(), json!(0));
+    object.insert(
+        "approved_by".into(),
+        json!({ "kind": "human", "id": "local" }),
+    );
+    // A request id is unique per bridge request; the approval is a new op.
+    object.remove("request_id");
+    object.remove("op_id");
+
+    let acks = dispatch_batch(&state, &doc_id, &[envelope]).await?;
+    let applied = acks
+        .iter()
+        .all(|ack| ack.get("status").and_then(Value::as_str) == Some("applied"));
+    Ok(Json(json!({
+        "docId": doc_id,
+        "approvalId": approval_id,
+        "applied": applied,
+        "acks": acks,
+    })))
+}
+
 /// Journals a batch, dispatches fresh ops to the browser, and waits for its acks.
 async fn dispatch_batch(
     state: &AppState,
@@ -509,6 +577,7 @@ async fn dispatch_batch(
     for item in items {
         match item {
             BatchItem::Replay(ack) => acks.push(Some(ack)),
+            BatchItem::Rejected(ack) => acks.push(Some(ack)),
             BatchItem::Pending(op) if !op.fresh => acks.push(Some(json!({
                 "v": 1,
                 "op_id": op.op_id,

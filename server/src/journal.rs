@@ -4,9 +4,9 @@
 //! boundaries, and the audit chain. It does **not** hold a domain reducer: applied results and
 //! inverse ops come from the adapter (the browser) in the ack.
 //!
-//! Phase 1a journals at dispatch time on the existing chart bridge. Capability verification and
-//! pre-application gating are Phase 1b/1c; the capability id is recorded now so the audit is
-//! already attributable.
+//! Phase 1a journals at dispatch time on the existing chart bridge. Capability checks run at
+//! intake, before an op is returned to an adapter; a rejected attempt is still journaled and
+//! audited. Human approval records are in-memory and one-shot.
 
 use std::{
     path::Path,
@@ -18,6 +18,8 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
+
+use crate::capability::CapabilityRegistry;
 
 /// Maximum encoded envelope size accepted by the journal.
 pub const MAX_ENVELOPE_BYTES: usize = 1_048_576;
@@ -58,6 +60,8 @@ pub enum BatchItem {
     Pending(PendingOp),
     /// The op was already applied under this idempotency key; return the stored ack.
     Replay(Value),
+    /// The op was journaled and rejected at intake (capability, scope, or approval).
+    Rejected(Value),
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -105,6 +109,7 @@ pub struct UndoPlan {
 
 pub struct JournalStore {
     connection: Mutex<Connection>,
+    capabilities: CapabilityRegistry,
 }
 
 const SCHEMA: &str = r#"
@@ -181,7 +186,47 @@ impl JournalStore {
         connection.execute_batch(SCHEMA)?;
         Ok(Self {
             connection: Mutex::new(connection),
+            capabilities: CapabilityRegistry::local(),
         })
+    }
+
+    /// Rebinds the local agent capability when `OPENCODE_AGENT` is not `chart-analyst`.
+    pub fn bind_local_agent(&self, agent_id: &str) {
+        self.capabilities.bind_actor("cap_local", agent_id);
+    }
+
+    /// Registers a capability for local use. Hosted deployments replace this with token
+    /// verification against an issuer key.
+    pub fn mint_capability(&self, claims: Value) -> Result<(), JournalError> {
+        self.capabilities
+            .mint_json(claims)
+            .map_err(JournalError::Json)
+    }
+
+    /// Looks up a pending one-shot approval without consuming it.
+    pub fn approval(&self, approval_id: &str) -> Option<crate::capability::ApprovalTarget> {
+        self.capabilities.approval(approval_id)
+    }
+
+    /// The original rejected envelope for an approval's target op.
+    pub fn rejected_envelope(
+        &self,
+        doc_id: &str,
+        op_id: &str,
+    ) -> Result<Option<Value>, JournalError> {
+        validate_doc_id(doc_id)?;
+        let connection = self.connection.lock().expect("journal lock poisoned");
+        let envelope: Option<String> = connection
+            .query_row(
+                "SELECT envelope FROM doc_ops
+                 WHERE doc_id = ?1 AND op_id = ?2 AND status = 'rejected'",
+                params![doc_id, op_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        envelope
+            .map(|envelope| serde_json::from_str(&envelope).map_err(JournalError::from))
+            .transpose()
     }
 
     /// Applies a batch in order. Returns one item per input envelope.
@@ -197,7 +242,12 @@ impl JournalStore {
 
         let mut items = Vec::with_capacity(envelopes.len());
         for envelope in envelopes {
-            items.push(begin_one_tx(&transaction, doc_id, envelope)?);
+            items.push(begin_one_tx(
+                &transaction,
+                &self.capabilities,
+                doc_id,
+                envelope,
+            )?);
         }
         transaction.commit()?;
         Ok(items)
@@ -536,6 +586,7 @@ impl JournalStore {
 
 fn begin_one_tx(
     transaction: &rusqlite::Transaction<'_>,
+    capabilities: &CapabilityRegistry,
     doc_id: &str,
     envelope: &Value,
 ) -> Result<BatchItem, JournalError> {
@@ -653,6 +704,27 @@ fn begin_one_tx(
          ON CONFLICT(doc_id, turn_id) DO UPDATE SET ended_at = excluded.started_at",
         params![doc_id, turn_id, actor, now_ms()],
     )?;
+
+    if let Some(rejection) = capabilities.verify(envelope, chrono::Utc::now(), Some(&op_id)) {
+        let ack = finalize_tx(
+            transaction,
+            doc_id,
+            &op_id,
+            &turn_id,
+            seq,
+            &stored,
+            AckInput {
+                status: "rejected".into(),
+                rejected_by: Some(rejection.rejected_by.into()),
+                code: Some(rejection.code.into()),
+                message: Some(rejection.message),
+                retryable: Some(rejection.retryable),
+                suggestion: rejection.suggestion,
+                ..AckInput::default()
+            },
+        )?;
+        return Ok(BatchItem::Rejected(ack));
+    }
 
     Ok(BatchItem::Pending(PendingOp {
         op_id,
@@ -1115,6 +1187,7 @@ mod tests {
         match item {
             BatchItem::Pending(op) => op,
             BatchItem::Replay(other) => panic!("expected pending, got replay {other}"),
+            BatchItem::Rejected(other) => panic!("expected pending, got rejection {other}"),
         }
     }
 
@@ -1175,7 +1248,7 @@ mod tests {
                 assert_eq!(value["op_id"], ack["op_id"]);
                 assert_eq!(value["revision"], 1);
             }
-            BatchItem::Pending(_) => panic!("expected a replay"),
+            BatchItem::Pending(_) | BatchItem::Rejected(_) => panic!("expected a replay"),
         }
         assert_eq!(store.audit("doc_test").unwrap().len(), 1);
     }
@@ -1400,5 +1473,130 @@ mod tests {
         assert_eq!(envelope["target"]["kind"], "chart.view");
 
         assert!(chart_op_envelope(&json!({ "chartId": "doc_1" }), "agent").is_none());
+    }
+
+    fn capability_json(
+        cap_id: &str,
+        actor: &str,
+        permissions: &[&str],
+        mode: &str,
+        op_types: &[&str],
+        expires_at: &str,
+    ) -> Value {
+        json!({
+            "v": 1,
+            "cap_id": cap_id,
+            "iss": "cg-local",
+            "sub": { "actor_id": actor },
+            "documents": ["*"],
+            "op_types": op_types,
+            "permissions": permissions,
+            "approval": { "mode": mode, "op_types": ["chart.shape.delete"] },
+            "issued_at": "2026-01-01T00:00:00Z",
+            "expires_at": expires_at
+        })
+    }
+
+    #[test]
+    fn capability_denials_are_journaled_and_retryable() {
+        let store = temp_store("capability");
+        store
+            .mint_capability(capability_json(
+                "cap_read",
+                "chart-analyst",
+                &["read"],
+                "auto",
+                &["chart.shape.*"],
+                "2030-01-01T00:00:00Z",
+            ))
+            .unwrap();
+
+        let mut denied = envelope(1, "k1", json!({}));
+        denied["capability"] = json!("cap_read");
+        match store.begin_single("doc_test", denied).unwrap() {
+            BatchItem::Rejected(ack) => {
+                assert_eq!(ack["status"], "rejected");
+                assert_eq!(ack["code"], "capability_denied");
+                assert_eq!(ack["revision"], 0);
+            }
+            other => panic!("expected a capability rejection, got {other:?}"),
+        }
+        assert_eq!(store.audit("doc_test").unwrap().len(), 1);
+
+        // The rejected key is not cached, so the same key can be retried with a valid scope.
+        let op = pending(
+            store
+                .begin_single("doc_test", envelope(1, "k1", json!({})))
+                .unwrap(),
+        );
+        let ack = applied(&store, &op, json!([]));
+        assert_eq!(ack["revision"], 1);
+        assert_eq!(store.audit("doc_test").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn expired_capabilities_are_retryable_rejections() {
+        let store = temp_store("capability-expired");
+        store
+            .mint_capability(capability_json(
+                "cap_expired",
+                "chart-analyst",
+                &["apply"],
+                "auto",
+                &["chart.shape.*"],
+                "2020-01-02T00:00:00Z",
+            ))
+            .unwrap();
+        let mut denied = envelope(1, "k1", json!({}));
+        denied["capability"] = json!("cap_expired");
+        match store.begin_single("doc_test", denied).unwrap() {
+            BatchItem::Rejected(ack) => {
+                assert_eq!(ack["code"], "capability_expired");
+                assert_eq!(ack["retryable"], true);
+            }
+            other => panic!("expected an expiry rejection, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn human_approval_is_journaled_and_one_shot() {
+        let store = temp_store("capability-approval");
+        store
+            .mint_capability(capability_json(
+                "cap_guarded",
+                "chart-analyst",
+                &["read", "apply"],
+                "human",
+                &["chart.shape.*"],
+                "2030-01-01T00:00:00Z",
+            ))
+            .unwrap();
+
+        let mut delete = envelope(1, "k1", json!({}));
+        delete["type"] = json!("chart.shape.delete");
+        delete["capability"] = json!("cap_guarded");
+        let approval_id = match store.begin_single("doc_test", delete.clone()).unwrap() {
+            BatchItem::Rejected(ack) => {
+                assert_eq!(ack["code"], "approval_required");
+                ack["suggestion"]["approval_id"]
+                    .as_str()
+                    .expect("approval suggestion")
+                    .to_string()
+            }
+            other => panic!("expected an approval request, got {other:?}"),
+        };
+
+        delete["approval"] = json!(approval_id);
+        let op = pending(store.begin_single("doc_test", delete.clone()).unwrap());
+        let ack = applied(&store, &op, json!([]));
+        assert_eq!(ack["revision"], 1);
+
+        // The approval is consumed; a new key with the same id is refused.
+        delete["idempotency_key"] = json!("k2");
+        match store.begin_single("doc_test", delete).unwrap() {
+            BatchItem::Rejected(ack) => assert_eq!(ack["code"], "approval_invalid"),
+            other => panic!("expected a rejected reuse, got {other:?}"),
+        }
+        assert_eq!(store.audit("doc_test").unwrap().len(), 3);
     }
 }

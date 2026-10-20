@@ -28,6 +28,7 @@ async fn main() -> anyhow::Result<()> {
         JournalStore::open(&config.journal_db)
             .with_context(|| format!("opening journal db {}", config.journal_db.display()))?,
     );
+    journal.bind_local_agent(&config.opencode_agent);
     let bridge = Bridge::new(&config, journal.clone());
     bridge.spawn_event_pump();
     {

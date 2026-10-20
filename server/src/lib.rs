@@ -1,6 +1,7 @@
 pub mod api;
 pub mod bridge;
 pub mod cache;
+pub mod capability;
 pub mod config;
 pub mod dispatch;
 pub mod indmoney;

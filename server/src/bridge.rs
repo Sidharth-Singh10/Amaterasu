@@ -91,7 +91,7 @@ impl Bridge {
         });
     }
 
-    fn forward(&self, mut event: Value) {
+    fn forward(self: &Arc<Self>, mut event: Value) {
         let event_type = event
             .get("type")
             .and_then(|t| t.as_str())
@@ -111,7 +111,7 @@ impl Bridge {
 
     /// Journals an agent chart op before it reaches the browser and annotates the event with its
     /// doc/op/turn ids. Returns false when this is a retry that must not be dispatched twice.
-    fn journal_chart_op(&self, event: &mut Value) -> bool {
+    fn journal_chart_op(self: &Arc<Self>, event: &mut Value) -> bool {
         let Some(envelope) = event
             .get("data")
             .and_then(|data| journal::chart_op_envelope(data, &self.agent))
@@ -149,11 +149,47 @@ impl Bridge {
                 );
                 false
             }
+            Ok(BatchItem::Rejected(ack)) => {
+                self.reject_chart_op(event, &ack);
+                false
+            }
             Err(error) => {
                 tracing::warn!(%error, doc_id, "chart op journaling failed; dispatching unjournaled");
                 true
             }
         }
+    }
+
+    /// Delivers an intake rejection directly to the chart plugin, without showing the op to the
+    /// browser. The plugin resolves the pending tool call with the typed code and suggestion.
+    fn reject_chart_op(self: &Arc<Self>, event: &Value, ack: &Value) {
+        let Some(request_id) = event
+            .get("data")
+            .and_then(|data| data.get("requestId"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+        else {
+            return;
+        };
+        let result = json!({
+            "ok": false,
+            "code": ack.get("code").cloned().unwrap_or(Value::Null),
+            "message": ack.get("message").cloned().unwrap_or(Value::Null),
+            "retryable": ack.get("retryable").cloned().unwrap_or(Value::Null),
+            "suggestion": ack.get("suggestion").cloned().unwrap_or(Value::Null),
+        });
+        let bridge = Arc::clone(self);
+        tokio::spawn(async move {
+            if let Err(error) = bridge
+                .rpc(
+                    "opAck",
+                    json!({ "requestId": request_id, "result": result }),
+                )
+                .await
+            {
+                tracing::warn!(%error, "failed to deliver an op rejection to the chart bridge");
+            }
+        });
     }
 
     pub async fn create_session(&self) -> Result<String> {

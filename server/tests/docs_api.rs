@@ -69,7 +69,7 @@ fn envelope(key: &str) -> Value {
         "doc_id": "doc_api",
         "turn_id": "turn_1",
         "seq": 1,
-        "actor": { "kind": "human", "id": "test" },
+        "actor": { "kind": "agent", "id": "chart-analyst" },
         "capability": "cap_local",
         "type": "chart.shape.create",
         "target": { "kind": "chart.shape" },
@@ -323,4 +323,106 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
     assert_eq!(second.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let second = body_json(second).await;
     assert_eq!(second["error"], "already_undone");
+}
+
+#[tokio::test]
+async fn capability_denials_are_typed_acks_and_not_dispatched() {
+    let mut harness = harness("capability-denial").await;
+    let mut denied = envelope("key_1");
+    denied["actor"] = json!({ "kind": "agent", "id": "intruder" });
+
+    let response = harness
+        .router
+        .clone()
+        .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [denied] })))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["acks"][0]["status"], "rejected");
+    assert_eq!(body["acks"][0]["code"], "capability_denied");
+    assert_eq!(body["acks"][0]["revision"], 0);
+
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), harness.events.recv())
+            .await
+            .is_err(),
+        "a capability rejection must not reach the browser"
+    );
+    let audit = harness.journal.audit("doc_api").unwrap();
+    assert_eq!(audit.len(), 1);
+    assert_eq!(audit[0]["status"], "rejected");
+}
+
+#[tokio::test]
+async fn an_approval_replays_the_rejected_op_once() {
+    let mut harness = harness("approval").await;
+    harness
+        .journal
+        .mint_capability(json!({
+            "v": 1,
+            "cap_id": "cap_guarded",
+            "iss": "cg-local",
+            "sub": { "actor_id": "chart-analyst" },
+            "documents": ["*"],
+            "op_types": ["chart.shape.*"],
+            "permissions": ["read", "apply"],
+            "approval": { "mode": "human", "op_types": ["chart.shape.delete"] },
+            "issued_at": "2026-01-01T00:00:00Z",
+            "expires_at": "2030-01-01T00:00:00Z"
+        }))
+        .unwrap();
+
+    let mut delete = envelope("key_1");
+    delete["type"] = json!("chart.shape.delete");
+    delete["capability"] = json!("cap_guarded");
+    let response = harness
+        .router
+        .clone()
+        .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [delete] })))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let denied = body_json(response).await;
+    assert_eq!(denied["acks"][0]["code"], "approval_required");
+    let approval_id = denied["acks"][0]["suggestion"]["approval_id"]
+        .as_str()
+        .expect("approval id")
+        .to_string();
+
+    let approve_request = Request::post(format!("/api/docs/doc_api/approvals/{approval_id}"))
+        .body(Body::empty())
+        .unwrap();
+    let router = harness.router.clone();
+    let approved = tokio::spawn(async move { router.oneshot(approve_request).await.unwrap() });
+
+    let (op_id, dispatched) = next_doc_request(&mut harness.events).await;
+    assert_eq!(dispatched["type"], "chart.shape.delete");
+    assert_eq!(dispatched["approval"], approval_id);
+    assert_eq!(dispatched["approved_by"]["id"], "local");
+    ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
+
+    let response = approved.await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["applied"], true);
+    assert_eq!(body["acks"][0]["revision"], 1);
+
+    assert!(harness.journal.approval(&approval_id).unwrap().used);
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
+    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 2);
+
+    let reused = harness
+        .router
+        .clone()
+        .oneshot(
+            Request::post(format!("/api/docs/doc_api/approvals/{approval_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reused.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let reused = body_json(reused).await;
+    assert_eq!(reused["error"], "approval_invalid");
 }
