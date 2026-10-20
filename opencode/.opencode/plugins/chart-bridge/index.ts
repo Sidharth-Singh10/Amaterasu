@@ -23,6 +23,9 @@ const object = (properties: Record<string, unknown>, required: string[]) =>
   ({ type: "object", properties, required, additionalProperties: false }) as const
 const looseObject = { type: "object" } as const
 
+const SERVER_URL = (
+  (typeof process !== "undefined" ? process.env?.AMATERASU_URL : undefined) ?? "http://127.0.0.1:8787"
+).replace(/\/+$/, "")
 const OP_TIMEOUT_MS = 10_000
 const STATE_TIMEOUT_MS = 15_000
 
@@ -174,6 +177,53 @@ export default Plugin.define({
         )
       })
 
+    /** Unwraps the journal ack into the OpResult shape the tools already return. */
+    const opResult = (ack: unknown): unknown => {
+      const record = (ack ?? {}) as Record<string, unknown>
+      if (record.status === "applied") return record.result ?? { ok: true }
+      if (record.status === "rejected") {
+        return {
+          ok: false,
+          code: record.code,
+          message: record.message,
+          retryable: record.retryable,
+          suggestion: record.suggestion,
+          revision: record.revision,
+        }
+      }
+      return record
+    }
+
+    /**
+     * Pre-application submit: the journal assigns ids, checks the capability, and dispatches the
+     * op to the browser as `doc.request`; the response arrives after the browser acks. Falls back
+     * to the legacy RPC path if the service does not expose the endpoint.
+     */
+    const submitOp = async (op: Record<string, unknown>): Promise<unknown> => {
+      const chart = activeChart()
+      if (!chart) throw new Error("no chart is attached — ask the user to open the chart app")
+      try {
+        const response = await fetch(`${SERVER_URL}/api/chart/op`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chartId: chart.chartId, requestId: crypto.randomUUID(), op }),
+          signal: AbortSignal.timeout(OP_TIMEOUT_MS + 5_000),
+        })
+        if (!response.ok) throw new Error(`the chart service returned HTTP ${response.status}`)
+        const payload = (await response.json()) as { ack?: unknown }
+        return opResult(payload.ack)
+      } catch (error) {
+        // A timeout may mean the server applied the op and lost the response. Do not fall back
+        // and risk applying it twice; surface the timeout instead.
+        if ((error as { name?: string }).name === "TimeoutError") throw error
+        if (debug) console.warn("[chart-bridge] HTTP submit failed; falling back to RPC", error)
+        return request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS)
+      }
+    }
+
+    const applyOp = (op: Record<string, unknown>): Promise<unknown> =>
+      submitOp(op).catch((error) => ({ ok: false, error: (error as Error).message }))
+
     const content = (value: unknown) => ({ content: JSON.stringify(value) })
 
     await ctx.tool.transform((editor) => {
@@ -290,10 +340,7 @@ export default Plugin.define({
               ...(source ? { source } : {}),
             }
             results.push(
-              await request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS).catch((error) => ({
-                ok: false,
-                error: (error as Error).message,
-              })),
+              await applyOp(op),
             )
           }
           return content({ ok: results.every((result) => (result as { ok?: boolean }).ok === true), results })
@@ -320,12 +367,7 @@ export default Plugin.define({
         ),
         execute: async (input, _tool, source) =>
           content(
-            await request(
-              pendingOps,
-              "op.request",
-              { op: { op: "update", ...(input as object), ...(source ? { source } : {}) } },
-              OP_TIMEOUT_MS,
-            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+            await applyOp({ op: "update", ...(input as object), ...(source ? { source } : {}) }),
           ),
       })
 
@@ -335,12 +377,11 @@ export default Plugin.define({
         input: object({ id: str }, ["id"]),
         execute: async (input, _tool, source) =>
           content(
-            await request(
-              pendingOps,
-              "op.request",
-              { op: { op: "remove", id: (input as { id: string }).id, ...(source ? { source } : {}) } },
-              OP_TIMEOUT_MS,
-            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+            await applyOp({
+              op: "remove",
+              id: (input as { id: string }).id,
+              ...(source ? { source } : {}),
+            }),
           ),
       })
 
@@ -350,12 +391,7 @@ export default Plugin.define({
         input: object({ ids: { type: "array", items: str }, kind: str }, []),
         execute: async (input, _tool, source) =>
           content(
-            await request(
-              pendingOps,
-              "op.request",
-              { op: { op: "clear", ...(input as object), ...(source ? { source } : {}) } },
-              OP_TIMEOUT_MS,
-            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+            await applyOp({ op: "clear", ...(input as object), ...(source ? { source } : {}) }),
           ),
       })
 
@@ -366,12 +402,7 @@ export default Plugin.define({
         input: object({ bars: num, from: num, to: num, priceMin: num, priceMax: num, priceAuto: bool }, []),
         execute: async (input) =>
           content(
-            await request(
-              pendingOps,
-              "op.request",
-              { op: { op: "set_view", ...(input as object) } },
-              OP_TIMEOUT_MS,
-            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+            await applyOp({ op: "set_view", ...(input as object) }),
           ),
       })
 
@@ -418,10 +449,7 @@ export default Plugin.define({
             ...(source ? { source } : {}),
           }
           return content(
-            await request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS).catch((error) => ({
-              ok: false,
-              error: (error as Error).message,
-            })),
+            await applyOp(op),
           )
         },
       })
@@ -432,12 +460,7 @@ export default Plugin.define({
         input: object({ id: str }, ["id"]),
         execute: async (input) =>
           content(
-            await request(
-              pendingOps,
-              "op.request",
-              { op: { op: "remove_series", id: (input as { id: string }).id } },
-              OP_TIMEOUT_MS,
-            ).catch((error) => ({ ok: false, error: (error as Error).message })),
+            await applyOp({ op: "remove_series", id: (input as { id: string }).id }),
           ),
       })
     })
