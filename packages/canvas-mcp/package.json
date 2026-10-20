@@ -1,0 +1,21 @@
+{
+  "name": "@common-ground/canvas-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for Common Ground document state, ops, undo, and history",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "common-ground-mcp": "./src/main.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@common-ground/canvas-core": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.6.5"
+  }
+}

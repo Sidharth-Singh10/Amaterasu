@@ -577,6 +577,8 @@ chart bridge:
   drives undo and approval.
 - The six language-agnostic fixtures pass against two targets: the TypeScript `MemoryTarget` and
   the Rust journal harness in `server/tests/conformance.rs` with a minimal 2D adapter.
+- `packages/canvas-mcp` exposes `doc_get`, `op_apply`, `turn_undo`, and `state_query` over stdio,
+  backed by the HTTP journal and the adapter snapshot.
 
 Not yet enforced or implemented:
 

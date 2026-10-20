@@ -154,6 +154,7 @@ Three decoupled channels: **data** (webapp → INDmoney MCP directly), **agent**
 │     └─ app.css · app.html
 ├─ server/                          # Rust (axum): MCP + OAuth · cache · OpenCode bridge · SSE · SQLite · static hosting
 ├─ packages/canvas-chart/           # zod op + state schemas · DocStore reducer · inverses
+├─ packages/canvas-mcp/             # stdio MCP: doc_get · op_apply · turn_undo · state_query
 ├─ opencode/                        # the agent's project (clean of app code)
 │  ├─ opencode.jsonc                # plugins · firecrawl MCP · chart-analyst agent · permissions
 │  └─ .opencode/plugins/chart-bridge/   # RPC contract + tools + instructions
@@ -371,8 +372,9 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   audited turn. Capability claims are verified at intake; destructive agent ops (delete, clear,
   remove-series) are journaled as rejected attempts and require a one-shot human approval from the
   Journal tab. The chart plugin submits ops through `POST /api/chart/op` before the browser sees them;
-  the legacy RPC path remains a fallback. Browser snapshot undo remains the local UX; replay-on-reload
-  is still open. See `spec/protocol.md` §6–§10 and §17.
+  the legacy RPC path remains a fallback. `packages/canvas-mcp` exposes the same protocol over stdio
+  (`doc_get`, `op_apply`, `turn_undo`, `state_query`). Browser snapshot undo remains the local UX;
+  replay-on-reload is still open. See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 

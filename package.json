@@ -12,9 +12,10 @@
     "test": "npm run test --workspace @amaterasu/web",
     "test:core": "npm run test --workspace @common-ground/canvas-core",
     "test:chart": "npm run test --workspace @common-ground/canvas-chart",
+    "test:mcp": "npm run test --workspace @common-ground/canvas-mcp",
     "test:conformance": "npm run test --workspace @common-ground/canvas-conformance",
-    "test:packages": "npm run test:core && npm run test:chart && npm run test:conformance",
-    "typecheck:packages": "npm run typecheck --workspace @common-ground/canvas-core && npm run typecheck --workspace @common-ground/canvas-chart && npm run typecheck --workspace @common-ground/canvas-conformance",
+    "test:packages": "npm run test:core && npm run test:chart && npm run test:mcp && npm run test:conformance",
+    "typecheck:packages": "npm run typecheck --workspace @common-ground/canvas-core && npm run typecheck --workspace @common-ground/canvas-chart && npm run typecheck --workspace @common-ground/canvas-mcp && npm run typecheck --workspace @common-ground/canvas-conformance",
     "schemas": "npm run schemas --workspace @common-ground/canvas-core",
     "typecheck": "npm run typecheck --workspace @amaterasu/web",
     "verify": "npm run typecheck && npm run test && npm run typecheck:packages && npm run test:packages"

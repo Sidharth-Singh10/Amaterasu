@@ -93,6 +93,7 @@ open.
 | `web/` | SvelteKit 2 + Svelte 5 client — overlay engine, components, chart shell |
 | `packages/canvas-chart/` | Chart adapter: zod op/state schemas, `DocStore` reducer, inverse computation |
 | `packages/canvas-core/` | Common Ground protocol: envelope, ack, capability, audit, turn schemas |
+| `packages/canvas-mcp/` | MCP server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
 | `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
 | `spec/` | Protocol specification, generated JSON Schemas, conformance cases |
 | `docs/` | Extraction audit and implementation notes |
@@ -140,6 +141,40 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
   cargo run --manifest-path server/Cargo.toml
 ```
 
+## MCP server
+
+`packages/canvas-mcp` exposes the protocol over stdio for MCP clients:
+
+| Tool | Purpose |
+|---|---|
+| `doc_get` | Revision, pending count, audit status, and latest adapter snapshot |
+| `op_apply` | Journal and apply protocol envelopes, waiting for the browser ack |
+| `turn_undo` | Replay a turn's inverses as a new audited turn |
+| `state_query` | Recent ops plus audit-chain verification |
+
+Run it directly:
+
+```sh
+COMMON_GROUND_URL=http://127.0.0.1:8787 node packages/canvas-mcp/src/main.ts
+```
+
+Claude Desktop / MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "common-ground": {
+      "command": "node",
+      "args": ["/home/levi/amaterasu/packages/canvas-mcp/src/main.ts"],
+      "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
+    }
+  }
+}
+```
+
+`doc_id` is the chart id (`sessionStorage["amaterasu.chartId"]`). Envelopes are the full
+protocol envelopes from `spec/protocol.md`; domain shorthand is an adapter concern.
+
 ## Commands
 
 | Command | Purpose |
@@ -147,8 +182,8 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 | `npm run test --workspace @amaterasu/web` | Web unit tests (Vitest) |
 | `npm run check --workspace @amaterasu/web` | `svelte-kit sync` + `svelte-check` |
 | `npm run verify:e2e --workspace @amaterasu/web` | Browser E2E checks (dev server running) |
-| `npm run test:packages` | Protocol package tests (core + conformance) |
-| `npm run typecheck:packages` | Typecheck `canvas-core` and `canvas-conformance` |
+| `npm run test:packages` | Protocol package tests (core + chart + MCP + conformance) |
+| `npm run typecheck:packages` | Typecheck all protocol packages |
 | `npm run schemas` | Regenerate `spec/schemas/` from the zod definitions |
 | `npm run verify` | Web typecheck + tests + package typecheck + package tests |
 | `npm run build --workspace @amaterasu/web` | Static SPA build into `web/build` |
