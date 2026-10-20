@@ -3,6 +3,7 @@ pub mod bridge;
 pub mod cache;
 pub mod config;
 pub mod indmoney;
+pub mod journal;
 pub mod opencode;
 pub mod workspace;
 
