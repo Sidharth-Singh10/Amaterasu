@@ -217,8 +217,9 @@ export default Plugin.define({
       const chart = activeChart()
       if (!chart) throw new Error("no chart is attached — ask the user to open the chart app")
       const token = await chartCapability()
+      let response: Response
       try {
-        const response = await fetch(`${SERVER_URL}/api/chart/op`, {
+        response = await fetch(`${SERVER_URL}/api/chart/op`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -227,9 +228,6 @@ export default Plugin.define({
           body: JSON.stringify({ chartId: chart.chartId, requestId: crypto.randomUUID(), op }),
           signal: AbortSignal.timeout(OP_TIMEOUT_MS + 10_000),
         })
-        if (!response.ok) throw new Error(`the chart service returned HTTP ${response.status}`)
-        const payload = (await response.json()) as { ack?: unknown }
-        return opResult(payload.ack)
       } catch (error) {
         // A timeout may mean the server applied the op and lost the response. Do not fall back
         // and risk applying it twice; surface the timeout instead.
@@ -237,6 +235,13 @@ export default Plugin.define({
         if (debug) console.warn("[chart-bridge] HTTP submit failed; falling back to RPC", error)
         return request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS)
       }
+      if (response.status === 404) {
+        // Older server without the pre-application endpoint.
+        return request(pendingOps, "op.request", { op }, OP_TIMEOUT_MS)
+      }
+      if (!response.ok) throw new Error(`the chart service returned HTTP ${response.status}`)
+      const payload = (await response.json()) as { ack?: unknown }
+      return opResult(payload.ack)
     }
 
     const applyOp = (op: Record<string, unknown>): Promise<unknown> =>
