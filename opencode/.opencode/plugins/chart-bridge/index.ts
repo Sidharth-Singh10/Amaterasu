@@ -373,7 +373,8 @@ export default Plugin.define({
 
       add({
         name: "remove",
-        description: "Remove one annotation by id.",
+        description:
+          "Remove one annotation by id. Destructive ops need human approval; if the result says approval_required, tell the user to approve it in the Journal tab.",
         input: object({ id: str }, ["id"]),
         execute: async (input, _tool, source) =>
           content(
@@ -387,7 +388,8 @@ export default Plugin.define({
 
       add({
         name: "clear",
-        description: "Remove annotations by id list or by kind. Use only when the user asks for it.",
+        description:
+          "Remove annotations by id list or by kind. Use only when the user asks for it. Destructive ops need human approval; if the result says approval_required, tell the user to approve it in the Journal tab.",
         input: object({ ids: { type: "array", items: str }, kind: str }, []),
         execute: async (input, _tool, source) =>
           content(
@@ -456,7 +458,8 @@ export default Plugin.define({
 
       add({
         name: "remove_series",
-        description: "Remove a computed series by id.",
+        description:
+          "Remove a computed series by id. Destructive ops need human approval; if the result says approval_required, tell the user to approve it in the Journal tab.",
         input: object({ id: str }, ["id"]),
         execute: async (input) =>
           content(
