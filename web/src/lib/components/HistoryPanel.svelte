@@ -25,6 +25,7 @@
   let loading = $state(false)
   let error = $state<string | null>(null)
   let undoing = $state<string | null>(null)
+  let approving = $state<string | null>(null)
   let ticket = 0
 
   $effect(() => {
@@ -106,6 +107,32 @@
       error = (cause as Error).message
     } finally {
       undoing = null
+    }
+  }
+
+  function approvalId(op: JournalOp): string | null {
+    const suggestion = op.ack?.suggestion as { approval_id?: unknown } | undefined
+    return typeof suggestion?.approval_id === "string" ? suggestion.approval_id : null
+  }
+
+  async function approve(op: JournalOp): Promise<void> {
+    const id = approvalId(op)
+    if (!chartId || !id || approving) return
+    approving = id
+    error = null
+    try {
+      const result = await docs.approve(chartId, id)
+      if (!result.applied) {
+        const rejected = result.acks.find((ack) => ack.status === "rejected")
+        error = rejected
+          ? `${rejected.code ?? "rejected"}: ${rejected.message ?? "the adapter rejected the approved op"}`
+          : "the approved op was not applied"
+      }
+      await load()
+    } catch (cause) {
+      error = (cause as Error).message
+    } finally {
+      approving = null
     }
   }
 
@@ -213,6 +240,16 @@
                     <p class="mt-0.5 text-[10px] leading-relaxed text-down">
                       {op.ack.code ?? "rejected"}{op.ack.message ? ` — ${op.ack.message}` : ""}
                     </p>
+                    {#if op.ack.code === "approval_required" && approvalId(op)}
+                      <button
+                        type="button"
+                        class="btn mt-1 text-[10px]"
+                        disabled={approving !== null}
+                        onclick={() => void approve(op)}
+                      >
+                        {approving === approvalId(op) ? "Approving…" : "Approve & apply"}
+                      </button>
+                    {/if}
                   {:else if op.envelope.rationale}
                     <p class="mt-0.5 truncate text-[10px] text-ink-3">{op.envelope.rationale}</p>
                   {/if}

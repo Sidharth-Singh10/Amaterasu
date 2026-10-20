@@ -69,6 +69,13 @@ export interface UndoResult {
   acks: JournalAck[]
 }
 
+export interface ApprovalResult {
+  docId: string
+  approvalId: string
+  applied: boolean
+  acks: JournalAck[]
+}
+
 function docPath(docId: string): string {
   return `/api/docs/${encodeURIComponent(docId)}`
 }
@@ -86,4 +93,9 @@ export const docs = {
       method: "POST",
       body: "{}",
     }),
+  approve: (docId: string, approvalId: string) =>
+    apiRequest<ApprovalResult>(
+      `${docPath(docId)}/approvals/${encodeURIComponent(approvalId)}`,
+      { method: "POST" },
+    ),
 }
