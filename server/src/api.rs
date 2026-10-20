@@ -56,6 +56,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/chart/op-ack", post(chart_op_ack))
         .route("/api/chart/state-ack", post(chart_state_ack))
         .route("/api/docs/{doc_id}", get(doc_meta))
+        .route("/api/docs/{doc_id}/snapshot", get(doc_snapshot))
         .route("/api/docs/{doc_id}/ops", get(doc_ops).post(doc_submit_ops))
         .route("/api/docs/{doc_id}/acks", post(doc_acks))
         .route("/api/docs/{doc_id}/audit", get(doc_audit))
@@ -431,6 +432,14 @@ async fn doc_meta(
 #[derive(Debug, Deserialize)]
 struct DocOpsQuery {
     limit: Option<i64>,
+}
+
+async fn doc_snapshot(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let snapshot = state.journal.snapshot(&doc_id)?;
+    Ok(Json(json!({ "docId": doc_id, "snapshot": snapshot })))
 }
 
 async fn doc_ops(

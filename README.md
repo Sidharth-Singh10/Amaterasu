@@ -78,6 +78,7 @@ open.
 |---|---|
 | `GET /api/docs/{doc_id}` | Revision, pending count, and audit verification |
 | `GET /api/docs/{doc_id}/ops` | Recent journaled ops with envelopes and acks |
+| `GET /api/docs/{doc_id}/snapshot` | Latest adapter snapshot persisted with an applied ack |
 | `GET /api/docs/{doc_id}/audit` | Append-only audit entries + chain verification |
 | `POST /api/docs/{doc_id}/ops` | Journal a batch, dispatch to the browser, wait for acks |
 | `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |

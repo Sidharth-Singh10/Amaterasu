@@ -304,6 +304,7 @@ fn ack_from_result(result: &Value) -> AckInput {
             status: "applied".into(),
             result: Some(result.clone()),
             inverse,
+            snapshot: result.get("snapshot").cloned(),
             ..AckInput::default()
         };
     }
@@ -346,6 +347,7 @@ fn ack_from_result(result: &Value) -> AckInput {
         message: Some(message),
         retryable: Some(false),
         suggestion: None,
+        snapshot: result.get("snapshot").cloned(),
     }
 }
 

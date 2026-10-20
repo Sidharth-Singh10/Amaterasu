@@ -558,6 +558,9 @@ chart bridge:
 - `blake3` audit chain with genesis, verification, and first-break reporting.
 - Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage. Undo attempts
   for unknown or already-undone turns are journaled as typed rejections.
+- Applied acks may carry an opaque adapter snapshot. The server persists the latest snapshot with
+  its revision and serves it from `GET /api/docs/{id}/snapshot`; the browser falls back to it when
+  no workspace snapshot exists.
 - A local capability registry with typed denials for unknown, expired, mis-bound, out-of-scope,
   and read-only capabilities. Every attempt is journaled, including denials.
 - One-shot human approvals for destructive agent ops. A rejected attempt carries

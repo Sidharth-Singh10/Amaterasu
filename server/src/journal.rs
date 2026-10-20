@@ -81,6 +81,9 @@ pub struct AckInput {
     pub retryable: Option<bool>,
     #[serde(default)]
     pub suggestion: Option<Value>,
+    /// Adapter-defined document snapshot to persist with an applied ack.
+    #[serde(default)]
+    pub snapshot: Option<Value>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -174,6 +177,13 @@ CREATE TABLE IF NOT EXISTS doc_audit (
   prev_hash TEXT NOT NULL,
   hash      TEXT NOT NULL,
   PRIMARY KEY (doc_id, seq)
+);
+
+CREATE TABLE IF NOT EXISTS doc_snapshots (
+  doc_id     TEXT PRIMARY KEY,
+  revision   INTEGER NOT NULL,
+  payload    TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 "#;
 
@@ -389,6 +399,26 @@ impl JournalStore {
             }))
         })
         .collect()
+    }
+
+    /// Latest adapter snapshot for a document, if an applied ack supplied one.
+    pub fn snapshot(&self, doc_id: &str) -> Result<Option<Value>, JournalError> {
+        validate_doc_id(doc_id)?;
+        let connection = self.connection.lock().expect("journal lock poisoned");
+        let row: Option<(i64, String)> = connection
+            .query_row(
+                "SELECT revision, payload FROM doc_snapshots WHERE doc_id = ?1",
+                params![doc_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        row.map(|(revision, payload)| {
+            Ok(json!({
+                "revision": revision,
+                "snapshot": serde_json::from_str::<Value>(&payload)?,
+            }))
+        })
+        .transpose()
     }
 
     pub fn audit(&self, doc_id: &str) -> Result<Vec<Value>, JournalError> {
@@ -807,6 +837,17 @@ fn finalize_tx(
             transaction.execute(
                 "UPDATE doc_meta SET revision = ?2 WHERE doc_id = ?1",
                 params![doc_id, revision],
+            )?;
+        }
+        if let Some(snapshot) = input.snapshot.as_ref() {
+            transaction.execute(
+                "INSERT INTO doc_snapshots (doc_id, revision, payload, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(doc_id) DO UPDATE SET
+                   revision = excluded.revision,
+                   payload = excluded.payload,
+                   updated_at = excluded.updated_at",
+                params![doc_id, revision, snapshot.to_string(), now_ms()],
             )?;
         }
         json!({
@@ -1265,6 +1306,33 @@ mod tests {
         assert_eq!(store.meta("doc_test").unwrap().revision, 1);
         assert_eq!(store.audit("doc_test").unwrap().len(), 1);
         assert!(store.verify("doc_test").unwrap().ok);
+    }
+
+    #[test]
+    fn applied_snapshots_are_stored_with_the_revision() {
+        let store = temp_store("snapshot");
+        let op = pending(
+            store
+                .begin_single("doc_test", envelope(1, "k1", json!({})))
+                .unwrap(),
+        );
+        let ack = store
+            .complete(
+                "doc_test",
+                &op.op_id,
+                AckInput {
+                    status: "applied".into(),
+                    result: Some(json!({ "ok": true })),
+                    inverse: Some(json!([])),
+                    snapshot: Some(json!({ "v": 1, "annotations": [], "series": [] })),
+                    ..AckInput::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(ack["revision"], 1);
+        let snapshot = store.snapshot("doc_test").unwrap().unwrap();
+        assert_eq!(snapshot["revision"], 1);
+        assert_eq!(snapshot["snapshot"]["v"], 1);
     }
 
     #[test]

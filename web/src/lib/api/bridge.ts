@@ -83,7 +83,7 @@ export const bridge = {
     apiRequest<{ ok: boolean }>("/api/chart/detach", { method: "POST", body: JSON.stringify({ chartId }) }),
   sync: (payload: ChartSyncPayload) =>
     apiRequest<{ ok: boolean }>("/api/chart/sync", { method: "POST", body: JSON.stringify(payload) }),
-  opAck: (requestId: string, result: OpResult & { inverse?: unknown[] }) =>
+  opAck: (requestId: string, result: OpResult & { inverse?: unknown[]; snapshot?: unknown }) =>
     apiRequest<{ ok: boolean }>("/api/chart/op-ack", {
       method: "POST",
       body: JSON.stringify({ requestId, result }),

@@ -127,13 +127,18 @@ async fn ack(router: Router, doc_id: &str, op_id: &str, status: &str) -> Value {
                     "op_id": op_id,
                     "status": status,
                     "result": { "ok": status == "applied" },
-                    "inverse": inverse()
+                    "inverse": inverse(),
+                    "snapshot": { "v": 1, "annotations": [], "series": [] }
                 }]
             }),
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    if response.status() != StatusCode::OK {
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        panic!("ack failed {status}: {}", String::from_utf8_lossy(&bytes));
+    }
     body_json(response).await
 }
 
@@ -175,6 +180,22 @@ async fn submit_waits_for_the_browser_ack_and_records_history() {
     .await;
     assert_eq!(meta["doc"]["revision"], 1);
     assert_eq!(meta["verification"]["ok"], true);
+
+    let snapshot = body_json(
+        harness
+            .router
+            .clone()
+            .oneshot(
+                Request::get("/api/docs/doc_api/snapshot")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(snapshot["snapshot"]["revision"], 1);
+    assert_eq!(snapshot["snapshot"]["snapshot"]["v"], 1);
 
     let audit = body_json(
         harness

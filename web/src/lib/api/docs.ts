@@ -83,6 +83,10 @@ function docPath(docId: string): string {
 
 export const docs = {
   meta: (docId: string) => apiRequest<DocMeta>(docPath(docId)),
+  snapshot: (docId: string) =>
+    apiRequest<{ docId: string; snapshot: { revision: number; snapshot: unknown } | null }>(
+      `${docPath(docId)}/snapshot`,
+    ),
   ops: (docId: string, limit = 100) =>
     apiRequest<{ docId: string; ops: JournalOp[] }>(`${docPath(docId)}/ops?limit=${limit}`),
   audit: (docId: string) =>

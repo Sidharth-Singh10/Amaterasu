@@ -9,6 +9,7 @@
   import type { IconName } from "@/lib/components/icons"
   import { startChartBridge } from "@/lib/chart/bridge-wiring"
 import { bridge } from "@/lib/api/bridge"
+  import { docs } from "@/lib/api/docs"
   import { ApiError, api, type Quote, type SearchResult } from "@/lib/api/client"
   import { INTERVALS, intervalOption } from "@/lib/api/intervals"
   import { demoCandles } from "@/lib/data/mock"
@@ -358,11 +359,12 @@ import { bridge } from "@/lib/api/bridge"
     try {
       const response = await api.getWorkspace(key)
       if (symbol?.indKey !== key || !controller) return
-      if (response.payload) {
+      const payload = response.payload ?? (await journalSnapshot())
+      if (payload) {
         // Programmatic replacement must not trigger a save of what we just loaded.
         docSaveSuspended = true
         try {
-          const result = controller.loadDoc(response.payload)
+          const result = controller.loadDoc(payload)
           if (!result.ok) console.warn("workspace document rejected", result.warnings)
         } finally {
           docSaveSuspended = false
@@ -370,6 +372,17 @@ import { bridge } from "@/lib/api/bridge"
       }
     } catch (cause) {
       handleError(cause)
+    }
+  }
+
+  /** Fallback for a fresh browser profile: the last applied journal snapshot for this chart. */
+  async function journalSnapshot(): Promise<unknown> {
+    if (!chartId) return null
+    try {
+      const stored = await docs.snapshot(chartId)
+      return stored.snapshot?.snapshot ?? null
+    } catch {
+      return null
     }
   }
 

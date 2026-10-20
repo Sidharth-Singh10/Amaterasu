@@ -54,7 +54,9 @@ export function startChartBridge(opts: BridgeWiringOptions) {
       const before = opts.controller.exportDoc()
       const result = opts.controller.applyOp(op, "agent op")
       const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
-      void bridge.opAck(requestId, { ...result, inverse }).then(journalChanged, journalChanged)
+      void bridge
+        .opAck(requestId, { ...result, inverse, snapshot: opts.controller.exportDoc() })
+        .then(journalChanged, journalChanged)
       return
     }
 
@@ -73,6 +75,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
         status: result.ok ? "applied" : "rejected",
         result,
         inverse,
+        snapshot: opts.controller.exportDoc(),
       }
       if (!result.ok) {
         ack.rejected_by = "adapter"
