@@ -370,8 +370,9 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   hash-chained audit entry on ack. `POST /api/docs/{id}/turns/{turn}/undo` replays those inverses as a new,
   audited turn. Capability claims are verified at intake; destructive agent ops (delete, clear,
   remove-series) are journaled as rejected attempts and require a one-shot human approval from the
-  Journal tab. Browser snapshot undo remains the local UX; replay-on-reload and pre-application submit
-  for non-bridge adapters are still open. See `spec/protocol.md` §6–§10 and §17.
+  Journal tab. The chart plugin submits ops through `POST /api/chart/op` before the browser sees them;
+  the legacy RPC path remains a fallback. Browser snapshot undo remains the local UX; replay-on-reload
+  is still open. See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 

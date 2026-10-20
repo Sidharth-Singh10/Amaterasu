@@ -80,6 +80,7 @@ open.
 | `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |
 | `POST /api/docs/{doc_id}/turns/{turn_id}/undo` | Replay a turn's inverses as a new turn |
 | `POST /api/docs/{doc_id}/approvals/{approval_id}` | Apply a rejected destructive op once, with human approval |
+| `POST /api/chart/op` | Pre-application submit from the chart plugin (journal + capability + browser ack) |
 
 ## Repository layout
 
@@ -168,6 +169,7 @@ Key variables:
 | `AMATERASU_STATIC_DIR` | Built SPA directory to serve |
 | `AMATERASU_DATA_DIR` | Token store and app data |
 | `AMATERASU_JOURNAL_DB` | Op journal SQLite file (default `$AMATERASU_DATA_DIR/journal.db`) |
+| `AMATERASU_URL` | Base URL the chart plugin uses for pre-application submits (default `http://127.0.0.1:8787`) |
 | `OPENCODE_BASE_URL` / `OPENCODE_PASSWORD` | OpenCode server address and shared secret |
 | `OPENCODE_AGENT` / `OPENCODE_MODEL` | Agent name and pinned model |
 | `OPENCODE_DIRECTORY` | The `opencode/` project directory |

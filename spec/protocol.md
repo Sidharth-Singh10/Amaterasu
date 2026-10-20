@@ -564,8 +564,9 @@ chart bridge:
   `revision_conflict` and does not bump the revision.
 - `POST /api/docs/{doc_id}/ops` journals, dispatches `doc.op.request`, and waits for
   `POST /api/docs/{doc_id}/acks`; unacknowledged ops expire as retryable `internal` rejections.
-- The existing OpenCode chart bridge journals at dispatch time and finalizes on the browser's
-  `op-ack`, so agent ops are in the log before they are projected.
+- The OpenCode chart plugin submits through `POST /api/chart/op`, which journals and checks the
+  capability before dispatching `doc.op.request`; the plugin waits for the browser ack. The legacy
+  bridge RPC path remains as a fallback and journals at dispatch time.
 - A Journal tab groups server ops by turn, shows typed rejections and audit verification, and
   drives undo and approval.
 
@@ -573,8 +574,8 @@ Not yet enforced or implemented:
 
 - Signed capability tokens (`cg1.…`) and a hosted issuer. v0 uses an in-memory local registry;
   `cap_local`, `cap_human`, and `cap_undo` are seeded at startup.
-- Pre-application submit for the chart plugin; it still uses the bridge RPC path. The HTTP submit
-  path exists and is tested, and non-bridge adapters can use it.
+- A published client SDK for pre-application submit. The HTTP path exists and is used by the chart
+  plugin; other adapters can call it directly.
 - Replay-on-reload. Browser snapshot undo remains the local UX.
 - Server-side conformance runs. The six fixtures target the abstract `ConformanceTarget`; an HTTP
   adapter is the next step.
