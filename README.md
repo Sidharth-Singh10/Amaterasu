@@ -64,6 +64,9 @@ the client adapter owns projection and anchor resolution.
 - [`spec/conformance/`](spec/conformance/) — six language-agnostic fixtures
 - [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moves, stays, and dies
 
+The six fixtures pass against two adapters: the TypeScript `MemoryTarget` in
+`packages/canvas-conformance` and the Rust journal harness in `server/tests/conformance.rs`.
+
 Phase 1a–1c are wired: the Rust service journals every agent chart op before dispatch, verifies
 a local capability at intake, records the browser's inverse ops, and exposes document metadata,
 op history, audit, and forward-only undo endpoints. Destructive agent ops require a one-shot
@@ -148,7 +151,7 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 | `npm run schemas` | Regenerate `spec/schemas/` from the zod definitions |
 | `npm run verify` | Web typecheck + tests + package typecheck + package tests |
 | `npm run build --workspace @amaterasu/web` | Static SPA build into `web/build` |
-| `cargo test --manifest-path server/Cargo.toml` | Rust unit tests |
+| `cargo test --manifest-path server/Cargo.toml` | Rust unit, HTTP integration, and conformance tests |
 | `cargo test --manifest-path server/Cargo.toml -- --ignored` | Live OAuth discovery + DCR check |
 
 Production serves the built SPA from the API service:

@@ -572,6 +572,8 @@ chart bridge:
   bridge RPC path remains as a fallback and journals at dispatch time.
 - A Journal tab groups server ops by turn, shows typed rejections and audit verification, and
   drives undo and approval.
+- The six language-agnostic fixtures pass against two targets: the TypeScript `MemoryTarget` and
+  the Rust journal harness in `server/tests/conformance.rs` with a minimal 2D adapter.
 
 Not yet enforced or implemented:
 
@@ -580,8 +582,9 @@ Not yet enforced or implemented:
 - A published client SDK for pre-application submit. The HTTP path exists and is used by the chart
   plugin; other adapters can call it directly.
 - Replay-on-reload. Browser snapshot undo remains the local UX.
-- Server-side conformance runs. The six fixtures target the abstract `ConformanceTarget`; an HTTP
-  adapter is the next step.
+- An HTTP/SSE conformance adapter. The Rust harness drives the journal directly and the HTTP
+  endpoints have separate integration tests; a target that speaks the wire protocol end to end is
+  still open.
 
 Known inverse limitations in the chart adapter: re-creating a deleted shape allocates a new id
 (the chart DSL's `draw` has no explicit id), and `update` merges style keys, so an inverse cannot
