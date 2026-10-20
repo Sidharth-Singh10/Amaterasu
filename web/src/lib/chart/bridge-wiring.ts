@@ -1,5 +1,5 @@
 import { bridge, onStreamEvent, type ChartSyncPayload } from "@/lib/api/bridge"
-import { inverseOf } from "@/lib/ops/inverse"
+import { inverseOf } from "@common-ground/canvas-chart"
 import type { ChartController } from "./ChartController"
 
 export interface BridgeWiringOptions {

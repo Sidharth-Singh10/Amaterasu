@@ -1,4 +1,4 @@
-import type { Annotation } from "@amaterasu/chart-dsl"
+import type { Annotation } from "@common-ground/canvas-chart"
 import type { Transform } from "@/lib/chart/transform"
 import type { LineStyle, Painter, Point } from "../painter"
 import type { FrameEnv } from "../registry"

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import type { Anchor } from "@amaterasu/chart-dsl"
+import type { Anchor } from "@common-ground/canvas-chart"
 import { makeFakeAdapters } from "@/lib/testing/fake-adapters"
-import { DocStore } from "@/lib/ops/reducer"
+import { DocStore } from "@common-ground/canvas-chart"
 import { Transform, type ResolveFailure } from "./transform"
 
 /**

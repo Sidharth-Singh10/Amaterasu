@@ -84,7 +84,7 @@ enforcing it.
 | Path | Contents |
 |---|---|
 | `web/` | SvelteKit 2 + Svelte 5 client — overlay engine, components, chart shell |
-| `packages/chart-dsl/` | Shared zod schemas for chart ops and state |
+| `packages/canvas-chart/` | Chart adapter: zod op/state schemas, `DocStore` reducer, inverse computation |
 | `packages/canvas-core/` | Common Ground protocol: envelope, ack, capability, audit, turn schemas |
 | `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
 | `spec/` | Protocol specification, generated JSON Schemas, conformance cases |

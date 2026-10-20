@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Annotation, DocPayload, Series } from "@amaterasu/chart-dsl"
+import type { Annotation, DocPayload, Series } from "./schema"
 import { inverseOf } from "./inverse"
 
 function annotation(overrides: Partial<Annotation> = {}): Annotation {
@@ -48,14 +48,14 @@ describe("inverseOf", () => {
   it("removes a created shape and restores a deleted one", () => {
     const created = inverseOf(doc([]), doc([annotation()]))
     expect(created).toHaveLength(1)
-    expect(created[0].type).toBe("chart.shape.delete")
-    expect(created[0].target).toEqual({ kind: "chart.shape", id: "a1" })
-    expect(created[0].payload.op).toEqual({ op: "remove", id: "a1" })
+    expect(created[0]!.type).toBe("chart.shape.delete")
+    expect(created[0]!.target).toEqual({ kind: "chart.shape", id: "a1" })
+    expect(created[0]!.payload.op).toEqual({ op: "remove", id: "a1" })
 
     const deleted = inverseOf(doc([annotation()]), doc([]))
     expect(deleted).toHaveLength(1)
-    expect(deleted[0].type).toBe("chart.shape.create")
-    const op = deleted[0].payload.op
+    expect(deleted[0]!.type).toBe("chart.shape.create")
+    const op = deleted[0]!.payload.op
     expect(op.op).toBe("draw")
     if (op.op === "draw") {
       expect(op.kind).toBe("trendline")
@@ -73,7 +73,7 @@ describe("inverseOf", () => {
       ],
       updatedAt: 2,
     })
-    const [inverse] = inverseOf(doc([before]), doc([after]))
+    const inverse = inverseOf(doc([before]), doc([after]))[0]!
     expect(inverse.type).toBe("chart.shape.update")
     expect(inverse.target).toEqual({ kind: "chart.shape", id: "a1" })
     const op = inverse.payload.op
@@ -89,8 +89,8 @@ describe("inverseOf", () => {
   it("restores deleted series and removes created ones", () => {
     const restored = inverseOf(doc([], [series()]), doc([]))
     expect(restored).toHaveLength(1)
-    expect(restored[0].type).toBe("chart.series.upsert")
-    const op = restored[0].payload.op
+    expect(restored[0]!.type).toBe("chart.series.upsert")
+    const op = restored[0]!.payload.op
     expect(op.op).toBe("add_series")
     if (op.op === "add_series") {
       expect(op.id).toBe("s1")
@@ -99,14 +99,14 @@ describe("inverseOf", () => {
 
     const removed = inverseOf(doc([], []), doc([], [series()]))
     expect(removed).toHaveLength(1)
-    expect(removed[0].type).toBe("chart.series.delete")
-    expect(removed[0].payload.op).toEqual({ op: "remove_series", id: "s1" })
+    expect(removed[0]!.type).toBe("chart.series.delete")
+    expect(removed[0]!.payload.op).toEqual({ op: "remove_series", id: "s1" })
   })
 
   it("restores a changed series with an upsert", () => {
     const before = series()
     const after = series({ points: [{ t: 3, v: 30 }, { t: 4, v: 40 }], updatedAt: 2 })
-    const [inverse] = inverseOf(doc([], [before]), doc([], [after]))
+    const inverse = inverseOf(doc([], [before]), doc([], [after]))[0]!
     expect(inverse.type).toBe("chart.series.upsert")
     const op = inverse.payload.op
     expect(op.op).toBe("add_series")

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import { CAPS, type OpResult, type SetViewOp } from "@amaterasu/chart-dsl"
-import { DocStore } from "./reducer"
+import { CAPS, type OpResult, type SetViewOp } from "./schema"
+import { DocStore } from "./doc-store"
 
 const IN_WINDOW = (t: number) => t >= 1000 && t <= 5000
 
@@ -76,7 +76,7 @@ describe("DocStore", () => {
   it("protects locked annotations and allows unlocking", () => {
     const store = makeStore()
     store.applyOp(trendline())
-    const id = store.annotations[0].id
+    const id = store.annotations[0]!.id
 
     expect(store.applyOp({ op: "update", id, locked: true }).ok).toBe(true)
     const blocked = store.applyOp({ op: "update", id, points: [{ t: 1000, p: 99 }, { t: 2000, p: 99 }] })
@@ -97,7 +97,7 @@ describe("DocStore", () => {
     const result = store.applyOp({ op: "clear", sourceMessageID: "m1" })
     expect(result.ok).toBe(true)
     expect(store.annotations).toHaveLength(1)
-    expect(store.annotations[0].source?.messageID).toBe("m2")
+    expect(store.annotations[0]!.source?.messageID).toBe("m2")
   })
 
   it("requires a filter for clear", () => {
@@ -194,7 +194,7 @@ describe("DocStore computed series", () => {
     expect(store.series).toHaveLength(1)
     expect(store.applyOp(line("s1", 20)).ok).toBe(true)
     expect(store.series).toHaveLength(1)
-    expect(store.series[0].points[0].v).toBe(20)
+    expect(store.series[0]!.points[0]!.v).toBe(20)
   })
 
   it("removes a series and rejects unknown ids", () => {
@@ -250,7 +250,7 @@ describe("DocStore persistence documents", () => {
     const result = store.replaceDoc(restored)
     expect(result.ok).toBe(true)
     expect(store.annotations).toHaveLength(1)
-    expect(store.annotations[0].id).toBe("restored")
+    expect(store.annotations[0]!.id).toBe("restored")
     expect(store.canUndo).toBe(false)
     expect(store.canRedo).toBe(false)
   })
@@ -281,6 +281,6 @@ describe("DocStore persistence documents", () => {
     expect(clone.replaceDoc(exported).ok).toBe(true)
     expect(clone.annotations).toHaveLength(1)
     expect(clone.series).toHaveLength(1)
-    expect(clone.series[0].id).toBe("s1")
+    expect(clone.series[0]!.id).toBe("s1")
   })
 })

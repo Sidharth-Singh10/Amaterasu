@@ -12,11 +12,11 @@ import {
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts"
-import type { Anchor, DocPayload, Kind, Op, OpResult, SetViewOp } from "@amaterasu/chart-dsl"
+import type { Anchor, DocPayload, Kind, Op, OpResult, SetViewOp } from "@common-ground/canvas-chart"
 import { Transform } from "@/lib/chart/transform"
 import { demoCandles, type Candle } from "@/lib/data/mock"
 import { diffCandles } from "@/lib/data/diff"
-import { DocStore, type AnchorCheck } from "@/lib/ops/reducer"
+import { DocStore, type AnchorCheck } from "@common-ground/canvas-chart"
 import { OverlaySurface, type EphemeralShape } from "@/lib/overlays/surface"
 import { registerBuiltinRenderers } from "@/lib/overlays/renderers"
 import { resolvePoints } from "@/lib/overlays/renderers/common"

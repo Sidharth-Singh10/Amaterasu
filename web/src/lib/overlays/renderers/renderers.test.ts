@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Annotation, Kind } from "@amaterasu/chart-dsl"
+import type { Annotation, Kind } from "@common-ground/canvas-chart"
 import { Transform } from "@/lib/chart/transform"
 import { makeFakeAdapters } from "@/lib/testing/fake-adapters"
 import { RecordingPainter, type RecordedOp } from "../painter"

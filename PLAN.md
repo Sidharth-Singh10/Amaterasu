@@ -153,7 +153,7 @@ Three decoupled channels: **data** (webapp → INDmoney MCP directly), **agent**
 │     │  └─ components/             # ChartShell.svelte · OpConsole.svelte (chat in Phase 2)
 │     └─ app.css · app.html
 ├─ server/                          # Rust (axum): MCP + OAuth · cache · OpenCode bridge · SSE · SQLite · static hosting
-├─ packages/chart-dsl/              # zod op + state schemas (shared browser ↔ plugin)
+├─ packages/canvas-chart/           # zod op + state schemas · DocStore reducer · inverses
 ├─ opencode/                        # the agent's project (clean of app code)
 │  ├─ opencode.jsonc                # plugins · firecrawl MCP · chart-analyst agent · permissions
 │  └─ .opencode/plugins/chart-bridge/   # RPC contract + tools + instructions
@@ -161,8 +161,9 @@ Three decoupled channels: **data** (webapp → INDmoney MCP directly), **agent**
 └─ .env
 ```
 
-`packages/chart-dsl` is the keystone: one zod definition of op/state types, consumed by the browser reducer and
-the plugin (via `z.toJSONSchema`) to generate tool input schemas. Agent commands and renderer cannot drift.
+`packages/canvas-chart` is the keystone: one zod definition of op/state types plus the single-write-path
+`DocStore` and adapter-supplied inverses, consumed by the browser and the server journal. Agent commands and
+renderer cannot drift.
 
 ## 6. Component specifications
 
@@ -359,7 +360,7 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
              clamped?: boolean; visible?: boolean; unresolved?: string[]; warnings?: string[] };
 ```
 
-- Single write path for mouse, agent, and imports. Validation: zod (from `packages/chart-dsl`) → resolver intake
+- Single write path for mouse, agent, and imports. Validation: zod (from `packages/canvas-chart`) → resolver intake
   (§6.3.3) → data-space snap (§6.3.7) → clamp → apply in transaction → return `OpResult`.
 - Undo is snapshot-based (document is a few KB): `beginTurn(sourceMessageID?)` pushes one snapshot,
   `applyOp` runs N ops, `commitTurn()` clears redo, `abortTurn()` restores. **An entire agent turn is one undo

@@ -1,4 +1,4 @@
-import type { Anchor } from "@amaterasu/chart-dsl"
+import type { Anchor } from "@common-ground/canvas-chart"
 
 /**
  * The only module that talks to chart scale APIs. Everything else (renderers, hit-testing,

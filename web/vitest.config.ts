@@ -5,7 +5,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@amaterasu/chart-dsl": fileURLToPath(new URL("../packages/chart-dsl/src/index.ts", import.meta.url)),
+      "@common-ground/canvas-chart": fileURLToPath(
+        new URL("../packages/canvas-chart/src/index.ts", import.meta.url),
+      ),
     },
   },
   test: {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Kind } from "@amaterasu/chart-dsl"
+  import type { Kind } from "@common-ground/canvas-chart"
   import type { ChartController, LogEntry } from "@/lib/chart/ChartController"
 
   let { controller = null, log = [] }: { controller?: ChartController | null; log?: LogEntry[] } = $props()

@@ -15,7 +15,7 @@ import {
   type Series,
   type SetViewOp,
   type UpdateOp,
-} from "@amaterasu/chart-dsl"
+} from "./schema"
 
 /**
  * Single write path for mouse input, agent ops, and imports. Snapshot-based undo:
@@ -285,7 +285,7 @@ export class DocStore {
   private remove(op: { id: string }): OpResult {
     const index = this.state.annotations.findIndex((a) => a.id === op.id)
     if (index < 0) return { ok: false, warnings: [`no annotation with id ${op.id}`] }
-    if (this.state.annotations[index].locked) {
+    if (this.state.annotations[index]!.locked) {
       return { ok: false, warnings: ["annotation is locked (set locked: false to unlock first)"] }
     }
     this.state.annotations.splice(index, 1)

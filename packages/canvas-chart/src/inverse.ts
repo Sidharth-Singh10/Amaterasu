@@ -1,4 +1,4 @@
-import type { Annotation, DocPayload, Op, Series } from "@amaterasu/chart-dsl"
+import type { Annotation, DocPayload, Op, Series } from "./schema"
 
 /**
  * A protocol-level inverse produced by the chart adapter. The journal stores these on the
