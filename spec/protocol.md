@@ -556,7 +556,8 @@ chart bridge:
   journaled as an `idempotency_conflict` rejection; a malformed envelope gets a typed `invalid_op`
   ack without an audit row.
 - `blake3` audit chain with genesis, verification, and first-break reporting.
-- Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage.
+- Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage. Undo attempts
+  for unknown or already-undone turns are journaled as typed rejections.
 - A local capability registry with typed denials for unknown, expired, mis-bound, out-of-scope,
   and read-only capabilities. Every attempt is journaled, including denials.
 - One-shot human approvals for destructive agent ops. A rejected attempt carries

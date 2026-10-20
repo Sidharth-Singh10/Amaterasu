@@ -322,9 +322,11 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
         .oneshot(post("/api/docs/doc_api/turns/turn_1/undo", json!({})))
         .await
         .unwrap();
-    assert_eq!(second.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(second.status(), StatusCode::OK);
     let second = body_json(second).await;
-    assert_eq!(second["error"], "already_undone");
+    assert_eq!(second["applied"], false);
+    assert_eq!(second["acks"][0]["code"], "already_undone");
+    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 3);
 }
 
 #[tokio::test]

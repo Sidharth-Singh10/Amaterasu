@@ -548,9 +548,47 @@ async fn doc_undo(
         .actor
         .unwrap_or_else(|| json!({ "kind": "human", "id": "local" }));
     let capability = body.capability.unwrap_or_else(|| "cap_undo".into());
-    let plan = state
+    let plan = match state
         .journal
-        .plan_undo(&doc_id, &turn_id, actor.clone(), &capability)?;
+        .plan_undo(&doc_id, &turn_id, actor.clone(), &capability)
+    {
+        Ok(plan) => plan,
+        Err(JournalError::UnknownTurn(unknown)) => {
+            let ack = record_undo_rejection(
+                &state,
+                &doc_id,
+                &turn_id,
+                &actor,
+                &capability,
+                "unknown_target",
+                format!("no turn {unknown}"),
+            )?;
+            return Ok(Json(json!({
+                "docId": doc_id,
+                "undoTurnId": Value::Null,
+                "applied": false,
+                "acks": [ack],
+            })));
+        }
+        Err(JournalError::AlreadyUndone(message)) => {
+            let ack = record_undo_rejection(
+                &state,
+                &doc_id,
+                &turn_id,
+                &actor,
+                &capability,
+                "already_undone",
+                message,
+            )?;
+            return Ok(Json(json!({
+                "docId": doc_id,
+                "undoTurnId": Value::Null,
+                "applied": false,
+                "acks": [ack],
+            })));
+        }
+        Err(error) => return Err(error.into()),
+    };
     let acks = dispatch_batch(&state, &doc_id, &plan.envelopes).await?;
     let applied = acks
         .iter()
@@ -631,6 +669,47 @@ async fn doc_approve(
         "applied": applied,
         "acks": acks,
     })))
+}
+
+/// Journals an undo rejection (unknown or already-undone turn) so the attempt is auditable.
+fn record_undo_rejection(
+    state: &AppState,
+    doc_id: &str,
+    turn_id: &str,
+    actor: &Value,
+    capability: &str,
+    code: &str,
+    message: String,
+) -> Result<Value, ApiError> {
+    let envelope = json!({
+        "v": 1,
+        "doc_id": doc_id,
+        "turn_id": format!("turn_undo_reject_{}", journal::random_id()),
+        "seq": 0,
+        "actor": actor,
+        "capability": capability,
+        "type": "chart.turn.undo",
+        "target": { "kind": "turn", "id": turn_id },
+        "payload": {},
+        "rationale": format!("undo rejected: {code}"),
+        "idempotency_key": format!("undo_reject_{}", journal::random_id()),
+        "created_at": journal::now_iso(),
+    });
+    match state.journal.begin_single(doc_id, envelope)? {
+        BatchItem::Pending(op) => Ok(state.journal.complete(
+            doc_id,
+            &op.op_id,
+            AckInput {
+                status: "rejected".into(),
+                rejected_by: Some("server".into()),
+                code: Some(code.into()),
+                message: Some(message),
+                retryable: Some(false),
+                ..AckInput::default()
+            },
+        )?),
+        BatchItem::Rejected(ack) | BatchItem::Replay(ack) => Ok(ack),
+    }
 }
 
 /// Journals a batch, dispatches fresh ops to the browser, and waits for its acks.

@@ -65,7 +65,7 @@ export interface DocMeta {
 
 export interface UndoResult {
   docId: string
-  undoTurnId: string
+  undoTurnId: string | null
   applied: boolean
   acks: JournalAck[]
 }
