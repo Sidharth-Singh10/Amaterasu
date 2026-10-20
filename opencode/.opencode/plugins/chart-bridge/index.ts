@@ -207,7 +207,7 @@ export default Plugin.define({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ chartId: chart.chartId, requestId: crypto.randomUUID(), op }),
-          signal: AbortSignal.timeout(OP_TIMEOUT_MS + 5_000),
+          signal: AbortSignal.timeout(OP_TIMEOUT_MS + 10_000),
         })
         if (!response.ok) throw new Error(`the chart service returned HTTP ${response.status}`)
         const payload = (await response.json()) as { ack?: unknown }
