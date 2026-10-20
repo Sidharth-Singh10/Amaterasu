@@ -585,6 +585,8 @@ chart bridge:
   `X-CG-Capability` on all write endpoints. Local mint/token endpoints are loopback-only.
 - A ten-shape turn undo test, an `expected_revision`/idempotency conflict test, a structured
   reject → retry → ack test, and a journal replay helper (`packages/canvas-chart/src/replay.ts`).
+- Reload restore order: workspace snapshot, then the journal snapshot, then replay of applied
+  envelopes with stable draw ids.
 - A p95 journal ack benchmark (`server/tests/latency.rs`); the local measurement is ~0.5 ms.
 
 Not yet enforced or implemented:
@@ -595,7 +597,7 @@ Not yet enforced or implemented:
   token; local reads and the compatibility path remain trusted.
 - A published client SDK for pre-application submit beyond the chart plugin and MCP client.
 - Replay-on-reload as the primary restore path. The browser uses the workspace snapshot first and
-  the journal snapshot as a fallback; the replay helper is tested but not yet wired into the shell.
+  falls back to the journal snapshot/replay; the workspace remains authoritative for human edits.
 - An HTTP/SSE conformance adapter. The Rust harness drives the journal directly and the HTTP
   endpoints have separate integration tests; a target that speaks the wire protocol end to end is
   still open.

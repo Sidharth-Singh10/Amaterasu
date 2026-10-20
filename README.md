@@ -71,7 +71,8 @@ Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journ
 chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
 browser's inverse ops, and exposes document metadata, snapshots, op history, audit, and
 forward-only undo endpoints. Destructive agent ops require a one-shot human approval, surfaced in
-the Journal tab. The browser still owns projection and anchor resolution.
+the Journal tab. On reload the shell restores the workspace snapshot, falling back to the journal
+snapshot or a replay of applied ops. The browser still owns projection and anchor resolution.
 
 | Endpoint | Purpose |
 |---|---|

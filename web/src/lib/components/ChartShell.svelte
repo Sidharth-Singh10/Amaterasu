@@ -375,12 +375,14 @@ import { bridge } from "@/lib/api/bridge"
     }
   }
 
-  /** Fallback for a fresh browser profile: the last applied journal snapshot for this chart. */
+  /** Fallback for a fresh browser profile: the last snapshot, then replay of applied ops. */
   async function journalSnapshot(): Promise<unknown> {
-    if (!chartId) return null
+    if (!chartId || !controller) return null
     try {
       const stored = await docs.snapshot(chartId)
-      return stored.snapshot?.snapshot ?? null
+      if (stored.snapshot) return stored.snapshot.snapshot
+      const ops = await docs.ops(chartId, 200)
+      return controller.replayJournal(ops.ops)
     } catch {
       return null
     }

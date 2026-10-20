@@ -32,6 +32,7 @@ export interface JournalAck {
   message?: string
   retryable?: boolean
   inverse?: unknown[]
+  result?: { id?: string; [key: string]: unknown }
   [key: string]: unknown
 }
 

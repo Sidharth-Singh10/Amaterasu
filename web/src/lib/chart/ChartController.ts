@@ -16,7 +16,12 @@ import type { Anchor, DocPayload, Kind, Op, OpResult, SetViewOp } from "@common-
 import { Transform } from "@/lib/chart/transform"
 import { demoCandles, type Candle } from "@/lib/data/mock"
 import { diffCandles } from "@/lib/data/diff"
-import { DocStore, type AnchorCheck } from "@common-ground/canvas-chart"
+import {
+  DocStore,
+  replayApplied,
+  type AnchorCheck,
+  type JournalReplayOp,
+} from "@common-ground/canvas-chart"
 import { OverlaySurface, type EphemeralShape } from "@/lib/overlays/surface"
 import { registerBuiltinRenderers } from "@/lib/overlays/renderers"
 import { resolvePoints } from "@/lib/overlays/renderers/common"
@@ -240,6 +245,16 @@ export class ChartController {
   /** Current document, ready to persist. */
   exportDoc(): DocPayload {
     return this.store.exportDoc()
+  }
+
+  /** Reconstructs a document from applied journal envelopes for the reload fallback. */
+  replayJournal(ops: readonly JournalReplayOp[]): DocPayload {
+    return replayApplied(ops, {
+      checkAnchor: (anchor) => this.checkAnchor(anchor),
+      onView: (op) => this.applyView(op),
+      now: () => Date.now(),
+      newId: () => crypto.randomUUID(),
+    }).doc
   }
 
   /**

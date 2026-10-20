@@ -377,8 +377,8 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   suggestion (the chart adapter suggests the first loaded bar time) so the agent can self-correct.
   Writes require signed ed25519 capability tokens; local token minting is loopback-only. The server
   also has a replay helper, a ten-shape turn undo test, and a p95 journal ack benchmark (~0.5 ms).
-  Browser snapshot undo remains the local UX; replay-on-reload is still open. See `spec/protocol.md`
-  §6–§10 and §17.
+  Reload restores the workspace snapshot, then the journal snapshot, then a replay of applied ops.
+  Browser snapshot undo remains the local UX. See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 
