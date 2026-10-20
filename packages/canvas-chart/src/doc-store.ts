@@ -247,9 +247,12 @@ export class DocStore {
       return { ok: false, unresolved, warnings, ...(suggestion ? { suggestion } : {}) }
     }
 
+    if (op.id && this.state.annotations.some((a) => a.id === op.id)) {
+      return { ok: false, warnings: [`annotation ${op.id} already exists`] }
+    }
     const now = this.now()
     const annotation: Annotation = {
-      id: this.newId(),
+      id: op.id ?? this.newId(),
       kind: op.kind,
       points: op.points.map((p) => ({ ...p })),
       style: op.style ? { ...op.style } : {},

@@ -44,6 +44,25 @@ describe("DocStore", () => {
     expect(store.annotations).toHaveLength(0)
   })
 
+  it("uses an explicit draw id and rejects duplicates", () => {
+    const store = makeStore()
+    const first = store.applyOp({
+      op: "draw",
+      id: "fixed",
+      kind: "hline",
+      points: [{ t: 1000, p: 10 }],
+    })
+    expect(first.ok).toBe(true)
+    expect(first.id).toBe("fixed")
+    const duplicate = store.applyOp({
+      op: "draw",
+      id: "fixed",
+      kind: "hline",
+      points: [{ t: 1000, p: 11 }],
+    })
+    expect(duplicate.ok).toBe(false)
+  })
+
   it("rejects unresolved anchors", () => {
     const store = makeStore()
     const result = store.applyOp({

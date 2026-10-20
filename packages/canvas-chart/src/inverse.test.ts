@@ -58,6 +58,7 @@ describe("inverseOf", () => {
     const op = deleted[0]!.payload.op
     expect(op.op).toBe("draw")
     if (op.op === "draw") {
+      expect(op.id).toBe("a1")
       expect(op.kind).toBe("trendline")
       expect(op.points).toEqual(annotation().points)
       expect(op.style).toEqual({ color: "#ff0000" })

@@ -142,6 +142,8 @@ export type DocPayload = z.infer<typeof DocPayloadSchema>
 
 export const DrawOpSchema = z.object({
   op: z.literal("draw"),
+  /** Optional client id, used by replay and by inverses that restore a deleted shape. */
+  id: z.string().min(1).optional(),
   kind: KindSchema,
   points: z.array(AnchorSchema).min(1).max(CAPS.maxPoints),
   style: StyleSchema.optional(),

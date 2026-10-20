@@ -21,6 +21,7 @@ function shapeCreate(annotation: Annotation): InverseOp {
     payload: {
       op: {
         op: "draw",
+        id: annotation.id,
         kind: annotation.kind,
         points: structuredClone(annotation.points),
         style: structuredClone(annotation.style),
@@ -87,9 +88,8 @@ function seriesDelete(id: string): InverseOp {
  * Diffs the document before and after one or more adapter ops. This is robust for batched
  * turns (one agent message can draw and update in any order) and ignores view-only changes.
  *
- * Limitations until the DSL grows replace semantics: `update` merges style, so a style key
- * introduced by the original op is not removed by the inverse; and re-creating a deleted
- * shape allocates a new id.
+ * Limitation until the DSL grows replace semantics: `update` merges style, so a style key
+ * introduced by the original op is not removed by the inverse.
  */
 export function inverseOf(before: DocPayload, after: DocPayload): InverseOp[] {
   const inverses: InverseOp[] = []
