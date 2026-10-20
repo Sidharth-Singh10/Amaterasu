@@ -21,6 +21,7 @@ export interface JournalEnvelope {
   idempotency_key: string
   created_at: string
   approval?: string
+  approved_by?: { kind: string; id: string }
 }
 
 export interface JournalAck {

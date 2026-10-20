@@ -410,7 +410,14 @@ async fn an_approval_replays_the_rejected_op_once() {
 
     assert!(harness.journal.approval(&approval_id).unwrap().used);
     assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
-    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 2);
+    let audit = harness.journal.audit("doc_api").unwrap();
+    assert_eq!(audit.len(), 2);
+    let approved_entry = audit
+        .iter()
+        .find(|entry| entry["status"] == "applied")
+        .expect("approved audit entry");
+    assert_eq!(approved_entry["approval"], approval_id);
+    assert_eq!(approved_entry["approved_by"]["id"], "local");
 
     let reused = harness
         .router

@@ -888,6 +888,12 @@ fn finalize_tx(
     if let Some(rationale) = envelope.get("rationale") {
         body.insert("rationale".into(), rationale.clone());
     }
+    if let Some(approval) = envelope.get("approval") {
+        body.insert("approval".into(), approval.clone());
+    }
+    if let Some(approved_by) = envelope.get("approved_by") {
+        body.insert("approved_by".into(), approved_by.clone());
+    }
     body.insert(
         "created_at".into(),
         envelope

@@ -253,6 +253,11 @@
                   {:else if op.envelope.rationale}
                     <p class="mt-0.5 truncate text-[10px] text-ink-3">{op.envelope.rationale}</p>
                   {/if}
+                  {#if op.envelope.approved_by}
+                    <p class="mt-0.5 text-[10px] text-select">
+                      approved by {op.envelope.approved_by.id}
+                    </p>
+                  {/if}
                 </li>
               {/each}
             </ul>
