@@ -1,0 +1,98 @@
+{
+  "id": "capability-denial",
+  "kind": "capability_denial",
+  "title": "Out-of-scope, expired, and mis-bound capabilities are rejected",
+  "description": "A read-only capability cannot apply. An expired capability is retryable. A capability bound to another actor is refused. The document is unchanged by all three.",
+  "docId": "doc_conformance",
+  "setup": {
+    "objects": [],
+    "capabilities": [
+      {
+        "v": 1,
+        "cap_id": "cap_write",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*", "obj.viewport.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      },
+      {
+        "v": 1,
+        "cap_id": "cap_read",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*"],
+        "permissions": ["read"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      },
+      {
+        "v": 1,
+        "cap_id": "cap_expired",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*"],
+        "permissions": ["read", "apply"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2020-01-01T00:00:00Z",
+        "expires_at": "2020-01-02T00:00:00Z"
+      }
+    ]
+  },
+  "actor": { "kind": "agent", "id": "conformance", "session": "ses_conformance" },
+  "capability": "cap_write",
+  "steps": [
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_1",
+        "capability": "cap_read",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 1, "y": 2 } }
+      },
+      "expect": { "status": "rejected", "code": "capability_denied", "revision": 0 }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_2",
+        "capability": "cap_expired",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 1, "y": 2 } }
+      },
+      "expect": { "status": "rejected", "code": "capability_expired", "revision": 0 }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_3",
+        "actor": { "kind": "agent", "id": "intruder" },
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 1, "y": 2 } }
+      },
+      "expect": { "status": "rejected", "code": "capability_denied", "revision": 0 }
+    },
+    { "kind": "snapshot", "expect": { "revision": 0, "objectCount": 0 } },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_4",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 1, "y": 2 } }
+      },
+      "expect": { "status": "applied", "revision": 1, "objectId": "o1" }
+    },
+    { "kind": "snapshot", "expect": { "revision": 1, "objectCount": 1 } },
+    { "kind": "verify_audit", "expect": { "ok": true, "length": 4 } }
+  ]
+}

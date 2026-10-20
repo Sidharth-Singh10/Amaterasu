@@ -1,0 +1,72 @@
+{
+  "id": "anchor-survival",
+  "kind": "anchor_survival",
+  "title": "Anchors survive zoom, pan, and view changes",
+  "description": "A document-space point projects consistently under different viewports, round-trips through screen space, and is unchanged by a viewport change.",
+  "docId": "doc_conformance",
+  "setup": {
+    "objects": [{ "id": "o1", "type": "point", "data": { "x": 10, "y": 20 } }],
+    "capabilities": [
+      {
+        "v": 1,
+        "cap_id": "cap_write",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*", "obj.viewport.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "actor": { "kind": "agent", "id": "conformance", "session": "ses_conformance" },
+  "capability": "cap_write",
+  "steps": [
+    {
+      "kind": "project",
+      "point": { "x": 10, "y": 20 },
+      "viewport": { "scaleX": 1, "scaleY": 1, "panX": 0, "panY": 0 },
+      "expect": { "x": 10, "y": 20 }
+    },
+    {
+      "kind": "project",
+      "point": { "x": 10, "y": 20 },
+      "viewport": { "scaleX": 2, "scaleY": 3, "panX": -5, "panY": 7 },
+      "expect": { "x": 15, "y": 67 }
+    },
+    {
+      "kind": "unproject",
+      "screen": { "x": 15, "y": 67 },
+      "viewport": { "scaleX": 2, "scaleY": 3, "panX": -5, "panY": 7 },
+      "expect": { "x": 10, "y": 20 }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.viewport.set",
+        "turn": "turn_1",
+        "target": { "kind": "view" },
+        "payload": { "viewport": { "scaleX": 2, "scaleY": 3, "panX": -5, "panY": 7 } }
+      },
+      "expect": { "status": "applied", "revision": 0 }
+    },
+    {
+      "kind": "snapshot",
+      "expect": { "revision": 0, "objectCount": 1, "objectIds": ["o1"], "data": { "o1": { "x": 10, "y": 20 } } }
+    },
+    {
+      "kind": "project",
+      "point": { "x": 10, "y": 20 },
+      "viewport": { "scaleX": 2, "scaleY": 3, "panX": -5, "panY": 7 },
+      "expect": { "x": 15, "y": 67 }
+    },
+    {
+      "kind": "project",
+      "point": { "x": 10, "y": 20 },
+      "viewport": { "scaleX": 0.5, "scaleY": 0.5, "panX": 100, "panY": -50 },
+      "expect": { "x": 105, "y": -40 }
+    }
+  ]
+}

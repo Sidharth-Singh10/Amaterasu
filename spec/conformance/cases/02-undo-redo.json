@@ -1,0 +1,79 @@
+{
+  "id": "undo-redo",
+  "kind": "undo_redo",
+  "title": "Undo restores prior state as a new audited turn; redo is an undo of the undo",
+  "description": "The log is append-only. Undo does not rewrite history; it appends inverse ops. A turn can be undone once.",
+  "docId": "doc_conformance",
+  "setup": {
+    "objects": [],
+    "capabilities": [
+      {
+        "v": 1,
+        "cap_id": "cap_write",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*", "obj.viewport.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      },
+      {
+        "v": 1,
+        "cap_id": "cap_undo",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance-user" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "actor": { "kind": "agent", "id": "conformance", "session": "ses_conformance" },
+  "capability": "cap_write",
+  "undoCapability": "cap_undo",
+  "steps": [
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_1",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 10, "y": 20 } }
+      },
+      "expect": { "status": "applied", "revision": 1, "objectId": "o1" }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.update",
+        "turn": "turn_2",
+        "target": { "kind": "point", "id": "o1" },
+        "payload": { "data": { "x": 30, "y": 40 } }
+      },
+      "expect": { "status": "applied", "revision": 2, "objectId": "o1" }
+    },
+    {
+      "kind": "snapshot",
+      "expect": { "revision": 2, "objectCount": 1, "data": { "o1": { "x": 30, "y": 40 } } }
+    },
+    { "kind": "undo", "turn": "$last", "expect": { "status": "applied", "revision": 3 } },
+    {
+      "kind": "snapshot",
+      "expect": { "revision": 3, "objectCount": 1, "data": { "o1": { "x": 10, "y": 20 } } }
+    },
+    { "kind": "undo", "turn": "turn_1", "expect": { "status": "applied", "revision": 4 } },
+    { "kind": "snapshot", "expect": { "revision": 4, "objectCount": 0, "objectIds": [] } },
+    { "kind": "undo", "turn": "$last", "expect": { "status": "applied", "revision": 5 } },
+    {
+      "kind": "snapshot",
+      "expect": { "revision": 5, "objectCount": 1, "data": { "o1": { "x": 10, "y": 20 } } }
+    },
+    { "kind": "undo", "turn": "turn_1", "expect": { "status": "rejected", "code": "already_undone", "revision": 5 } },
+    { "kind": "verify_audit", "expect": { "ok": true, "length": 6 } }
+  ]
+}

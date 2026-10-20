@@ -1,0 +1,62 @@
+{
+  "id": "idempotent-retry",
+  "kind": "idempotent_retry",
+  "title": "A retried op returns the original ack exactly once applied",
+  "description": "Same key and same payload replays the stored ack without re-applying. Same key with a different payload is a conflict.",
+  "docId": "doc_conformance",
+  "setup": {
+    "objects": [],
+    "capabilities": [
+      {
+        "v": 1,
+        "cap_id": "cap_write",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*", "obj.viewport.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "actor": { "kind": "agent", "id": "conformance", "session": "ses_conformance" },
+  "capability": "cap_write",
+  "steps": [
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_1",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 10, "y": 20 } }
+      },
+      "expect": { "status": "applied", "revision": 1, "objectId": "o1" }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_1",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 10, "y": 20 } }
+      },
+      "expect": { "status": "applied", "revision": 1, "replayed": true, "objectId": "o1" }
+    },
+    { "kind": "snapshot", "expect": { "revision": 1, "objectCount": 1, "objectIds": ["o1"] } },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.update",
+        "turn": "turn_2",
+        "target": { "kind": "point", "id": "o1" },
+        "payload": { "data": { "x": 99, "y": 99 } },
+        "idempotency_key": "turn_1:1"
+      },
+      "expect": { "status": "rejected", "code": "idempotency_conflict", "revision": 1 }
+    },
+    { "kind": "snapshot", "expect": { "revision": 1, "objectCount": 1, "data": { "o1": { "x": 10, "y": 20 } } } },
+    { "kind": "verify_audit", "expect": { "ok": true, "length": 2 } }
+  ]
+}

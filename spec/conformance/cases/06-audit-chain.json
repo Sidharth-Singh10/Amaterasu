@@ -1,0 +1,62 @@
+{
+  "id": "audit-chain",
+  "kind": "audit_chain",
+  "title": "The audit chain verifies and tampering is detected at the right entry",
+  "description": "Applied ops produce a gapless hash chain. Editing any field of any entry breaks verification at that index.",
+  "docId": "doc_conformance",
+  "setup": {
+    "objects": [],
+    "capabilities": [
+      {
+        "v": 1,
+        "cap_id": "cap_write",
+        "iss": "cg-local",
+        "sub": { "actor_id": "conformance", "session": "ses_conformance" },
+        "documents": ["doc_*"],
+        "op_types": ["obj.point.*", "obj.viewport.*"],
+        "permissions": ["read", "apply", "undo"],
+        "approval": { "mode": "auto", "op_types": [] },
+        "issued_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2030-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "actor": { "kind": "agent", "id": "conformance", "session": "ses_conformance" },
+  "capability": "cap_write",
+  "steps": [
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.create",
+        "turn": "turn_1",
+        "target": { "kind": "point" },
+        "payload": { "id": "o1", "data": { "x": 1, "y": 2 } }
+      },
+      "expect": { "status": "applied", "revision": 1, "objectId": "o1" }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.update",
+        "turn": "turn_2",
+        "target": { "kind": "point", "id": "o1" },
+        "payload": { "data": { "x": 3, "y": 4 } }
+      },
+      "expect": { "status": "applied", "revision": 2, "objectId": "o1" }
+    },
+    {
+      "kind": "apply",
+      "op": {
+        "type": "obj.point.delete",
+        "turn": "turn_3",
+        "target": { "kind": "point", "id": "o1" },
+        "payload": {}
+      },
+      "expect": { "status": "applied", "revision": 3, "objectId": "o1" }
+    },
+    { "kind": "snapshot", "expect": { "revision": 3, "objectCount": 0 } },
+    { "kind": "verify_audit", "expect": { "ok": true, "length": 3 } },
+    { "kind": "tamper_audit", "index": 1, "patch": { "revision": 99 } },
+    { "kind": "verify_audit", "expect": { "ok": false, "brokenAt": 1, "length": 3 } }
+  ]
+}
