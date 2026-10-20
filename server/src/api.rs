@@ -468,7 +468,42 @@ async fn doc_submit_ops(
     if body.ops.is_empty() {
         return Err(ApiError::BadRequest("ops must not be empty".into()));
     }
-    let acks = dispatch_batch(&state, &doc_id, &body.ops).await?;
+    let acks = match dispatch_batch(&state, &doc_id, &body.ops).await {
+        Ok(acks) => acks,
+        Err(ApiError::Protocol("invalid_op", message)) => {
+            // A malformed envelope has no journal row, but the caller still gets a typed ack.
+            let revision = state
+                .journal
+                .meta(&doc_id)
+                .map(|meta| meta.revision)
+                .unwrap_or(0);
+            let turn_id = body
+                .ops
+                .first()
+                .and_then(|envelope| envelope.get("turn_id"))
+                .and_then(Value::as_str)
+                .unwrap_or("turn_invalid");
+            let seq = body
+                .ops
+                .first()
+                .and_then(|envelope| envelope.get("seq"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            vec![json!({
+                "v": 1,
+                "op_id": format!("op_invalid_{}", journal::random_id()),
+                "turn_id": turn_id,
+                "seq": seq,
+                "status": "rejected",
+                "revision": revision,
+                "rejected_by": "server",
+                "code": "invalid_op",
+                "message": message,
+                "retryable": false,
+            })]
+        }
+        Err(error) => return Err(error),
+    };
     Ok(Json(json!({ "docId": doc_id, "acks": acks })))
 }
 

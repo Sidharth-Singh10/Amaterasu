@@ -259,9 +259,11 @@ async fn malformed_ops_get_a_typed_rejection() {
         .oneshot(post("/api/docs/doc_api/ops", json!({ "ops": [bad] })))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(response.status(), StatusCode::OK);
     let body = body_json(response).await;
-    assert_eq!(body["error"], "invalid_op");
+    assert_eq!(body["acks"][0]["status"], "rejected");
+    assert_eq!(body["acks"][0]["code"], "invalid_op");
+    assert_eq!(body["acks"][0]["revision"], 0);
 }
 
 #[tokio::test]

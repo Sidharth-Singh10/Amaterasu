@@ -598,6 +598,7 @@ fn begin_one_tx(
         .and_then(Value::as_str)
         .expect("validated");
 
+    let mut conflict = false;
     let applied: Option<(String, String)> = transaction
         .query_row(
             "SELECT ack, fingerprint FROM doc_ops
@@ -607,37 +608,39 @@ fn begin_one_tx(
         )
         .optional()?;
     if let Some((ack, stored_fingerprint)) = applied {
-        if stored_fingerprint != fingerprint {
-            return Err(JournalError::IdempotencyConflict);
+        if stored_fingerprint == fingerprint {
+            return Ok(BatchItem::Replay(serde_json::from_str(&ack)?));
         }
-        return Ok(BatchItem::Replay(serde_json::from_str(&ack)?));
+        conflict = true;
     }
 
-    let pending: Option<(String, i64, String, String)> = transaction
-        .query_row(
-            "SELECT op_id, seq, turn_id, fingerprint FROM doc_ops
-             WHERE doc_id = ?1 AND idempotency_key = ?2 AND status = 'pending'
-             ORDER BY seq DESC LIMIT 1",
-            params![doc_id, key],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )
-        .optional()?;
-    if let Some((op_id, seq, turn_id, stored_fingerprint)) = pending {
-        if stored_fingerprint != fingerprint {
-            return Err(JournalError::IdempotencyConflict);
+    if !conflict {
+        let pending: Option<(String, i64, String, String)> = transaction
+            .query_row(
+                "SELECT op_id, seq, turn_id, fingerprint FROM doc_ops
+                 WHERE doc_id = ?1 AND idempotency_key = ?2 AND status = 'pending'
+                 ORDER BY seq DESC LIMIT 1",
+                params![doc_id, key],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        if let Some((op_id, seq, turn_id, stored_fingerprint)) = pending {
+            if stored_fingerprint == fingerprint {
+                let stored: String = transaction.query_row(
+                    "SELECT envelope FROM doc_ops WHERE doc_id = ?1 AND op_id = ?2",
+                    params![doc_id, op_id],
+                    |row| row.get(0),
+                )?;
+                return Ok(BatchItem::Pending(PendingOp {
+                    op_id,
+                    seq,
+                    turn_id,
+                    envelope: serde_json::from_str(&stored)?,
+                    fresh: false,
+                }));
+            }
+            conflict = true;
         }
-        let stored: String = transaction.query_row(
-            "SELECT envelope FROM doc_ops WHERE doc_id = ?1 AND op_id = ?2",
-            params![doc_id, op_id],
-            |row| row.get(0),
-        )?;
-        return Ok(BatchItem::Pending(PendingOp {
-            op_id,
-            seq,
-            turn_id,
-            envelope: serde_json::from_str(&stored)?,
-            fresh: false,
-        }));
     }
 
     let turn_id = envelope
@@ -722,8 +725,17 @@ fn begin_one_tx(
         }
         None => None,
     };
-    let rejection =
-        stale_revision.or_else(|| capabilities.verify(envelope, chrono::Utc::now(), Some(&op_id)));
+    let rejection = if conflict {
+        Some(Rejection {
+            code: "idempotency_conflict",
+            message: "idempotency key was already used with a different payload".into(),
+            retryable: false,
+            rejected_by: "server",
+            suggestion: None,
+        })
+    } else {
+        stale_revision.or_else(|| capabilities.verify(envelope, chrono::Utc::now(), Some(&op_id)))
+    };
     if let Some(rejection) = rejection {
         let ack = finalize_tx(
             transaction,
@@ -1287,10 +1299,18 @@ mod tests {
                 .unwrap(),
         );
         applied(&store, &op, json!([]));
-        let error = store
+        match store
             .begin_single("doc_test", envelope(1, "k1", json!({ "a": 2 })))
-            .unwrap_err();
-        assert!(matches!(error, JournalError::IdempotencyConflict));
+            .unwrap()
+        {
+            BatchItem::Rejected(ack) => {
+                assert_eq!(ack["code"], "idempotency_conflict");
+                assert_eq!(ack["revision"], 1);
+                assert_eq!(ack["retryable"], false);
+            }
+            other => panic!("expected an idempotency conflict, got {other:?}"),
+        }
+        assert_eq!(store.audit("doc_test").unwrap().len(), 2);
     }
 
     #[test]

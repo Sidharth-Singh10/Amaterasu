@@ -552,7 +552,9 @@ chart bridge:
 
 - SQLite tables for document metadata, ops, turns, and audit entries.
 - Server-assigned `op_id` and `seq`, per-document revision, applied-key idempotency, and
-  rejected-attempt audit entries that do not cache the key.
+  rejected-attempt audit entries that do not cache the key. A same-key/different-payload retry is
+  journaled as an `idempotency_conflict` rejection; a malformed envelope gets a typed `invalid_op`
+  ack without an audit row.
 - `blake3` audit chain with genesis, verification, and first-break reporting.
 - Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage.
 - A local capability registry with typed denials for unknown, expired, mis-bound, out-of-scope,
