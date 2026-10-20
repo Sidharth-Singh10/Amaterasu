@@ -20,7 +20,7 @@ use crate::{
     config::Config,
     dispatch::OpDispatch,
     indmoney::{IndmoneyClient, IndmoneyError, normalize},
-    journal::{AckInput, BatchItem, JournalError, JournalStore},
+    journal::{self, AckInput, BatchItem, JournalError, JournalStore},
     workspace::{WorkspaceError, WorkspaceStore},
 };
 
@@ -52,6 +52,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/chart/attach", post(chart_attach))
         .route("/api/chart/detach", post(chart_detach))
         .route("/api/chart/sync", post(chart_sync))
+        .route("/api/chart/op", post(chart_submit_op))
         .route("/api/chart/op-ack", post(chart_op_ack))
         .route("/api/chart/state-ack", post(chart_state_ack))
         .route("/api/docs/{doc_id}", get(doc_meta))
@@ -361,6 +362,37 @@ async fn chart_sync(
 struct RequestAckBody {
     request_id: String,
     result: Value,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChartOpBody {
+    chart_id: String,
+    op: Value,
+    request_id: Option<String>,
+}
+
+/// Pre-application submit for the chart adapter. The envelope is journaled and capability-checked
+/// before the browser sees the op; the request blocks until the adapter acks.
+async fn chart_submit_op(
+    State(state): State<AppState>,
+    Json(body): Json<ChartOpBody>,
+) -> Result<Json<Value>, ApiError> {
+    let chart_id = body.chart_id;
+    let request_id = body
+        .request_id
+        .unwrap_or_else(|| format!("req_{}", journal::random_id()));
+    let data = json!({
+        "requestId": request_id,
+        "chartId": &chart_id,
+        "op": body.op,
+    });
+    let envelope = journal::chart_op_envelope(&data, &state.config.opencode_agent)
+        .ok_or_else(|| ApiError::BadRequest("chartId, requestId, and op.op are required".into()))?;
+    let acks = dispatch_batch(&state, &chart_id, &[envelope]).await?;
+    Ok(Json(json!({
+        "ack": acks.into_iter().next().unwrap_or(Value::Null),
+    })))
 }
 
 async fn chart_op_ack(

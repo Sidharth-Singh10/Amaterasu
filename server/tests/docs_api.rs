@@ -426,3 +426,57 @@ async fn an_approval_replays_the_rejected_op_once() {
     let reused = body_json(reused).await;
     assert_eq!(reused["error"], "approval_invalid");
 }
+
+#[tokio::test]
+async fn the_chart_http_path_applies_and_gates_ops() {
+    let mut harness = harness("chart-http").await;
+    let request = post(
+        "/api/chart/op",
+        json!({
+            "chartId": "doc_api",
+            "requestId": "req_http_1",
+            "op": {
+                "op": "draw",
+                "kind": "trendline",
+                "points": [{ "t": 1, "p": 10 }, { "t": 2, "p": 20 }]
+            }
+        }),
+    );
+    let router = harness.router.clone();
+    let submitted = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
+    let (op_id, dispatched) = next_doc_request(&mut harness.events).await;
+    assert_eq!(dispatched["payload"]["op"]["op"], "draw");
+    ack(harness.router.clone(), "doc_api", &op_id, "applied").await;
+
+    let response = submitted.await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["ack"]["status"], "applied");
+    assert_eq!(body["ack"]["revision"], 1);
+
+    let denied = harness
+        .router
+        .clone()
+        .oneshot(post(
+            "/api/chart/op",
+            json!({
+                "chartId": "doc_api",
+                "requestId": "req_http_2",
+                "op": { "op": "remove", "id": "shape_1" }
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::OK);
+    let denied = body_json(denied).await;
+    assert_eq!(denied["ack"]["status"], "rejected");
+    assert_eq!(denied["ack"]["code"], "approval_required");
+    assert!(denied["ack"]["suggestion"]["approval_id"].is_string());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), harness.events.recv())
+            .await
+            .is_err(),
+        "a gated op must not reach the browser"
+    );
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
+}
