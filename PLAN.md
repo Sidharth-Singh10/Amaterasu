@@ -375,6 +375,8 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   the legacy RPC path remains a fallback. `packages/canvas-mcp` exposes the same protocol over stdio
   (`doc_get`, `op_apply`, `turn_undo`, `state_query`). Rejected adapter ops can carry a structured
   suggestion (the chart adapter suggests the first loaded bar time) so the agent can self-correct.
+  Writes require signed ed25519 capability tokens; local token minting is loopback-only. The server
+  also has a replay helper, a ten-shape turn undo test, and a p95 journal ack benchmark (~0.5 ms).
   Browser snapshot undo remains the local UX; replay-on-reload is still open. See `spec/protocol.md`
   §6–§10 and §17.
 

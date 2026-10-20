@@ -67,18 +67,20 @@ the client adapter owns projection and anchor resolution.
 The six fixtures pass against two adapters: the TypeScript `MemoryTarget` in
 `packages/canvas-conformance` and the Rust journal harness in `server/tests/conformance.rs`.
 
-Phase 1a–1c are wired: the Rust service journals every agent chart op before dispatch, verifies
-a local capability at intake, records the browser's inverse ops, and exposes document metadata,
-op history, audit, and forward-only undo endpoints. Destructive agent ops require a one-shot
-human approval, surfaced in the Journal tab. The browser still owns projection and anchor
-resolution; signed capability tokens and pre-application submit for non-bridge adapters remain
-open.
+Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journals every agent
+chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
+browser's inverse ops, and exposes document metadata, snapshots, op history, audit, and
+forward-only undo endpoints. Destructive agent ops require a one-shot human approval, surfaced in
+the Journal tab. The browser still owns projection and anchor resolution.
 
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/docs/{doc_id}` | Revision, pending count, and audit verification |
 | `GET /api/docs/{doc_id}/ops` | Recent journaled ops with envelopes and acks |
 | `GET /api/docs/{doc_id}/snapshot` | Latest adapter snapshot persisted with an applied ack |
+| `POST /api/capabilities` | Mint/register signed claims (loopback only) |
+| `GET /api/capabilities/key` | Issuer public key |
+| `GET /api/capabilities/{cap_id}/token` | Local signed token for a registered capability |
 | `GET /api/docs/{doc_id}/audit` | Append-only audit entries + chain verification |
 | `POST /api/docs/{doc_id}/ops` | Journal a batch, dispatch to the browser, wait for acks |
 | `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |
@@ -187,7 +189,7 @@ protocol envelopes from `spec/protocol.md`; domain shorthand is an adapter conce
 | `npm run schemas` | Regenerate `spec/schemas/` from the zod definitions |
 | `npm run verify` | Web typecheck + tests + package typecheck + package tests |
 | `npm run build --workspace @amaterasu/web` | Static SPA build into `web/build` |
-| `cargo test --manifest-path server/Cargo.toml` | Rust unit, HTTP integration, and conformance tests |
+| `cargo test --manifest-path server/Cargo.toml` | Rust unit, HTTP integration, conformance, and p95 latency tests |
 | `cargo test --manifest-path server/Cargo.toml -- --ignored` | Live OAuth discovery + DCR check |
 
 Production serves the built SPA from the API service:

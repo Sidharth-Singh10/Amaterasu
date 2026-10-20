@@ -85,7 +85,10 @@ The plan in `COMMON_GROUND.md` says Phase 1 ports the reducer. Reordered:
 4. **Phase 1c (done):** local capability registry with typed denials, one-shot approvals for
    destructive agent ops, and a Journal drawer that reads the log, verifies the audit chain, and
    drives undo/approve.
-5. **Phase 2:** `canvas-mcp` tool registration generated from schemas; second adapter (Weave).
+5. **Phase 2 (mostly done):** `canvas-mcp` tools, ed25519 capability tokens, approval gate,
+   audit/history, ten-shape turn undo, structured self-correction, and replay/latency proofs.
+   Remaining: a wire-level HTTP/SSE conformance target.
+6. **Phase 3:** second adapter (Weave), 90-second demo, and 5 external testers.
 
 The reorder matters because the journal forces the spec to be real. Extracting first would preserve
 today's client-only semantics under new package names.

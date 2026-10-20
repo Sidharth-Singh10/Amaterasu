@@ -581,19 +581,25 @@ chart bridge:
   the Rust journal harness in `server/tests/conformance.rs` with a minimal 2D adapter.
 - `packages/canvas-mcp` exposes `doc_get`, `op_apply`, `turn_undo`, and `state_query` over stdio,
   backed by the HTTP journal and the adapter snapshot.
+- Ed25519 `cg1.<claims>.<signature>` capability tokens, a persisted issuer key, and
+  `X-CG-Capability` on all write endpoints. Local mint/token endpoints are loopback-only.
+- A ten-shape turn undo test, an `expected_revision`/idempotency conflict test, a structured
+  reject → retry → ack test, and a journal replay helper (`packages/canvas-chart/src/replay.ts`).
+- A p95 journal ack benchmark (`server/tests/latency.rs`); the local measurement is ~0.5 ms.
 
 Not yet enforced or implemented:
 
-- Signed capability tokens (`cg1.…`) and a hosted issuer. v0 uses an in-memory local registry;
-  `cap_local`, `cap_human`, and `cap_undo` are seeded at startup.
-- A published client SDK for pre-application submit. The HTTP path exists and is used by the chart
-  plugin; other adapters can call it directly.
-- Replay-on-reload. Browser snapshot undo remains the local UX.
+- A hosted issuer with key rotation/revocation and a public key distribution policy. v0 persists
+  one local key and mints tokens for seeded capabilities.
+- Token enforcement on reads and on the legacy bridge RPC fallback. Writes over HTTP require a
+  token; local reads and the compatibility path remain trusted.
+- A published client SDK for pre-application submit beyond the chart plugin and MCP client.
+- Replay-on-reload as the primary restore path. The browser uses the workspace snapshot first and
+  the journal snapshot as a fallback; the replay helper is tested but not yet wired into the shell.
 - An HTTP/SSE conformance adapter. The Rust harness drives the journal directly and the HTTP
   endpoints have separate integration tests; a target that speaks the wire protocol end to end is
   still open.
 
-Known inverse limitations in the chart adapter: re-creating a deleted shape allocates a new id
-(the chart DSL's `draw` has no explicit id), and `update` merges style keys, so an inverse cannot
-remove a key that the original update introduced. Both are scheduled for the chart DSL, not the
-protocol.
+Known inverse limitation in the chart adapter: `update` merges style keys, so an inverse cannot
+remove a key that the original update introduced. `draw` now accepts an explicit id, so re-creating
+a deleted shape preserves its identity.
