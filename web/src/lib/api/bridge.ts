@@ -83,11 +83,16 @@ export const bridge = {
     apiRequest<{ ok: boolean }>("/api/chart/detach", { method: "POST", body: JSON.stringify({ chartId }) }),
   sync: (payload: ChartSyncPayload) =>
     apiRequest<{ ok: boolean }>("/api/chart/sync", { method: "POST", body: JSON.stringify(payload) }),
-  opAck: (requestId: string, result: OpResult) =>
+  opAck: (requestId: string, result: OpResult & { inverse?: unknown[] }) =>
     apiRequest<{ ok: boolean }>("/api/chart/op-ack", {
       method: "POST",
       body: JSON.stringify({ requestId, result }),
     }),
+  docAck: (docId: string, acks: Array<Record<string, unknown>>) =>
+    apiRequest<{ docId: string; acks: Array<Record<string, unknown>> }>(
+      `/api/docs/${encodeURIComponent(docId)}/acks`,
+      { method: "POST", body: JSON.stringify({ acks }) },
+    ),
   stateAck: (requestId: string, result: Record<string, unknown>) =>
     apiRequest<{ ok: boolean }>("/api/chart/state-ack", {
       method: "POST",

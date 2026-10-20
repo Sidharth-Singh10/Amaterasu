@@ -1,4 +1,5 @@
 import { bridge, onStreamEvent, type ChartSyncPayload } from "@/lib/api/bridge"
+import { inverseOf } from "@/lib/ops/inverse"
 import type { ChartController } from "./ChartController"
 
 export interface BridgeWiringOptions {
@@ -44,8 +45,36 @@ export function startChartBridge(opts: BridgeWiringOptions) {
         opts.controller.store.beginTurn()
         activeTurnMessage = messageID
       }
+      const before = opts.controller.exportDoc()
       const result = opts.controller.applyOp(op, "agent op")
-      void bridge.opAck(requestId, result)
+      const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
+      void bridge.opAck(requestId, { ...result, inverse })
+      return
+    }
+
+    if (event.type === "doc.op.request") {
+      if (data?.docId !== opts.chartId) return
+      const opId = data.opId as string | undefined
+      const envelope = data.envelope as { payload?: { op?: unknown } } | undefined
+      const op = envelope?.payload?.op
+      if (!op || !opId) return
+
+      const before = opts.controller.exportDoc()
+      const result = opts.controller.applyOp(op, "journal op")
+      const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
+      const ack: Record<string, unknown> = {
+        op_id: opId,
+        status: result.ok ? "applied" : "rejected",
+        result,
+        inverse,
+      }
+      if (!result.ok) {
+        ack.rejected_by = "adapter"
+        ack.code = result.unresolved?.length ? "anchor_out_of_range" : "invalid_op"
+        ack.message = result.warnings?.join("; ") || "the chart adapter rejected the op"
+        ack.retryable = false
+      }
+      void bridge.docAck(opts.chartId, [ack])
       return
     }
 
