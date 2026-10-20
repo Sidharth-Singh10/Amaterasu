@@ -206,6 +206,8 @@ async fn submit_waits_for_the_browser_ack_and_records_history() {
     )
     .await;
     assert_eq!(ops["ops"][0]["op_id"], op_id);
+    assert_eq!(ops["ops"][0]["undoes"], Value::Null);
+    assert_eq!(ops["ops"][0]["undone_by"], Value::Null);
     assert_eq!(
         ops["ops"][0]["ack"]["inverse"][0]["type"],
         "chart.shape.delete"
@@ -299,6 +301,18 @@ async fn undo_dispatches_the_inverse_as_a_new_turn() {
     let meta = harness.journal.meta("doc_api").unwrap();
     assert_eq!(meta.revision, 2);
     assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 2);
+
+    let ops = harness.journal.list_ops("doc_api", 50).unwrap();
+    let original = ops
+        .iter()
+        .find(|op| op["turn_id"] == "turn_1")
+        .expect("original turn");
+    assert_eq!(original["undone_by"], body["undoTurnId"]);
+    let undo_turn = ops
+        .iter()
+        .find(|op| op["turn_id"] == body["undoTurnId"])
+        .expect("undo turn");
+    assert_eq!(undo_turn["undoes"], json!("turn_1"));
 
     let second = harness
         .router

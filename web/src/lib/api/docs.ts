@@ -1,0 +1,89 @@
+import { apiRequest } from "./client"
+
+export interface JournalActor {
+  kind: string
+  id: string
+  session?: string
+  message?: string
+}
+
+export interface JournalEnvelope {
+  v: number
+  doc_id: string
+  turn_id: string
+  seq: number
+  actor: JournalActor
+  capability: string
+  type: string
+  target: { kind: string; id?: string }
+  payload: { op?: { op?: string; id?: string } }
+  rationale?: string
+  idempotency_key: string
+  created_at: string
+  approval?: string
+}
+
+export interface JournalAck {
+  status?: string
+  revision?: number | null
+  code?: string
+  message?: string
+  retryable?: boolean
+  inverse?: unknown[]
+  [key: string]: unknown
+}
+
+export interface JournalOp {
+  seq: number
+  op_id: string
+  turn_id: string
+  status: string
+  revision: number | null
+  envelope: JournalEnvelope
+  ack: JournalAck | null
+  undoes: string | null
+  undone_by: string | null
+}
+
+export interface AuditVerification {
+  ok: boolean
+  broken_at?: number
+  reason?: string
+}
+
+export interface DocMeta {
+  doc: {
+    doc_id: string
+    revision: number
+    next_seq: number
+    pending: number
+    audit_seq: number
+  }
+  verification: AuditVerification
+}
+
+export interface UndoResult {
+  docId: string
+  undoTurnId: string
+  applied: boolean
+  acks: JournalAck[]
+}
+
+function docPath(docId: string): string {
+  return `/api/docs/${encodeURIComponent(docId)}`
+}
+
+export const docs = {
+  meta: (docId: string) => apiRequest<DocMeta>(docPath(docId)),
+  ops: (docId: string, limit = 100) =>
+    apiRequest<{ docId: string; ops: JournalOp[] }>(`${docPath(docId)}/ops?limit=${limit}`),
+  audit: (docId: string) =>
+    apiRequest<{ docId: string; entries: unknown[]; verification: AuditVerification }>(
+      `${docPath(docId)}/audit`,
+    ),
+  undoTurn: (docId: string, turnId: string) =>
+    apiRequest<UndoResult>(`${docPath(docId)}/turns/${encodeURIComponent(turnId)}/undo`, {
+      method: "POST",
+      body: "{}",
+    }),
+}

@@ -3,6 +3,7 @@
   import { dev } from "$app/environment"
   import { ChartController, type ChartType, type ControllerSummary, type LogEntry, type Tool } from "@/lib/chart/ChartController"
   import OpConsole from "@/lib/components/OpConsole.svelte"
+  import HistoryPanel from "@/lib/components/HistoryPanel.svelte"
   import ChatPanel from "@/lib/components/ChatPanel.svelte"
   import Icon from "@/lib/components/Icon.svelte"
   import type { IconName } from "@/lib/components/icons"
@@ -47,9 +48,10 @@ import { bridge } from "@/lib/api/bridge"
   let results = $state<SearchResult[]>([])
   let searchOpen = $state(false)
   let searching = $state(false)
-  let tab = $state<"agent" | "console">("console")
+  let tab = $state<"agent" | "console" | "history">("console")
+  let journalVersion = $state(0)
   let bridgeError = $state<string | null>(null)
-  let chartId = ""
+  let chartId = $state("")
   let chartBridge: ReturnType<typeof startChartBridge> | null = null
 
   let refreshTimer: number | undefined
@@ -131,6 +133,9 @@ import { bridge } from "@/lib/api/bridge"
       context: () => (symbol ? { symbol: symbol.name, interval } : null),
       onAgentError: (message) => {
         bridgeError = message
+      },
+      onJournalChange: () => {
+        journalVersion += 1
       },
     })
     if (mode === "live") {
@@ -323,9 +328,11 @@ import { bridge } from "@/lib/api/bridge"
   function onTabKeydown(event: KeyboardEvent): void {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
     event.preventDefault()
-    tab = tab === "agent" ? "console" : "agent"
-    const id = tab === "agent" ? "tab-agent" : "tab-console"
-    queueMicrotask(() => document.getElementById(id)?.focus())
+    const tabs = ["agent", "console", "history"] as const
+    const current = tabs.indexOf(tab)
+    const step = event.key === "ArrowRight" ? 1 : -1
+    tab = tabs[(current + step + tabs.length) % tabs.length]
+    queueMicrotask(() => document.getElementById(`tab-${tab}`)?.focus())
   }
 
   function selectChartType(type: ChartType): void {
@@ -702,6 +709,16 @@ import { bridge } from "@/lib/api/bridge"
           class="tab"
           onclick={() => (tab = "console")}>Console</button
         >
+        <button
+          id="tab-history"
+          type="button"
+          role="tab"
+          aria-selected={tab === "history"}
+          aria-controls="panel-history"
+          tabindex={tab === "history" ? 0 : -1}
+          class="tab"
+          onclick={() => (tab = "history")}>Journal</button
+        >
       </div>
 
       {#if bridgeError}
@@ -711,6 +728,10 @@ import { bridge } from "@/lib/api/bridge"
       {#if tab === "agent"}
         <div id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" class="flex min-h-0 flex-1 flex-col">
           <ChatPanel {mode} onUndoTurn={undoTurn} />
+        </div>
+      {:else if tab === "history"}
+        <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" class="flex min-h-0 flex-1 flex-col">
+          <HistoryPanel chartId={chartId} visible={tab === "history"} version={journalVersion} />
         </div>
       {:else}
         <div id="panel-console" role="tabpanel" aria-labelledby="tab-console" class="flex min-h-0 flex-1 flex-col">

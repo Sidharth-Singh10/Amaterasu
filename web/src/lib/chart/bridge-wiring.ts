@@ -9,6 +9,8 @@ export interface BridgeWiringOptions {
   enabled: () => boolean
   context: () => { symbol: string; interval: string } | null
   onAgentError?: (message: string) => void
+  /** Called after an op ack is finalized on the server, so history can refetch. */
+  onJournalChange?: () => void
 }
 
 /**
@@ -22,6 +24,10 @@ export interface BridgeWiringOptions {
 export function startChartBridge(opts: BridgeWiringOptions) {
   let activeTurnMessage: string | null = null
   let syncTimer: number | undefined
+
+  function journalChanged(): void {
+    opts.onJournalChange?.()
+  }
 
   function endTurn(): void {
     if (activeTurnMessage) {
@@ -48,7 +54,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
       const before = opts.controller.exportDoc()
       const result = opts.controller.applyOp(op, "agent op")
       const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
-      void bridge.opAck(requestId, { ...result, inverse })
+      void bridge.opAck(requestId, { ...result, inverse }).then(journalChanged, journalChanged)
       return
     }
 
@@ -74,7 +80,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
         ack.message = result.warnings?.join("; ") || "the chart adapter rejected the op"
         ack.retryable = false
       }
-      void bridge.docAck(opts.chartId, [ack])
+      void bridge.docAck(opts.chartId, [ack]).then(journalChanged, journalChanged)
       return
     }
 

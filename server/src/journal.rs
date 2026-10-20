@@ -303,8 +303,11 @@ impl JournalStore {
         validate_doc_id(doc_id)?;
         let connection = self.connection.lock().expect("journal lock poisoned");
         let mut statement = connection.prepare(
-            "SELECT seq, op_id, turn_id, status, revision, envelope, ack
-             FROM doc_ops WHERE doc_id = ?1 ORDER BY seq DESC LIMIT ?2",
+            "SELECT o.seq, o.op_id, o.turn_id, o.status, o.revision, o.envelope, o.ack,
+                    t.undoes, t.undone_by
+             FROM doc_ops o
+             JOIN doc_turns t ON t.doc_id = o.doc_id AND t.turn_id = o.turn_id
+             WHERE o.doc_id = ?1 ORDER BY o.seq DESC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![doc_id, limit.clamp(1, 200)], |row| {
             Ok((
@@ -315,10 +318,12 @@ impl JournalStore {
                 row.get::<_, Option<i64>>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })?;
         rows.map(|row| {
-            let (seq, op_id, turn_id, status, revision, envelope, ack) = row?;
+            let (seq, op_id, turn_id, status, revision, envelope, ack, undoes, undone_by) = row?;
             Ok(json!({
                 "seq": seq,
                 "op_id": op_id,
@@ -329,6 +334,8 @@ impl JournalStore {
                 "ack": ack
                     .map(|ack| serde_json::from_str::<Value>(&ack))
                     .transpose()?,
+                "undoes": undoes,
+                "undone_by": undone_by,
             }))
         })
         .collect()
