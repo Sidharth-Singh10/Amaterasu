@@ -373,8 +373,10 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   remove-series) are journaled as rejected attempts and require a one-shot human approval from the
   Journal tab. The chart plugin submits ops through `POST /api/chart/op` before the browser sees them;
   the legacy RPC path remains a fallback. `packages/canvas-mcp` exposes the same protocol over stdio
-  (`doc_get`, `op_apply`, `turn_undo`, `state_query`). Browser snapshot undo remains the local UX;
-  replay-on-reload is still open. See `spec/protocol.md` §6–§10 and §17.
+  (`doc_get`, `op_apply`, `turn_undo`, `state_query`). Rejected adapter ops can carry a structured
+  suggestion (the chart adapter suggests the first loaded bar time) so the agent can self-correct.
+  Browser snapshot undo remains the local UX; replay-on-reload is still open. See `spec/protocol.md`
+  §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 

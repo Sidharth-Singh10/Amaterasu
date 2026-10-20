@@ -606,9 +606,17 @@ export class ChartController {
     const t = this.transform()
     if (!t) return { ok: false, reason: "no-data", warnings: [] }
     const resolved = t.resolve(anchor)
-    return resolved.ok
-      ? { ok: true, warnings: resolved.warnings }
-      : { ok: false, reason: resolved.reason, warnings: resolved.warnings }
+    if (resolved.ok) return { ok: true, warnings: resolved.warnings }
+    const suggestion =
+      resolved.reason === "before-loaded-window" && this.bars.length > 0
+        ? { t: this.bars[0].time, p: anchor.p }
+        : undefined
+    return {
+      ok: false,
+      reason: resolved.reason,
+      warnings: resolved.warnings,
+      ...(suggestion ? { suggestion } : {}),
+    }
   }
 
   private applyView(op: SetViewOp): OpResult {

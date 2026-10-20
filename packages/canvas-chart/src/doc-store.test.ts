@@ -55,6 +55,36 @@ describe("DocStore", () => {
     expect(result.unresolved).toEqual(["before-loaded-window"])
   })
 
+  it("returns a suggestion that lets the caller self-correct", () => {
+    const store = new DocStore({
+      checkAnchor: (anchor) =>
+        anchor.t >= 1000
+          ? { ok: true, warnings: [] }
+          : {
+              ok: false,
+              reason: "before-loaded-window",
+              warnings: ["outside window"],
+              suggestion: { t: 1000, p: anchor.p },
+            },
+      newId: () => "a1",
+      now: () => 1,
+    })
+    const rejected = store.applyOp({
+      op: "draw",
+      kind: "hline",
+      points: [{ t: 500, p: 10 }],
+    })
+    expect(rejected.ok).toBe(false)
+    expect(rejected.suggestion).toEqual({ t: 1000, p: 10 })
+
+    const retried = store.applyOp({
+      op: "draw",
+      kind: "hline",
+      points: [rejected.suggestion as unknown as { t: number; p: number }],
+    })
+    expect(retried.ok).toBe(true)
+  })
+
   it("enforces the per-kind minimum point count", () => {
     const store = makeStore()
     const result = store.applyOp({ op: "draw", kind: "trendline", points: [{ t: 1000, p: 10 }] })

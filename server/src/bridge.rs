@@ -346,7 +346,7 @@ fn ack_from_result(result: &Value) -> AckInput {
         code: Some(code.into()),
         message: Some(message),
         retryable: Some(false),
-        suggestion: None,
+        suggestion: result.get("suggestion").cloned(),
         snapshot: result.get("snapshot").cloned(),
     }
 }
@@ -407,6 +407,7 @@ mod tests {
             "ok": false,
             "unresolved": [{ "index": 0 }],
             "warnings": ["point is outside the loaded window"],
+            "suggestion": { "t": 1730800000 },
             "inverse": [],
         }));
         assert_eq!(rejected.status, "rejected");
@@ -416,6 +417,7 @@ mod tests {
             Some("point is outside the loaded window")
         );
         assert_eq!(rejected.retryable, Some(false));
+        assert_eq!(rejected.suggestion, Some(json!({ "t": 1730800000 })));
     }
 
     #[test]

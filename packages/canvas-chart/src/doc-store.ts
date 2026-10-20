@@ -33,6 +33,8 @@ export interface AnchorCheck {
   ok: boolean
   reason?: string
   warnings: string[]
+  /** A nearby valid anchor the caller can retry with. */
+  suggestion?: Anchor
 }
 
 export interface DocDeps {
@@ -179,15 +181,23 @@ export class DocStore {
     }
   }
 
-  private checkAnchors(points: readonly Anchor[]): { unresolved: string[]; warnings: string[] } {
+  private checkAnchors(points: readonly Anchor[]): {
+    unresolved: string[]
+    warnings: string[]
+    suggestion?: Anchor
+  } {
     const unresolved: string[] = []
     const warnings: string[] = []
+    let suggestion: Anchor | undefined
     for (const anchor of points) {
       const check = this.deps.checkAnchor(anchor)
-      if (!check.ok) unresolved.push(check.reason ?? "unresolved")
+      if (!check.ok) {
+        unresolved.push(check.reason ?? "unresolved")
+        suggestion ??= check.suggestion
+      }
       warnings.push(...check.warnings)
     }
-    return { unresolved, warnings }
+    return { unresolved, warnings, ...(suggestion ? { suggestion } : {}) }
   }
 
   private addSeries(op: AddSeriesOp): OpResult {
@@ -232,8 +242,10 @@ export class DocStore {
     if (op.points.length < min) {
       return { ok: false, warnings: [`${op.kind} needs at least ${min} anchor(s)`] }
     }
-    const { unresolved, warnings } = this.checkAnchors(op.points)
-    if (unresolved.length > 0) return { ok: false, unresolved, warnings }
+    const { unresolved, warnings, suggestion } = this.checkAnchors(op.points)
+    if (unresolved.length > 0) {
+      return { ok: false, unresolved, warnings, ...(suggestion ? { suggestion } : {}) }
+    }
 
     const now = this.now()
     const annotation: Annotation = {
@@ -270,7 +282,14 @@ export class DocStore {
         return { ok: false, warnings: [`${annotation.kind} needs at least ${min} anchor(s)`] }
       }
       const check = this.checkAnchors(op.points)
-      if (check.unresolved.length > 0) return { ok: false, unresolved: check.unresolved, warnings: check.warnings }
+      if (check.unresolved.length > 0) {
+        return {
+          ok: false,
+          unresolved: check.unresolved,
+          warnings: check.warnings,
+          ...(check.suggestion ? { suggestion: check.suggestion } : {}),
+        }
+      }
       annotation.points = op.points.map((p) => ({ ...p }))
       warnings.push(...check.warnings)
     }

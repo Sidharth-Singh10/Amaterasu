@@ -82,6 +82,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
         ack.code = result.unresolved?.length ? "anchor_out_of_range" : "invalid_op"
         ack.message = result.warnings?.join("; ") || "the chart adapter rejected the op"
         ack.retryable = false
+        if (result.suggestion) ack.suggestion = result.suggestion
       }
       void bridge.docAck(opts.chartId, [ack]).then(journalChanged, journalChanged)
       return

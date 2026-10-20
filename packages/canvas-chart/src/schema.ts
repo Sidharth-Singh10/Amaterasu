@@ -229,5 +229,7 @@ export const OpResultSchema = z.object({
   visible: z.boolean().optional(),
   unresolved: z.array(z.string()).optional(),
   warnings: z.array(z.string()).optional(),
+  /** Structured correction hint for self-correction (e.g. the nearest valid anchor). */
+  suggestion: z.record(z.string(), z.unknown()).optional(),
 })
 export type OpResult = z.infer<typeof OpResultSchema>

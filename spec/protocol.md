@@ -561,6 +561,8 @@ chart bridge:
 - Applied acks may carry an opaque adapter snapshot. The server persists the latest snapshot with
   its revision and serves it from `GET /api/docs/{id}/snapshot`; the browser falls back to it when
   no workspace snapshot exists.
+- Adapter rejections may carry a structured `suggestion`. The chart adapter suggests the first
+  loaded bar time for an anchor before the window; the ack preserves it for agent self-correction.
 - A local capability registry with typed denials for unknown, expired, mis-bound, out-of-scope,
   and read-only capabilities. Every attempt is journaled, including denials.
 - One-shot human approvals for destructive agent ops. A rejected attempt carries
