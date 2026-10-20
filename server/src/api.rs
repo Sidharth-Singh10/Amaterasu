@@ -17,7 +17,9 @@ use crate::{
     bridge::{Bridge, BridgeError},
     cache::Cache,
     config::Config,
+    dispatch::OpDispatch,
     indmoney::{IndmoneyClient, IndmoneyError, normalize},
+    journal::{AckInput, BatchItem, JournalError, JournalStore},
     workspace::{WorkspaceError, WorkspaceStore},
 };
 
@@ -27,6 +29,8 @@ pub struct AppState {
     pub indmoney: Arc<IndmoneyClient>,
     pub cache: Arc<Cache>,
     pub bridge: Arc<Bridge>,
+    pub journal: Arc<JournalStore>,
+    pub dispatch: Arc<OpDispatch>,
     pub workspaces: Arc<WorkspaceStore>,
 }
 
@@ -49,6 +53,11 @@ pub fn routes() -> Router<AppState> {
         .route("/api/chart/sync", post(chart_sync))
         .route("/api/chart/op-ack", post(chart_op_ack))
         .route("/api/chart/state-ack", post(chart_state_ack))
+        .route("/api/docs/{doc_id}", get(doc_meta))
+        .route("/api/docs/{doc_id}/ops", get(doc_ops).post(doc_submit_ops))
+        .route("/api/docs/{doc_id}/acks", post(doc_acks))
+        .route("/api/docs/{doc_id}/audit", get(doc_audit))
+        .route("/api/docs/{doc_id}/turns/{turn_id}/undo", post(doc_undo))
         .route(
             "/api/workspace/{key}",
             get(workspace_get).put(workspace_put),
@@ -373,6 +382,187 @@ async fn chart_state_ack(
     ))
 }
 
+async fn doc_meta(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let doc = state.journal.meta(&doc_id)?;
+    let verification = state.journal.verify(&doc_id)?;
+    Ok(Json(json!({ "doc": doc, "verification": verification })))
+}
+
+#[derive(Debug, Deserialize)]
+struct DocOpsQuery {
+    limit: Option<i64>,
+}
+
+async fn doc_ops(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+    Query(query): Query<DocOpsQuery>,
+) -> Result<Json<Value>, ApiError> {
+    let ops = state.journal.list_ops(&doc_id, query.limit.unwrap_or(50))?;
+    Ok(Json(json!({ "docId": doc_id, "ops": ops })))
+}
+
+async fn doc_audit(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let entries = state.journal.audit(&doc_id)?;
+    let verification = state.journal.verify(&doc_id)?;
+    Ok(Json(json!({
+        "docId": doc_id,
+        "entries": entries,
+        "verification": verification,
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct SubmitOpsBody {
+    ops: Vec<Value>,
+}
+
+async fn doc_submit_ops(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+    Json(body): Json<SubmitOpsBody>,
+) -> Result<Json<Value>, ApiError> {
+    if body.ops.is_empty() {
+        return Err(ApiError::BadRequest("ops must not be empty".into()));
+    }
+    let acks = dispatch_batch(&state, &doc_id, &body.ops).await?;
+    Ok(Json(json!({ "docId": doc_id, "acks": acks })))
+}
+
+#[derive(Debug, Deserialize)]
+struct DocAckItem {
+    op_id: String,
+    #[serde(flatten)]
+    ack: AckInput,
+}
+
+#[derive(Debug, Deserialize)]
+struct DocAckBody {
+    acks: Vec<DocAckItem>,
+}
+
+async fn doc_acks(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+    Json(body): Json<DocAckBody>,
+) -> Result<Json<Value>, ApiError> {
+    let mut acks = Vec::with_capacity(body.acks.len());
+    for item in body.acks {
+        let ack = state.journal.complete(&doc_id, &item.op_id, item.ack)?;
+        state.dispatch.resolve(&item.op_id, ack.clone()).await;
+        acks.push(ack);
+    }
+    Ok(Json(json!({ "docId": doc_id, "acks": acks })))
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UndoBody {
+    actor: Option<Value>,
+    capability: Option<String>,
+}
+
+async fn doc_undo(
+    State(state): State<AppState>,
+    Path((doc_id, turn_id)): Path<(String, String)>,
+    Json(body): Json<UndoBody>,
+) -> Result<Json<Value>, ApiError> {
+    let actor = body
+        .actor
+        .unwrap_or_else(|| json!({ "kind": "human", "id": "local" }));
+    let capability = body.capability.unwrap_or_else(|| "cap_undo".into());
+    let plan = state
+        .journal
+        .plan_undo(&doc_id, &turn_id, actor.clone(), &capability)?;
+    let acks = dispatch_batch(&state, &doc_id, &plan.envelopes).await?;
+    let applied = acks
+        .iter()
+        .all(|ack| ack.get("status").and_then(Value::as_str) == Some("applied"));
+    if applied {
+        state
+            .journal
+            .mark_undone(&doc_id, &turn_id, &plan.undo_turn_id, actor)?;
+    }
+    Ok(Json(json!({
+        "docId": doc_id,
+        "undoTurnId": plan.undo_turn_id,
+        "applied": applied,
+        "acks": acks,
+    })))
+}
+
+/// Journals a batch, dispatches fresh ops to the browser, and waits for its acks.
+async fn dispatch_batch(
+    state: &AppState,
+    doc_id: &str,
+    envelopes: &[Value],
+) -> Result<Vec<Value>, ApiError> {
+    let items = state.journal.begin_batch(doc_id, envelopes)?;
+    let mut pending = Vec::new();
+    let mut acks: Vec<Option<Value>> = Vec::with_capacity(items.len());
+
+    for item in items {
+        match item {
+            BatchItem::Replay(ack) => acks.push(Some(ack)),
+            BatchItem::Pending(op) if !op.fresh => acks.push(Some(json!({
+                "v": 1,
+                "op_id": op.op_id,
+                "turn_id": op.turn_id,
+                "seq": op.seq,
+                "status": "rejected",
+                "rejected_by": "server",
+                "code": "conflict",
+                "message": "the op is already in flight",
+                "retryable": true,
+            }))),
+            BatchItem::Pending(op) => {
+                let receiver = state.dispatch.register(&op.op_id).await;
+                state.bridge.broadcast(json!({
+                    "type": "doc.op.request",
+                    "data": {
+                        "docId": doc_id,
+                        "opId": op.op_id,
+                        "turnId": op.turn_id,
+                        "seq": op.seq,
+                        "envelope": op.envelope,
+                    }
+                }));
+                pending.push((op.op_id, receiver, acks.len()));
+                acks.push(None);
+            }
+        }
+    }
+
+    for (op_id, receiver, index) in pending {
+        let ack = match tokio::time::timeout(Duration::from_secs(15), receiver).await {
+            Ok(Ok(ack)) => ack,
+            _ => state.journal.complete(
+                doc_id,
+                &op_id,
+                AckInput {
+                    status: "rejected".into(),
+                    rejected_by: Some("server".into()),
+                    code: Some("internal".into()),
+                    message: Some("the client did not acknowledge the op in time".into()),
+                    retryable: Some(true),
+                    ..AckInput::default()
+                },
+            )?,
+        };
+        acks[index] = Some(ack);
+    }
+
+    Ok(acks
+        .into_iter()
+        .map(|ack| ack.unwrap_or(Value::Null))
+        .collect())
+}
+
 async fn workspace_get(
     State(state): State<AppState>,
     Path(key): Path<String>,
@@ -415,6 +605,28 @@ impl From<WorkspaceError> for ApiError {
     }
 }
 
+impl From<JournalError> for ApiError {
+    fn from(error: JournalError) -> Self {
+        match error {
+            JournalError::InvalidDocId(message) => ApiError::Protocol("invalid_doc_id", message),
+            JournalError::InvalidOp(message) => ApiError::Protocol("invalid_op", message),
+            JournalError::IdempotencyConflict => ApiError::Protocol(
+                "idempotency_conflict",
+                "idempotency key was already used with a different payload".into(),
+            ),
+            JournalError::UnknownTurn(turn_id) => {
+                ApiError::Protocol("unknown_turn", format!("unknown turn: {turn_id}"))
+            }
+            JournalError::AlreadyUndone(message) => ApiError::Protocol("already_undone", message),
+            JournalError::UnknownOp(op_id) => {
+                ApiError::Protocol("unknown_op", format!("unknown op: {op_id}"))
+            }
+            JournalError::Sqlite(inner) => ApiError::Internal(inner.to_string()),
+            JournalError::Json(inner) => ApiError::Internal(inner.to_string()),
+        }
+    }
+}
+
 /// TTLs sized to the poll cadence: intraday bars turn over quickly, daily bars slowly.
 fn candles_ttl(interval: &str) -> Duration {
     match interval {
@@ -430,6 +642,8 @@ pub enum ApiError {
     Unauthorized,
     ChatNotConfigured,
     BadRequest(String),
+    /// A protocol-level rejection with a stable machine-readable code.
+    Protocol(&'static str, String),
     Upstream(String),
     Internal(String),
 }
@@ -479,6 +693,7 @@ impl IntoResponse for ApiError {
                 "the agent bridge is not configured (OPENCODE_PASSWORD is unset)".to_string(),
             ),
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
+            ApiError::Protocol(code, message) => (StatusCode::UNPROCESSABLE_ENTITY, code, message),
             ApiError::Upstream(message) => (StatusCode::BAD_GATEWAY, "upstream", message),
             ApiError::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, "internal", message),
         };

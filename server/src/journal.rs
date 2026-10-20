@@ -298,6 +298,42 @@ impl JournalStore {
             .map_err(JournalError::from)
     }
 
+    /// Most recent ops first, capped so a history panel cannot pull an unbounded log.
+    pub fn list_ops(&self, doc_id: &str, limit: i64) -> Result<Vec<Value>, JournalError> {
+        validate_doc_id(doc_id)?;
+        let connection = self.connection.lock().expect("journal lock poisoned");
+        let mut statement = connection.prepare(
+            "SELECT seq, op_id, turn_id, status, revision, envelope, ack
+             FROM doc_ops WHERE doc_id = ?1 ORDER BY seq DESC LIMIT ?2",
+        )?;
+        let rows = statement.query_map(params![doc_id, limit.clamp(1, 200)], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, Option<String>>(6)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (seq, op_id, turn_id, status, revision, envelope, ack) = row?;
+            Ok(json!({
+                "seq": seq,
+                "op_id": op_id,
+                "turn_id": turn_id,
+                "status": status,
+                "revision": revision,
+                "envelope": serde_json::from_str::<Value>(&envelope)?,
+                "ack": ack
+                    .map(|ack| serde_json::from_str::<Value>(&ack))
+                    .transpose()?,
+            }))
+        })
+        .collect()
+    }
+
     pub fn audit(&self, doc_id: &str) -> Result<Vec<Value>, JournalError> {
         validate_doc_id(doc_id)?;
         let connection = self.connection.lock().expect("journal lock poisoned");
@@ -957,6 +993,89 @@ pub fn random_id() -> String {
     format!("{:032x}", rand::random::<u128>())
 }
 
+/// Wraps the existing chart bridge's `op.request` payload in a protocol envelope.
+///
+/// The chart adapter still speaks the chart DSL; the envelope gives the journal a stable
+/// type/target/actor so the op can be audited, and the payload carries the adapter op through
+/// unchanged. The journal assigns `seq` (0 here means "next").
+pub fn chart_op_envelope(data: &Value, agent_id: &str) -> Option<Value> {
+    let request_id = data.get("requestId")?.as_str()?;
+    let chart_id = data.get("chartId")?.as_str()?;
+    let op = data.get("op")?.as_object()?;
+    let kind = op.get("op")?.as_str()?;
+    let source = op.get("source").and_then(Value::as_object);
+    let session = source
+        .and_then(|source| source.get("sessionID"))
+        .and_then(Value::as_str);
+    let message = source
+        .and_then(|source| source.get("messageID"))
+        .and_then(Value::as_str);
+    let turn_id = match (session, message) {
+        (Some(session), Some(message)) => format!("turn_{session}:{message}"),
+        _ => format!("turn_req_{request_id}"),
+    };
+
+    let mut actor = Map::new();
+    actor.insert("kind".into(), json!("agent"));
+    actor.insert("id".into(), json!(agent_id));
+    if let Some(session) = session {
+        actor.insert("session".into(), json!(session));
+    }
+    if let Some(message) = message {
+        actor.insert("message".into(), json!(message));
+    }
+
+    Some(json!({
+        "v": 1,
+        "doc_id": chart_id,
+        "turn_id": turn_id,
+        "seq": 0,
+        "actor": Value::Object(actor),
+        "capability": "cap_local",
+        "type": chart_op_type(kind),
+        "target": chart_op_target(op),
+        "payload": { "op": op },
+        "rationale": format!("agent chart op: {kind}"),
+        "idempotency_key": request_id,
+        "request_id": request_id,
+        "created_at": now_iso(),
+    }))
+}
+
+fn chart_op_type(kind: &str) -> &'static str {
+    match kind {
+        "draw" => "chart.shape.create",
+        "update" => "chart.shape.update",
+        "remove" => "chart.shape.delete",
+        "clear" => "chart.shape.clear",
+        "add_series" => "chart.series.upsert",
+        "remove_series" => "chart.series.delete",
+        "set_view" => "chart.view.set",
+        _ => "chart.op.apply",
+    }
+}
+
+fn chart_op_target(op: &Map<String, Value>) -> Value {
+    match op.get("op").and_then(Value::as_str).unwrap_or_default() {
+        "draw" | "update" | "remove" => {
+            let mut target = json!({ "kind": "chart.shape" });
+            if let Some(id) = op.get("id") {
+                target["id"] = id.clone();
+            }
+            target
+        }
+        "add_series" | "remove_series" => {
+            let mut target = json!({ "kind": "chart.series" });
+            if let Some(id) = op.get("id") {
+                target["id"] = id.clone();
+            }
+            target
+        }
+        "set_view" => json!({ "kind": "chart.view" }),
+        _ => json!({ "kind": "chart" }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1242,5 +1361,37 @@ mod tests {
         let ack = applied(&store, &op, json!([]));
         assert_eq!(ack["revision"], 0);
         assert_eq!(store.meta("doc_test").unwrap().revision, 0);
+    }
+
+    #[test]
+    fn chart_events_become_auditable_envelopes() {
+        let data = json!({
+            "requestId": "req_1",
+            "chartId": "9c1f0d6e-8a5b-4c3d-9e2f-1a2b3c4d5e6f",
+            "op": {
+                "op": "draw",
+                "kind": "line",
+                "points": [{ "time": 100, "price": 10 }],
+                "source": { "sessionID": "ses_1", "messageID": "msg_1" }
+            }
+        });
+        let envelope = chart_op_envelope(&data, "chart-analyst").unwrap();
+        assert_eq!(envelope["type"], "chart.shape.create");
+        assert_eq!(envelope["target"]["kind"], "chart.shape");
+        assert_eq!(envelope["turn_id"], "turn_ses_1:msg_1");
+        assert_eq!(envelope["request_id"], "req_1");
+        assert_eq!(envelope["idempotency_key"], "req_1");
+        assert_eq!(envelope["payload"]["op"]["op"], "draw");
+
+        let view = json!({
+            "requestId": "req_2",
+            "chartId": "doc_1",
+            "op": { "op": "set_view", "from": 1, "to": 2 }
+        });
+        let envelope = chart_op_envelope(&view, "chart-analyst").unwrap();
+        assert_eq!(envelope["type"], "chart.view.set");
+        assert_eq!(envelope["target"]["kind"], "chart.view");
+
+        assert!(chart_op_envelope(&json!({ "chartId": "doc_1" }), "agent").is_none());
     }
 }

@@ -24,6 +24,8 @@ pub struct Config {
     pub opencode_directory: String,
     /// SQLite file holding per-symbol workspace documents.
     pub workspaces_db: PathBuf,
+    /// SQLite file holding the Common Ground op journal.
+    pub journal_db: PathBuf,
 }
 
 impl Config {
@@ -40,6 +42,9 @@ impl Config {
             workspaces_db: env::var("AMATERASU_WORKSPACES_DB")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| data_dir.join("workspaces.db")),
+            journal_db: env::var("AMATERASU_JOURNAL_DB")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| data_dir.join("journal.db")),
             data_dir,
             base_url,
             app_url,

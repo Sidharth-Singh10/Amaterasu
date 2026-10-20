@@ -2,7 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use amaterasu_server::{
     api::AppState, bridge::Bridge, build_router, cache::Cache, config::Config,
-    indmoney::IndmoneyClient, workspace::WorkspaceStore,
+    dispatch::OpDispatch, indmoney::IndmoneyClient, journal::JournalStore,
+    workspace::WorkspaceStore,
 };
 use anyhow::Context;
 use tower_http::services::{ServeDir, ServeFile};
@@ -23,8 +24,26 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
 
     let indmoney = Arc::new(IndmoneyClient::new(&config, http).await);
-    let bridge = Bridge::new(&config);
+    let journal = Arc::new(
+        JournalStore::open(&config.journal_db)
+            .with_context(|| format!("opening journal db {}", config.journal_db.display()))?,
+    );
+    let bridge = Bridge::new(&config, journal.clone());
     bridge.spawn_event_pump();
+    {
+        let journal = journal.clone();
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(Duration::from_secs(15));
+            loop {
+                tick.tick().await;
+                match journal.expire_pending(30) {
+                    Ok(0) => {}
+                    Ok(expired) => tracing::warn!(expired, "expired unacknowledged journal ops"),
+                    Err(error) => tracing::warn!(%error, "expiring journal ops failed"),
+                }
+            }
+        });
+    }
     let workspaces = Arc::new(
         WorkspaceStore::open(&config.workspaces_db)
             .with_context(|| format!("opening workspace db {}", config.workspaces_db.display()))?,
@@ -34,6 +53,8 @@ async fn main() -> anyhow::Result<()> {
         indmoney,
         cache: Arc::new(Cache::new()),
         bridge,
+        journal,
+        dispatch: OpDispatch::new(),
         workspaces,
     };
 

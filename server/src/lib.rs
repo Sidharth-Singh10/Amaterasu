@@ -2,6 +2,7 @@ pub mod api;
 pub mod bridge;
 pub mod cache;
 pub mod config;
+pub mod dispatch;
 pub mod indmoney;
 pub mod journal;
 pub mod opencode;

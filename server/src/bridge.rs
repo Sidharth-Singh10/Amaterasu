@@ -6,6 +6,7 @@ use tokio::sync::{RwLock, broadcast};
 
 use crate::{
     config::Config,
+    journal::{self, AckInput, BatchItem, JournalStore},
     opencode::{OpenCodeClient, OpenCodeError},
 };
 
@@ -26,19 +27,21 @@ pub struct Bridge {
     events: broadcast::Sender<Value>,
     contexts: RwLock<HashMap<String, Value>>,
     active_chart: RwLock<Option<String>>,
+    journal: Arc<JournalStore>,
     agent: String,
     model: Option<String>,
     directory: String,
 }
 
 impl Bridge {
-    pub fn new(config: &Config) -> Arc<Self> {
+    pub fn new(config: &Config, journal: Arc<JournalStore>) -> Arc<Self> {
         let (events, _) = broadcast::channel(512);
         Arc::new(Self {
             client: OpenCodeClient::from_config(config),
             events,
             contexts: RwLock::new(HashMap::new()),
             active_chart: RwLock::new(None),
+            journal,
             agent: config.opencode_agent.clone(),
             model: config.opencode_model.clone(),
             directory: config.opencode_directory.clone(),
@@ -51,6 +54,11 @@ impl Bridge {
 
     pub fn subscribe(&self) -> broadcast::Receiver<Value> {
         self.events.subscribe()
+    }
+
+    /// Sends a server-originated event (journal dispatch, undo) to every browser tab.
+    pub fn broadcast(&self, event: Value) {
+        let _ = self.events.send(event);
     }
 
     /// One upstream subscription, reconnecting forever; forwards only the interesting events.
@@ -83,13 +91,68 @@ impl Bridge {
         });
     }
 
-    fn forward(&self, event: Value) {
+    fn forward(&self, mut event: Value) {
         let event_type = event
             .get("type")
             .and_then(|t| t.as_str())
             .unwrap_or_default();
-        if is_interesting(event_type) {
+        if !is_interesting(event_type) {
+            return;
+        }
+        let dispatch = if event_type == "rpc.chart.op.request" {
+            self.journal_chart_op(&mut event)
+        } else {
+            true
+        };
+        if dispatch {
             let _ = self.events.send(event);
+        }
+    }
+
+    /// Journals an agent chart op before it reaches the browser and annotates the event with its
+    /// doc/op/turn ids. Returns false when this is a retry that must not be dispatched twice.
+    fn journal_chart_op(&self, event: &mut Value) -> bool {
+        let Some(envelope) = event
+            .get("data")
+            .and_then(|data| journal::chart_op_envelope(data, &self.agent))
+        else {
+            return true;
+        };
+        let Some(doc_id) = envelope
+            .get("doc_id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+        else {
+            return true;
+        };
+        match self.journal.begin_single(&doc_id, envelope) {
+            Ok(BatchItem::Pending(op)) if op.fresh => {
+                if let Some(data) = event.get_mut("data").and_then(Value::as_object_mut) {
+                    data.insert("docId".into(), json!(doc_id));
+                    data.insert("opId".into(), json!(op.op_id));
+                    data.insert("turnId".into(), json!(op.turn_id));
+                    data.insert("seq".into(), json!(op.seq));
+                }
+                true
+            }
+            Ok(BatchItem::Pending(_)) => {
+                tracing::debug!(
+                    doc_id,
+                    "chart op is already in flight; skipping duplicate dispatch"
+                );
+                false
+            }
+            Ok(BatchItem::Replay(_)) => {
+                tracing::debug!(
+                    doc_id,
+                    "chart op was already applied; skipping duplicate dispatch"
+                );
+                false
+            }
+            Err(error) => {
+                tracing::warn!(%error, doc_id, "chart op journaling failed; dispatching unjournaled");
+                true
+            }
         }
     }
 
@@ -158,7 +221,23 @@ impl Bridge {
         self.rpc("syncContext", payload).await
     }
 
-    pub async fn chart_op_ack(&self, request_id: &str, result: Value) -> Result<Value> {
+    pub async fn chart_op_ack(&self, request_id: &str, mut result: Value) -> Result<Value> {
+        match self
+            .journal
+            .complete_by_request(request_id, ack_from_result(&result))
+        {
+            Ok(Some(ack)) => {
+                if let (Some(object), Some(revision)) =
+                    (result.as_object_mut(), ack.get("revision"))
+                {
+                    object.insert("revision".into(), revision.clone());
+                }
+            }
+            Ok(None) => {}
+            Err(error) => {
+                tracing::warn!(%error, request_id, "journaling chart ack failed; forwarding anyway");
+            }
+        }
         self.rpc(
             "opAck",
             json!({ "requestId": request_id, "result": result }),
@@ -177,6 +256,60 @@ impl Bridge {
     async fn rpc(&self, method: &str, input: Value) -> Result<Value> {
         let client = self.client.as_ref().ok_or(BridgeError::NotConfigured)?;
         Ok(client.rpc("chart", method, input).await?)
+    }
+}
+
+/// Maps the chart adapter's existing `OpResult` onto the journal's typed ack.
+fn ack_from_result(result: &Value) -> AckInput {
+    let inverse = result.get("inverse").cloned();
+    let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    if ok {
+        return AckInput {
+            status: "applied".into(),
+            result: Some(result.clone()),
+            inverse,
+            ..AckInput::default()
+        };
+    }
+
+    let unresolved = result
+        .get("unresolved")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let warnings: Vec<String> = result
+        .get("warnings")
+        .and_then(Value::as_array)
+        .map(|warnings| {
+            warnings
+                .iter()
+                .filter_map(|warning| warning.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let code = if unresolved > 0 {
+        "anchor_out_of_range"
+    } else {
+        "invalid_op"
+    };
+    let message = if warnings.is_empty() {
+        result
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("the chart adapter rejected the op")
+            .to_string()
+    } else {
+        warnings.join("; ")
+    };
+    AckInput {
+        status: "rejected".into(),
+        result: Some(result.clone()),
+        inverse,
+        rejected_by: Some("adapter".into()),
+        code: Some(code.into()),
+        message: Some(message),
+        retryable: Some(false),
+        suggestion: None,
     }
 }
 
@@ -221,6 +354,30 @@ mod tests {
         assert!(!is_interesting("session.usage.updated"));
         assert!(!is_interesting("server.connected"));
         assert!(!is_interesting("session.instructions.updated"));
+    }
+
+    #[test]
+    fn adapter_results_map_to_typed_acks() {
+        let applied = ack_from_result(&json!({
+            "ok": true,
+            "inverse": [{ "type": "chart.shape.delete" }],
+        }));
+        assert_eq!(applied.status, "applied");
+        assert!(applied.inverse.is_some());
+
+        let rejected = ack_from_result(&json!({
+            "ok": false,
+            "unresolved": [{ "index": 0 }],
+            "warnings": ["point is outside the loaded window"],
+            "inverse": [],
+        }));
+        assert_eq!(rejected.status, "rejected");
+        assert_eq!(rejected.code.as_deref(), Some("anchor_out_of_range"));
+        assert_eq!(
+            rejected.message.as_deref(),
+            Some("point is outside the loaded window")
+        );
+        assert_eq!(rejected.retryable, Some(false));
     }
 
     #[test]
