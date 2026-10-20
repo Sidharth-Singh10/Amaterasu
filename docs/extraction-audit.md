@@ -82,7 +82,9 @@ The plan in `COMMON_GROUND.md` says Phase 1 ports the reducer. Reordered:
    acks. The existing bridge journals at dispatch and finalizes on the browser ack.
 3. **Phase 1b (done):** extract `DocStore` and inverse computation into `packages/canvas-chart` (the
    adapter, not `canvas-core`), with the reducer and inverse tests moved and passing.
-4. **Phase 1c:** capability minting and approval gate; history drawer reading the log.
+4. **Phase 1c (done):** local capability registry with typed denials, one-shot approvals for
+   destructive agent ops, and a Journal drawer that reads the log, verifies the audit chain, and
+   drives undo/approve.
 5. **Phase 2:** `canvas-mcp` tool registration generated from schemas; second adapter (Weave).
 
 The reorder matters because the journal forces the spec to be real. Extracting first would preserve

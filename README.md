@@ -64,11 +64,12 @@ the client adapter owns projection and anchor resolution.
 - [`spec/conformance/`](spec/conformance/) — six language-agnostic fixtures
 - [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moves, stays, and dies
 
-Phase 1a is wired: the Rust service journals every agent chart op before dispatch, records the
-browser's inverse ops, and exposes document metadata, op history, audit, and forward-only undo
-endpoints. The browser still owns projection and anchor resolution. Capability verification and
-approval are the next slice, so the journal currently records the local capability without
-enforcing it.
+Phase 1a–1c are wired: the Rust service journals every agent chart op before dispatch, verifies
+a local capability at intake, records the browser's inverse ops, and exposes document metadata,
+op history, audit, and forward-only undo endpoints. Destructive agent ops require a one-shot
+human approval, surfaced in the Journal tab. The browser still owns projection and anchor
+resolution; signed capability tokens and pre-application submit for non-bridge adapters remain
+open.
 
 | Endpoint | Purpose |
 |---|---|
@@ -78,6 +79,7 @@ enforcing it.
 | `POST /api/docs/{doc_id}/ops` | Journal a batch, dispatch to the browser, wait for acks |
 | `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |
 | `POST /api/docs/{doc_id}/turns/{turn_id}/undo` | Replay a turn's inverses as a new turn |
+| `POST /api/docs/{doc_id}/approvals/{approval_id}` | Apply a rejected destructive op once, with human approval |
 
 ## Repository layout
 

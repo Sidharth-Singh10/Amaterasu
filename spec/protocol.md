@@ -526,6 +526,9 @@ Recorded deliberately so the design of record and the implementation do not drif
    mechanical.
 5. **Anchor resolution is explicitly client-side.** §8.3 rule 1 says agent ops are data-space, which
    implies this, but the protocol now states that the server MUST NOT reject on anchor grounds.
+6. **Approval can be applied by the UI.** §8.4 has the agent retry with the approval id. v0 adds
+   `POST /api/docs/{id}/approvals/{id}` so the human can replay the stored rejected envelope without
+   another model turn. The agent still receives the suggestion and may retry itself.
 
 ---
 
@@ -542,27 +545,36 @@ Recorded deliberately so the design of record and the implementation do not drif
 
 ---
 
-## 17. Implementation status (Phase 1a)
+## 17. Implementation status (Phase 1a–1c)
 
-The reference server (`server/src/journal.rs`) implements §4–§7 and §9 for the chart bridge:
+The reference server (`server/src/journal.rs`, `server/src/capability.rs`) implements §4–§9 for the
+chart bridge:
 
 - SQLite tables for document metadata, ops, turns, and audit entries.
 - Server-assigned `op_id` and `seq`, per-document revision, applied-key idempotency, and
   rejected-attempt audit entries that do not cache the key.
 - `blake3` audit chain with genesis, verification, and first-break reporting.
 - Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage.
+- A local capability registry with typed denials for unknown, expired, mis-bound, out-of-scope,
+  and read-only capabilities. Every attempt is journaled, including denials.
+- One-shot human approvals for destructive agent ops. A rejected attempt carries
+  `approval_required` and `suggestion.approval_id`; `POST /api/docs/{id}/approvals/{id}` re-submits
+  the stored envelope with `approved_by` and the approval id, and the registry consumes it.
 - `POST /api/docs/{doc_id}/ops` journals, dispatches `doc.op.request`, and waits for
   `POST /api/docs/{doc_id}/acks`; unacknowledged ops expire as retryable `internal` rejections.
 - The existing OpenCode chart bridge journals at dispatch time and finalizes on the browser's
   `op-ack`, so agent ops are in the log before they are projected.
+- A Journal tab groups server ops by turn, shows typed rejections and audit verification, and
+  drives undo and approval.
 
 Not yet enforced or implemented:
 
-- Capability verification and human approval (§8). `cap_local` is recorded but not checked.
+- Signed capability tokens (`cg1.…`) and a hosted issuer. v0 uses an in-memory local registry;
+  `cap_local`, `cap_human`, and `cap_undo` are seeded at startup.
 - `expected_revision` optimistic concurrency; the server records the field but does not reject on it.
-- Pre-application gating for adapters that do not use the bridge; the HTTP submit path exists and is
-  tested, but the chart plugin still uses the bridge RPC path.
-- Replay-on-reload and the history/undo UI. Browser snapshot undo remains the local UX.
+- Pre-application submit for the chart plugin; it still uses the bridge RPC path. The HTTP submit
+  path exists and is tested, and non-bridge adapters can use it.
+- Replay-on-reload. Browser snapshot undo remains the local UX.
 - Server-side conformance runs. The six fixtures target the abstract `ConformanceTarget`; an HTTP
   adapter is the next step.
 

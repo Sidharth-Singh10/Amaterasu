@@ -368,9 +368,10 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
 - **Op log (Phase 1a)**: the server journal now persists every agent chart op before dispatch, assigns op ids
   and revisions, caches applied idempotency keys, records the browser's inverse ops, and appends a blake3
   hash-chained audit entry on ack. `POST /api/docs/{id}/turns/{turn}/undo` replays those inverses as a new,
-  audited turn. Browser snapshot undo remains the local UX; replay-on-reload and the history panel are still
-  open. Capability verification/approval and pre-application submit for non-bridge adapters are Phase 1b/1c.
-  See `spec/protocol.md` §6–§10 and §17.
+  audited turn. Capability claims are verified at intake; destructive agent ops (delete, clear,
+  remove-series) are journaled as rejected attempts and require a one-shot human approval from the
+  Journal tab. Browser snapshot undo remains the local UX; replay-on-reload and pre-application submit
+  for non-bridge adapters are still open. See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 
