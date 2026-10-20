@@ -64,8 +64,20 @@ the client adapter owns projection and anchor resolution.
 - [`spec/conformance/`](spec/conformance/) — six language-agnostic fixtures
 - [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moves, stays, and dies
 
-The protocol is draft and not yet wired into the running app; the chart bridge still uses the
-client-only op path. Phase 1 adds the server journal and capability gate.
+Phase 1a is wired: the Rust service journals every agent chart op before dispatch, records the
+browser's inverse ops, and exposes document metadata, op history, audit, and forward-only undo
+endpoints. The browser still owns projection and anchor resolution. Capability verification and
+approval are the next slice, so the journal currently records the local capability without
+enforcing it.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/docs/{doc_id}` | Revision, pending count, and audit verification |
+| `GET /api/docs/{doc_id}/ops` | Recent journaled ops with envelopes and acks |
+| `GET /api/docs/{doc_id}/audit` | Append-only audit entries + chain verification |
+| `POST /api/docs/{doc_id}/ops` | Journal a batch, dispatch to the browser, wait for acks |
+| `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |
+| `POST /api/docs/{doc_id}/turns/{turn_id}/undo` | Replay a turn's inverses as a new turn |
 
 ## Repository layout
 
@@ -153,6 +165,7 @@ Key variables:
 | `AMATERASU_BIND` | Listen address (default `127.0.0.1:8787`) |
 | `AMATERASU_STATIC_DIR` | Built SPA directory to serve |
 | `AMATERASU_DATA_DIR` | Token store and app data |
+| `AMATERASU_JOURNAL_DB` | Op journal SQLite file (default `$AMATERASU_DATA_DIR/journal.db`) |
 | `OPENCODE_BASE_URL` / `OPENCODE_PASSWORD` | OpenCode server address and shared secret |
 | `OPENCODE_AGENT` / `OPENCODE_MODEL` | Agent name and pinned model |
 | `OPENCODE_DIRECTORY` | The `opencode/` project directory |

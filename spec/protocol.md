@@ -539,3 +539,34 @@ Recorded deliberately so the design of record and the implementation do not drif
    because the shape is cheap and hosted mode needs it.
 4. What is the exact boundary of "adapter-supplied inverse" for compound ops (e.g. a channel whose
    third point is derived)? v0 treats the whole object as one unit.
+
+---
+
+## 17. Implementation status (Phase 1a)
+
+The reference server (`server/src/journal.rs`) implements §4–§7 and §9 for the chart bridge:
+
+- SQLite tables for document metadata, ops, turns, and audit entries.
+- Server-assigned `op_id` and `seq`, per-document revision, applied-key idempotency, and
+  rejected-attempt audit entries that do not cache the key.
+- `blake3` audit chain with genesis, verification, and first-break reporting.
+- Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage.
+- `POST /api/docs/{doc_id}/ops` journals, dispatches `doc.op.request`, and waits for
+  `POST /api/docs/{doc_id}/acks`; unacknowledged ops expire as retryable `internal` rejections.
+- The existing OpenCode chart bridge journals at dispatch time and finalizes on the browser's
+  `op-ack`, so agent ops are in the log before they are projected.
+
+Not yet enforced or implemented:
+
+- Capability verification and human approval (§8). `cap_local` is recorded but not checked.
+- `expected_revision` optimistic concurrency; the server records the field but does not reject on it.
+- Pre-application gating for adapters that do not use the bridge; the HTTP submit path exists and is
+  tested, but the chart plugin still uses the bridge RPC path.
+- Replay-on-reload and the history/undo UI. Browser snapshot undo remains the local UX.
+- Server-side conformance runs. The six fixtures target the abstract `ConformanceTarget`; an HTTP
+  adapter is the next step.
+
+Known inverse limitations in the chart adapter: re-creating a deleted shape allocates a new id
+(the chart DSL's `draw` has no explicit id), and `update` merges style keys, so an inverse cannot
+remove a key that the original update introduced. Both are scheduled for the chart DSL, not the
+protocol.
