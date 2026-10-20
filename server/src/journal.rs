@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
 
-use crate::capability::CapabilityRegistry;
+use crate::capability::{CapabilityRegistry, Rejection};
 
 /// Maximum encoded envelope size accepted by the journal.
 pub const MAX_ENVELOPE_BYTES: usize = 1_048_576;
@@ -705,7 +705,26 @@ fn begin_one_tx(
         params![doc_id, turn_id, actor, now_ms()],
     )?;
 
-    if let Some(rejection) = capabilities.verify(envelope, chrono::Utc::now(), Some(&op_id)) {
+    let rejection = capabilities
+        .verify(envelope, chrono::Utc::now(), Some(&op_id))
+        .or_else(|| {
+            let expected = envelope.get("expected_revision").and_then(Value::as_i64)?;
+            let current: i64 = transaction
+                .query_row(
+                    "SELECT revision FROM doc_meta WHERE doc_id = ?1",
+                    params![doc_id],
+                    |row| row.get(0),
+                )
+                .ok()?;
+            (expected != current).then(|| Rejection {
+                code: "revision_conflict",
+                message: format!("expected revision {expected}, current revision {current}"),
+                retryable: true,
+                rejected_by: "server",
+                suggestion: None,
+            })
+        });
+    if let Some(rejection) = rejection {
         let ack = finalize_tx(
             transaction,
             doc_id,
@@ -1556,6 +1575,35 @@ mod tests {
             }
             other => panic!("expected an expiry rejection, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn stale_expected_revisions_are_retryable_rejections() {
+        let store = temp_store("revision");
+        let first = pending(
+            store
+                .begin_single("doc_test", envelope(1, "k1", json!({})))
+                .unwrap(),
+        );
+        applied(&store, &first, json!([]));
+
+        let mut stale = envelope(2, "k2", json!({}));
+        stale["expected_revision"] = json!(0);
+        match store.begin_single("doc_test", stale).unwrap() {
+            BatchItem::Rejected(ack) => {
+                assert_eq!(ack["code"], "revision_conflict");
+                assert_eq!(ack["retryable"], true);
+                assert_eq!(ack["revision"], 1);
+            }
+            other => panic!("expected a revision conflict, got {other:?}"),
+        }
+
+        let mut retry = envelope(3, "k3", json!({}));
+        retry["expected_revision"] = json!(1);
+        let op = pending(store.begin_single("doc_test", retry).unwrap());
+        let ack = applied(&store, &op, json!([]));
+        assert_eq!(ack["revision"], 2);
+        assert_eq!(store.audit("doc_test").unwrap().len(), 3);
     }
 
     #[test]

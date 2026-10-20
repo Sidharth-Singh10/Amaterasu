@@ -560,6 +560,8 @@ chart bridge:
 - One-shot human approvals for destructive agent ops. A rejected attempt carries
   `approval_required` and `suggestion.approval_id`; `POST /api/docs/{id}/approvals/{id}` re-submits
   the stored envelope with `approved_by` and the approval id, and the registry consumes it.
+- `expected_revision` optimistic concurrency. A stale value is journaled as a retryable
+  `revision_conflict` and does not bump the revision.
 - `POST /api/docs/{doc_id}/ops` journals, dispatches `doc.op.request`, and waits for
   `POST /api/docs/{doc_id}/acks`; unacknowledged ops expire as retryable `internal` rejections.
 - The existing OpenCode chart bridge journals at dispatch time and finalizes on the browser's
@@ -571,7 +573,6 @@ Not yet enforced or implemented:
 
 - Signed capability tokens (`cg1.…`) and a hosted issuer. v0 uses an in-memory local registry;
   `cap_local`, `cap_human`, and `cap_undo` are seeded at startup.
-- `expected_revision` optimistic concurrency; the server records the field but does not reject on it.
 - Pre-application submit for the chart plugin; it still uses the bridge RPC path. The HTTP submit
   path exists and is tested, and non-bridge adapters can use it.
 - Replay-on-reload. Browser snapshot undo remains the local UX.
