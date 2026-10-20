@@ -58,15 +58,25 @@ impl OpenCodeClient {
         serde_json::from_str(&body).map_err(|error| OpenCodeError::Shape(error.to_string()))
     }
 
-    pub async fn create_session(&self, agent: &str, model: Option<&str>, directory: &str) -> Result<String> {
+    pub async fn create_session(
+        &self,
+        agent: &str,
+        model: Option<&str>,
+        directory: &str,
+    ) -> Result<String> {
         let mut body = json!({ "agent": agent, "location": { "directory": directory } });
-        if let Some(model) = model {
-            if let Some((provider_id, id)) = model.split_once('/') {
-                body["model"] = json!({ "providerID": provider_id, "id": id });
-            }
+        if let Some(model) = model
+            && let Some((provider_id, id)) = model.split_once('/')
+        {
+            body["model"] = json!({ "providerID": provider_id, "id": id });
         }
         let value = self
-            .ok_json(self.request(reqwest::Method::POST, "/api/session").json(&body).send().await?)
+            .ok_json(
+                self.request(reqwest::Method::POST, "/api/session")
+                    .json(&body)
+                    .send()
+                    .await?,
+            )
             .await?;
         value
             .get("id")
@@ -79,10 +89,13 @@ impl OpenCodeClient {
     pub async fn prompt(&self, session_id: &str, text: &str) -> Result<()> {
         let body = json!({ "text": text });
         self.ok_json(
-            self.request(reqwest::Method::POST, &format!("/api/session/{session_id}/prompt"))
-                .json(&body)
-                .send()
-                .await?,
+            self.request(
+                reqwest::Method::POST,
+                &format!("/api/session/{session_id}/prompt"),
+            )
+            .json(&body)
+            .send()
+            .await?,
         )
         .await?;
         Ok(())
@@ -90,10 +103,13 @@ impl OpenCodeClient {
 
     pub async fn interrupt(&self, session_id: &str) -> Result<()> {
         self.ok_json(
-            self.request(reqwest::Method::POST, &format!("/api/session/{session_id}/interrupt"))
-                .json(&json!({}))
-                .send()
-                .await?,
+            self.request(
+                reqwest::Method::POST,
+                &format!("/api/session/{session_id}/interrupt"),
+            )
+            .json(&json!({}))
+            .send()
+            .await?,
         )
         .await?;
         Ok(())
@@ -103,9 +119,12 @@ impl OpenCodeClient {
     pub async fn messages(&self, session_id: &str) -> Result<Vec<Value>> {
         let value = self
             .ok_json(
-                self.request(reqwest::Method::GET, &format!("/api/session/{session_id}/context"))
-                    .send()
-                    .await?,
+                self.request(
+                    reqwest::Method::GET,
+                    &format!("/api/session/{session_id}/context"),
+                )
+                .send()
+                .await?,
             )
             .await?;
         Ok(value
@@ -119,10 +138,13 @@ impl OpenCodeClient {
     pub async fn rpc(&self, rpc_id: &str, method: &str, input: Value) -> Result<Value> {
         let value = self
             .ok_json(
-                self.request(reqwest::Method::POST, &format!("/api/rpc/{rpc_id}/{method}"))
-                    .json(&json!({ "input": input }))
-                    .send()
-                    .await?,
+                self.request(
+                    reqwest::Method::POST,
+                    &format!("/api/rpc/{rpc_id}/{method}"),
+                )
+                .json(&json!({ "input": input }))
+                .send()
+                .await?,
             )
             .await?;
         Ok(value.get("output").cloned().unwrap_or(Value::Null))
@@ -179,8 +201,7 @@ impl SseBuffer {
     pub fn push(&mut self, chunk: &[u8]) -> Vec<String> {
         self.buffer.push_str(&String::from_utf8_lossy(chunk));
         let mut payloads = Vec::new();
-        loop {
-            let Some(index) = self.buffer.find('\n') else { break };
+        while let Some(index) = self.buffer.find('\n') {
             let line = self.buffer[..index].trim_end_matches('\r').to_string();
             self.buffer.drain(..=index);
             if let Some(payload) = line.strip_prefix("data:") {
@@ -203,7 +224,10 @@ mod tests {
         let mut buffer = SseBuffer::default();
         assert!(buffer.push(b"data: {\"a\":").is_empty());
         let payloads = buffer.push(b"1}\n\ndata: {\"b\":2}\n");
-        assert_eq!(payloads, vec!["{\"a\":1}".to_string(), "{\"b\":2}".to_string()]);
+        assert_eq!(
+            payloads,
+            vec!["{\"a\":1}".to_string(), "{\"b\":2}".to_string()]
+        );
         assert!(buffer.push(b"data: [DONE]\n").len() == 1);
     }
 

@@ -129,7 +129,9 @@ mod tests {
     use super::*;
 
     fn epoch(rfc3339: &str) -> i64 {
-        chrono::DateTime::parse_from_rfc3339(rfc3339).unwrap().timestamp()
+        chrono::DateTime::parse_from_rfc3339(rfc3339)
+            .unwrap()
+            .timestamp()
     }
 
     #[test]
@@ -172,7 +174,10 @@ mod tests {
         let candles = normalize_candles(&payload).unwrap();
         assert_eq!(candles.len(), 3);
         assert_eq!(candles[0].time, epoch("2025-09-17T00:00:00Z"));
-        assert_eq!(candles[1].close, 1416.0, "duplicate timestamp keeps the last value");
+        assert_eq!(
+            candles[1].close, 1416.0,
+            "duplicate timestamp keeps the last value"
+        );
         assert!(candles.windows(2).all(|pair| pair[0].time < pair[1].time));
     }
 

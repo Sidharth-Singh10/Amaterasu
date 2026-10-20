@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    sync::Mutex,
-};
+use std::{path::Path, sync::Mutex};
 
 use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
@@ -82,9 +79,9 @@ impl WorkspaceStore {
 fn validate_key(key: &str) -> Result<(), WorkspaceError> {
     let valid = !key.is_empty()
         && key.len() <= 64
-        && key
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_');
+        && key.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        });
     if valid {
         Ok(())
     } else {
@@ -110,7 +107,10 @@ mod tests {
             .put("INDS01052", r#"{"v":1,"annotations":[],"series":[]}"#)
             .unwrap();
         let second = store
-            .put("INDS01052", r#"{"v":1,"annotations":[{"id":"a1"}],"series":[]}"#)
+            .put(
+                "INDS01052",
+                r#"{"v":1,"annotations":[{"id":"a1"}],"series":[]}"#,
+            )
             .unwrap();
         assert!(second >= first);
         let (payload, updated_at) = store.get("INDS01052").unwrap().unwrap();
@@ -121,7 +121,10 @@ mod tests {
     #[test]
     fn rejects_bad_keys_and_payloads() {
         let store = temp_store("reject");
-        assert!(matches!(store.get("bad key"), Err(WorkspaceError::InvalidKey(_))));
+        assert!(matches!(
+            store.get("bad key"),
+            Err(WorkspaceError::InvalidKey(_))
+        ));
         assert!(matches!(store.get(""), Err(WorkspaceError::InvalidKey(_))));
         assert!(matches!(
             store.put("ok", "[1,2,3]"),

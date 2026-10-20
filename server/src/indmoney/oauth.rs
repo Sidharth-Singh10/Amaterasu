@@ -93,7 +93,10 @@ pub fn pkce() -> Pkce {
     rand::rng().fill_bytes(&mut bytes);
     let verifier = URL_SAFE_NO_PAD.encode(bytes);
     let challenge = challenge_for(&verifier);
-    Pkce { verifier, challenge }
+    Pkce {
+        verifier,
+        challenge,
+    }
 }
 
 pub fn challenge_for(verifier: &str) -> String {
@@ -112,7 +115,10 @@ pub fn metadata_candidates(mcp_url: &str) -> Result<Vec<String>, OAuthError> {
     let origin = format!("{}://{}", url.scheme(), url.authority());
     let mut candidates = Vec::new();
     if url.path() != "/" {
-        candidates.push(format!("{origin}/.well-known/oauth-protected-resource{}", url.path()));
+        candidates.push(format!(
+            "{origin}/.well-known/oauth-protected-resource{}",
+            url.path()
+        ));
     }
     candidates.push(format!("{origin}/.well-known/oauth-protected-resource"));
     Ok(candidates)
@@ -227,7 +233,13 @@ pub async fn exchange_code(
     code: &str,
     verifier: &str,
 ) -> Result<TokenSet, OAuthError> {
-    token_request(http, metadata, client, authorization_code_form(client, code, verifier)).await
+    token_request(
+        http,
+        metadata,
+        client,
+        authorization_code_form(client, code, verifier),
+    )
+    .await
 }
 
 /// RFC 6749 §4.1.3: `redirect_uri` is required at token time when it was used at
@@ -274,7 +286,11 @@ async fn token_request(
     if let Some(secret) = &client.client_secret {
         form.push(("client_secret".into(), secret.clone()));
     }
-    let response = http.post(&metadata.token_endpoint).form(&form).send().await?;
+    let response = http
+        .post(&metadata.token_endpoint)
+        .form(&form)
+        .send()
+        .await?;
     let status = response.status();
     if !status.is_success() {
         return Err(OAuthError::Response {
@@ -300,7 +316,10 @@ mod tests {
     fn pkce_matches_rfc7636_appendix_b() {
         // https://datatracker.ietf.org/doc/html/rfc7636#appendix-B
         let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-        assert_eq!(challenge_for(verifier), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+        assert_eq!(
+            challenge_for(verifier),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
     }
 
     #[test]
@@ -308,7 +327,11 @@ mod tests {
         let pkce = pkce();
         assert_eq!(pkce.verifier.len(), 43);
         assert_eq!(pkce.challenge, challenge_for(&pkce.verifier));
-        assert!(!pkce.verifier.contains('=') && !pkce.verifier.contains('+') && !pkce.verifier.contains('/'));
+        assert!(
+            !pkce.verifier.contains('=')
+                && !pkce.verifier.contains('+')
+                && !pkce.verifier.contains('/')
+        );
     }
 
     #[test]
@@ -337,11 +360,7 @@ mod tests {
             redirect_uri: "http://127.0.0.1:8787/api/indmoney/oauth/callback".into(),
         };
         let form = authorization_code_form(&client, "CODE", "VERIFIER");
-        let lookup = |key: &str| {
-            form.iter()
-                .find(|(k, _)| k == key)
-                .map(|(_, v)| v.clone())
-        };
+        let lookup = |key: &str| form.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone());
         assert_eq!(lookup("grant_type").unwrap(), "authorization_code");
         assert_eq!(lookup("code").unwrap(), "CODE");
         assert_eq!(lookup("code_verifier").unwrap(), "VERIFIER");
@@ -363,11 +382,20 @@ mod tests {
             client_secret: None,
             redirect_uri: "http://127.0.0.1:8787/api/indmoney/oauth/callback".into(),
         };
-        let url = authorize_url(&metadata, &client, "https://mcp.indmoney.com/mcp", "market:read", "CH", "ST");
+        let url = authorize_url(
+            &metadata,
+            &client,
+            "https://mcp.indmoney.com/mcp",
+            "market:read",
+            "CH",
+            "ST",
+        );
         assert!(url.starts_with("https://mcp.indmoney.com/authorize?"));
         assert!(url.contains("client_id=client-1"));
         assert!(url.contains("code_challenge_method=S256"));
         assert!(url.contains("resource=https%3A%2F%2Fmcp.indmoney.com%2Fmcp"));
-        assert!(url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A8787%2Fapi%2Findmoney%2Foauth%2Fcallback"));
+        assert!(url.contains(
+            "redirect_uri=http%3A%2F%2F127.0.0.1%3A8787%2Fapi%2Findmoney%2Foauth%2Fcallback"
+        ));
     }
 }

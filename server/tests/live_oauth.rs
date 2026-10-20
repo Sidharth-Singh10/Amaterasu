@@ -22,7 +22,10 @@ async fn discovery_and_dynamic_registration_work() {
         "unexpected token endpoint: {}",
         metadata.token_endpoint
     );
-    assert!(metadata.registration_endpoint.is_some(), "DCR is required for this client");
+    assert!(
+        metadata.registration_endpoint.is_some(),
+        "DCR is required for this client"
+    );
 
     let client = oauth::register_client(
         &http,
@@ -35,5 +38,8 @@ async fn discovery_and_dynamic_registration_work() {
     .expect("dynamic client registration");
 
     assert!(!client.client_id.is_empty());
-    assert!(client.client_secret.is_some(), "server advertises client_secret_post");
+    assert!(
+        client.client_secret.is_some(),
+        "server advertises client_secret_post"
+    );
 }

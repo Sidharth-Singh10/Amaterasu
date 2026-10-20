@@ -84,7 +84,10 @@ impl Bridge {
     }
 
     fn forward(&self, event: Value) {
-        let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or_default();
+        let event_type = event
+            .get("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or_default();
         if is_interesting(event_type) {
             let _ = self.events.send(event);
         }
@@ -146,18 +149,29 @@ impl Bridge {
     /// Forwards the browser's chart context to the plugin and caches it for prompt preambles.
     pub async fn chart_sync(&self, payload: Value) -> Result<Value> {
         if let Some(chart_id) = payload.get("chartId").and_then(|v| v.as_str()) {
-            self.contexts.write().await.insert(chart_id.to_string(), payload.clone());
+            self.contexts
+                .write()
+                .await
+                .insert(chart_id.to_string(), payload.clone());
             *self.active_chart.write().await = Some(chart_id.to_string());
         }
         self.rpc("syncContext", payload).await
     }
 
     pub async fn chart_op_ack(&self, request_id: &str, result: Value) -> Result<Value> {
-        self.rpc("opAck", json!({ "requestId": request_id, "result": result })).await
+        self.rpc(
+            "opAck",
+            json!({ "requestId": request_id, "result": result }),
+        )
+        .await
     }
 
     pub async fn chart_state_ack(&self, request_id: &str, result: Value) -> Result<Value> {
-        self.rpc("stateAck", json!({ "requestId": request_id, "result": result })).await
+        self.rpc(
+            "stateAck",
+            json!({ "requestId": request_id, "result": result }),
+        )
+        .await
     }
 
     async fn rpc(&self, method: &str, input: Value) -> Result<Value> {
@@ -179,7 +193,10 @@ pub fn is_interesting(event_type: &str) -> bool {
 
 pub fn build_preamble(context: &Value) -> Option<String> {
     let symbol = context.get("symbol").and_then(|v| v.as_str())?;
-    let interval = context.get("interval").and_then(|v| v.as_str()).unwrap_or("?");
+    let interval = context
+        .get("interval")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?");
     let range = match (
         context.get("from").and_then(|v| v.as_i64()),
         context.get("to").and_then(|v| v.as_i64()),

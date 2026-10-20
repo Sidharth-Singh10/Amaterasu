@@ -161,7 +161,8 @@ impl IndmoneyClient {
                 .clone()
                 .ok_or_else(|| IndmoneyError::State("no registered client".into()))?
         };
-        let tokens = oauth::exchange_code(&self.http, &metadata, &client, code, &pending.verifier).await?;
+        let tokens =
+            oauth::exchange_code(&self.http, &metadata, &client, code, &pending.verifier).await?;
         let mut stored = self.auth.read().await.clone();
         stored.tokens = Some(tokens);
         self.store
@@ -234,7 +235,11 @@ impl IndmoneyClient {
     }
 
     /// Calls a tool and parses its text content as JSON.
-    pub async fn call_tool_json(&self, name: &str, arguments: Value) -> Result<Value, IndmoneyError> {
+    pub async fn call_tool_json(
+        &self,
+        name: &str,
+        arguments: Value,
+    ) -> Result<Value, IndmoneyError> {
         let result = self.call_tool(name, arguments).await?;
         let text = mcp::tool_result_text(&result)?;
         serde_json::from_str(text).map_err(|error| {

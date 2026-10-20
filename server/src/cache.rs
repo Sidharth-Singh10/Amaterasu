@@ -68,6 +68,10 @@ impl Cache {
     pub async fn len(&self) -> usize {
         self.entries.read().await.len()
     }
+
+    pub async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
 }
 
 #[cfg(test)]

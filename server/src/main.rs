@@ -1,22 +1,19 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Context;
 use amaterasu_server::{
-    api::AppState,
-    bridge::Bridge,
-    build_router,
-    cache::Cache,
-    config::Config,
-    indmoney::IndmoneyClient,
-    workspace::WorkspaceStore,
+    api::AppState, bridge::Bridge, build_router, cache::Cache, config::Config,
+    indmoney::IndmoneyClient, workspace::WorkspaceStore,
 };
+use anyhow::Context;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     let config = Config::from_env();
@@ -43,7 +40,11 @@ async fn main() -> anyhow::Result<()> {
     let mut app = build_router(state);
     if let Some(dir) = &config.static_dir {
         let index = dir.join("index.html");
-        anyhow::ensure!(index.is_file(), "static index not found: {}", index.display());
+        anyhow::ensure!(
+            index.is_file(),
+            "static index not found: {}",
+            index.display()
+        );
         // SPA fallback: unknown paths serve index.html with a 200 (not_found_service would force 404).
         app = app.fallback_service(ServeDir::new(dir).fallback(ServeFile::new(&index)));
         tracing::info!(static_dir = %dir.display(), "serving built frontend");

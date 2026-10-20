@@ -29,8 +29,7 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         let bind = env::var("AMATERASU_BIND").unwrap_or_else(|_| "127.0.0.1:8787".to_string());
-        let base_url =
-            env::var("AMATERASU_BASE_URL").unwrap_or_else(|_| format!("http://{bind}"));
+        let base_url = env::var("AMATERASU_BASE_URL").unwrap_or_else(|_| format!("http://{bind}"));
         let app_url = env::var("AMATERASU_APP_URL").unwrap_or_else(|_| base_url.clone());
         let data_dir = env::var("AMATERASU_DATA_DIR")
             .map(PathBuf::from)
@@ -53,7 +52,9 @@ impl Config {
             opencode_password: env::var("OPENCODE_PASSWORD").ok(),
             opencode_agent: env::var("OPENCODE_AGENT")
                 .unwrap_or_else(|_| "chart-analyst".to_string()),
-            opencode_model: env::var("OPENCODE_MODEL").ok().filter(|value| !value.trim().is_empty()),
+            opencode_model: env::var("OPENCODE_MODEL")
+                .ok()
+                .filter(|value| !value.trim().is_empty()),
             opencode_directory: env::var("OPENCODE_DIRECTORY").unwrap_or_else(|_| {
                 // Walk up from the working directory looking for the agent project
                 // (`<ancestor>/opencode/opencode.jsonc`), the same way config discovery does.

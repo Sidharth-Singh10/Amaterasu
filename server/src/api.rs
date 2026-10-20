@@ -49,7 +49,10 @@ pub fn routes() -> Router<AppState> {
         .route("/api/chart/sync", post(chart_sync))
         .route("/api/chart/op-ack", post(chart_op_ack))
         .route("/api/chart/state-ack", post(chart_state_ack))
-        .route("/api/workspace/{key}", get(workspace_get).put(workspace_put))
+        .route(
+            "/api/workspace/{key}",
+            get(workspace_get).put(workspace_put),
+        )
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
@@ -91,9 +94,15 @@ async fn indmoney_callback(
         ));
     }
     let (Some(code), Some(callback_state)) = (query.code, query.state) else {
-        return Redirect::temporary(&format!("{app_url}/?indmoney=error&message=missing+code+or+state"));
+        return Redirect::temporary(&format!(
+            "{app_url}/?indmoney=error&message=missing+code+or+state"
+        ));
     };
-    match state.indmoney.complete_connect(&code, &callback_state).await {
+    match state
+        .indmoney
+        .complete_connect(&code, &callback_state)
+        .await
+    {
         Ok(()) => Redirect::temporary(&format!("{app_url}/?indmoney=connected")),
         Err(error) => {
             tracing::warn!(%error, "indmoney connect failed");
@@ -134,7 +143,9 @@ async fn search(
                 .await
         })
         .await?;
-    Ok(Json(json!({ "results": normalize::normalize_search(&payload) })))
+    Ok(Json(
+        json!({ "results": normalize::normalize_search(&payload) }),
+    ))
 }
 
 const INTERVALS: [&str; 9] = [
@@ -171,7 +182,10 @@ async fn candles(
             "lookback must be one of {LOOKBACKS:?}"
         )));
     }
-    let cache_key = format!("candles:{}:{}:{}", query.ind_key, query.interval, query.lookback);
+    let cache_key = format!(
+        "candles:{}:{}:{}",
+        query.ind_key, query.interval, query.lookback
+    );
     let ind_key = query.ind_key.clone();
     let interval = query.interval.clone();
     let lookback = query.lookback.clone();
@@ -215,7 +229,10 @@ async fn quote(
         .get_or_fetch(&cache_key, Duration::from_secs(15), || async {
             state
                 .indmoney
-                .call_tool_json("get_indian_stocks_details", json!({ "ind_keys": [ind_key] }))
+                .call_tool_json(
+                    "get_indian_stocks_details",
+                    json!({ "ind_keys": [ind_key] }),
+                )
                 .await
         })
         .await?;
@@ -225,7 +242,9 @@ async fn quote(
 }
 
 /// Unified SSE stream: chat streaming events, step boundaries, and chart-bridge requests.
-async fn stream(State(state): State<AppState>) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
+async fn stream(
+    State(state): State<AppState>,
+) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     let receiver = state.bridge.subscribe();
     let stream = futures_util::stream::unfold(receiver, |mut receiver| async move {
         use tokio::sync::broadcast::error::RecvError;
@@ -334,23 +353,40 @@ async fn chart_op_ack(
     State(state): State<AppState>,
     Json(body): Json<RequestAckBody>,
 ) -> Result<Json<Value>, ApiError> {
-    Ok(Json(state.bridge.chart_op_ack(&body.request_id, body.result).await?))
+    Ok(Json(
+        state
+            .bridge
+            .chart_op_ack(&body.request_id, body.result)
+            .await?,
+    ))
 }
 
 async fn chart_state_ack(
     State(state): State<AppState>,
     Json(body): Json<RequestAckBody>,
 ) -> Result<Json<Value>, ApiError> {
-    Ok(Json(state.bridge.chart_state_ack(&body.request_id, body.result).await?))
+    Ok(Json(
+        state
+            .bridge
+            .chart_state_ack(&body.request_id, body.result)
+            .await?,
+    ))
 }
 
-async fn workspace_get(State(state): State<AppState>, Path(key): Path<String>) -> Result<Json<Value>, ApiError> {
+async fn workspace_get(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> Result<Json<Value>, ApiError> {
     match state.workspaces.get(&key) {
         Ok(Some((payload, updated_at))) => {
             let payload: Value = serde_json::from_str(&payload).unwrap_or(Value::Null);
-            Ok(Json(json!({ "key": key, "payload": payload, "updatedAt": updated_at })))
+            Ok(Json(
+                json!({ "key": key, "payload": payload, "updatedAt": updated_at }),
+            ))
         }
-        Ok(None) => Ok(Json(json!({ "key": key, "payload": null, "updatedAt": null }))),
+        Ok(None) => Ok(Json(
+            json!({ "key": key, "payload": null, "updatedAt": null }),
+        )),
         Err(error) => Err(ApiError::BadRequest(error.to_string())),
     }
 }
@@ -447,7 +483,10 @@ impl IntoResponse for ApiError {
             ApiError::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, "internal", message),
         };
         let mut body = json!({ "error": code, "message": message });
-        if matches!(status, StatusCode::SERVICE_UNAVAILABLE | StatusCode::UNAUTHORIZED) {
+        if matches!(
+            status,
+            StatusCode::SERVICE_UNAVAILABLE | StatusCode::UNAUTHORIZED
+        ) {
             body["connectUrl"] = json!("/api/indmoney/connect");
         }
         (status, Json(body)).into_response()

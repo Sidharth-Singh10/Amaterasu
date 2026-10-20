@@ -50,9 +50,16 @@ impl McpClient {
     }
 
     /// Calls a tool; retries once with a fresh session when the server reports an expired one.
-    pub async fn call_tool(&self, token: &str, name: &str, arguments: Value) -> Result<Value, McpError> {
+    pub async fn call_tool(
+        &self,
+        token: &str,
+        name: &str,
+        arguments: Value,
+    ) -> Result<Value, McpError> {
         match self.try_call_tool(token, name, &arguments).await {
-            Err(McpError::Protocol(message)) if message.contains("HTTP 400") || message.contains("HTTP 404") => {
+            Err(McpError::Protocol(message))
+                if message.contains("HTTP 400") || message.contains("HTTP 404") =>
+            {
                 *self.session.write().await = None;
                 self.try_call_tool(token, name, &arguments).await
             }
@@ -60,7 +67,12 @@ impl McpClient {
         }
     }
 
-    async fn try_call_tool(&self, token: &str, name: &str, arguments: &Value) -> Result<Value, McpError> {
+    async fn try_call_tool(
+        &self,
+        token: &str,
+        name: &str,
+        arguments: &Value,
+    ) -> Result<Value, McpError> {
         self.ensure_initialized(token).await?;
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let body = json!({
@@ -112,7 +124,12 @@ impl McpClient {
         Err(last_error.unwrap_or_else(|| McpError::Protocol("initialize failed".into())))
     }
 
-    async fn post_json(&self, token: &str, body: &Value, with_session: bool) -> Result<Value, McpError> {
+    async fn post_json(
+        &self,
+        token: &str,
+        body: &Value,
+        with_session: bool,
+    ) -> Result<Value, McpError> {
         let raw = self.post_raw(token, body, with_session).await?;
         let id = body.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
         let message = extract_response(&raw, id)?;
@@ -129,7 +146,12 @@ impl McpClient {
         Ok(message.get("result").cloned().unwrap_or(Value::Null))
     }
 
-    async fn post_raw(&self, token: &str, body: &Value, with_session: bool) -> Result<String, McpError> {
+    async fn post_raw(
+        &self,
+        token: &str,
+        body: &Value,
+        with_session: bool,
+    ) -> Result<String, McpError> {
         let mut request = self
             .http
             .post(&self.url)
@@ -137,10 +159,8 @@ impl McpClient {
             .header("Content-Type", "application/json")
             .bearer_auth(token)
             .json(body);
-        if with_session {
-            if let Some(session) = self.session.read().await.clone() {
-                request = request.header("Mcp-Session-Id", session);
-            }
+        if with_session && let Some(session) = self.session.read().await.clone() {
+            request = request.header("Mcp-Session-Id", session);
         }
         let response = request.send().await?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
@@ -171,7 +191,9 @@ pub fn extract_response(raw: &str, id: i64) -> Result<Value, McpError> {
             Ok(value) if value.get("id").and_then(|v| v.as_i64()) == Some(id) => return Ok(value),
             Ok(_) => {}
             Err(error) => {
-                return Err(McpError::Protocol(format!("invalid json response: {error}")));
+                return Err(McpError::Protocol(format!(
+                    "invalid json response: {error}"
+                )));
             }
         }
     }
@@ -183,10 +205,10 @@ pub fn extract_response(raw: &str, id: i64) -> Result<Value, McpError> {
         if payload.is_empty() {
             continue;
         }
-        if let Ok(value) = serde_json::from_str::<Value>(payload) {
-            if value.get("id").and_then(|v| v.as_i64()) == Some(id) {
-                return Ok(value);
-            }
+        if let Ok(value) = serde_json::from_str::<Value>(payload)
+            && value.get("id").and_then(|v| v.as_i64()) == Some(id)
+        {
+            return Ok(value);
         }
     }
     let snippet: String = raw.chars().take(200).collect();
@@ -200,7 +222,11 @@ pub fn tool_result_text(result: &Value) -> Result<&str, McpError> {
     result
         .get("content")
         .and_then(|v| v.as_array())
-        .and_then(|items| items.iter().find_map(|item| item.get("text").and_then(|t| t.as_str())))
+        .and_then(|items| {
+            items
+                .iter()
+                .find_map(|item| item.get("text").and_then(|t| t.as_str()))
+        })
         .ok_or_else(|| McpError::Protocol("tool result has no text content".into()))
 }
 
