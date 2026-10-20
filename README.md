@@ -52,12 +52,31 @@ Rust service (axum, :8787)
 - **Drawing** — the chart-bridge plugin and the browser exchange ops over plugin RPC, so
   refreshing data never depends on the agent.
 
+## Common Ground protocol (draft)
+
+Amaterasu is the first reference app for **Common Ground**: a typed, reversible, attributable
+protocol for humans and agents editing the same visual workspace. Ops carry an actor, a turn, a
+capability, and an idempotency key; the server owns revisions, the op log, and the audit chain;
+the client adapter owns projection and anchor resolution.
+
+- [`spec/protocol.md`](spec/protocol.md) — normative contract (v0.1)
+- [`spec/schemas/`](spec/schemas/) — JSON Schemas generated from `packages/canvas-core`
+- [`spec/conformance/`](spec/conformance/) — six language-agnostic fixtures
+- [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moves, stays, and dies
+
+The protocol is draft and not yet wired into the running app; the chart bridge still uses the
+client-only op path. Phase 1 adds the server journal and capability gate.
+
 ## Repository layout
 
 | Path | Contents |
 |---|---|
 | `web/` | SvelteKit 2 + Svelte 5 client — overlay engine, components, chart shell |
 | `packages/chart-dsl/` | Shared zod schemas for chart ops and state |
+| `packages/canvas-core/` | Common Ground protocol: envelope, ack, capability, audit, turn schemas |
+| `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
+| `spec/` | Protocol specification, generated JSON Schemas, conformance cases |
+| `docs/` | Extraction audit and implementation notes |
 | `server/` | Rust (axum) service — MCP client + OAuth, cache, OpenCode bridge, SSE, SQLite, static hosting |
 | `opencode/` | The agent's project — chart-bridge plugin, agent config, permissions |
 | `deploy/` | nginx vhost, systemd units, env template, deployment runbook |
@@ -109,6 +128,10 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 | `npm run test --workspace @amaterasu/web` | Web unit tests (Vitest) |
 | `npm run check --workspace @amaterasu/web` | `svelte-kit sync` + `svelte-check` |
 | `npm run verify:e2e --workspace @amaterasu/web` | Browser E2E checks (dev server running) |
+| `npm run test:packages` | Protocol package tests (core + conformance) |
+| `npm run typecheck:packages` | Typecheck `canvas-core` and `canvas-conformance` |
+| `npm run schemas` | Regenerate `spec/schemas/` from the zod definitions |
+| `npm run verify` | Web typecheck + tests + package typecheck + package tests |
 | `npm run build --workspace @amaterasu/web` | Static SPA build into `web/build` |
 | `cargo test --manifest-path server/Cargo.toml` | Rust unit tests |
 | `cargo test --manifest-path server/Cargo.toml -- --ignored` | Live OAuth discovery + DCR check |

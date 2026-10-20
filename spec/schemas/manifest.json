@@ -1,0 +1,12 @@
+{
+  "protocol_version": 1,
+  "generated_by": "packages/canvas-core/scripts/emit-schemas.ts",
+  "schemas": {
+    "envelope.json": "Common Ground op envelope",
+    "batch.json": "Common Ground op batch",
+    "ack.json": "Common Ground op ack",
+    "turn.json": "Common Ground turn",
+    "capability.json": "Common Ground capability claims",
+    "audit-entry.json": "Common Ground audit entry"
+  }
+}

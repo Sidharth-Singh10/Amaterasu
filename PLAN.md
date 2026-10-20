@@ -364,9 +364,10 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
 - Undo is snapshot-based (document is a few KB): `beginTurn(sourceMessageID?)` pushes one snapshot,
   `applyOp` runs N ops, `commitTurn()` clears redo, `abortTurn()` restores. **An entire agent turn is one undo
   step**; tool cards bind to `sourceMessageID` for "Undo this reply".
-- **Op log**: applied ops are appended with a monotonic sequence number and persisted (browser → server ack).
-  Reload and second tabs replay deterministically; server stores the log alongside the annotation snapshot and
-  wins on conflict. This closes the ordering gap between the RPC op channel and the WS data channel.
+- **Op log (not implemented)**: the target design is now `spec/protocol.md` §6–§10. The current build has
+  snapshot undo in memory only; there is no persisted log, no revision, and no idempotency. Reload rebuilds
+  from the last workspace snapshot and history is lost. Phase 1a adds the server journal (op ids, revisions,
+  idempotency, audit chain); the browser then applies ops through the same reducer and acks.
 
 #### 6.3.10 Live data reconciliation
 
@@ -481,6 +482,9 @@ annotation id.
 
 **Later**: multi-chart grid with per-chart contexts, RSI/MACD panes with pane-level annotations, sharing/export,
 Postgres option, CRDT-style concurrent editing if ever multi-user.
+
+> **Revision (Phase 0 audit):** op-log replay moved from Phase 4 to Phase 1a; it is the precondition for
+> revisions, idempotency, and typed rejections. See `docs/extraction-audit.md` §4.
 
 ## 8. Operational details
 

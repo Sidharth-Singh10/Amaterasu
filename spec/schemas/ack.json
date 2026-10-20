@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:common-ground:protocol:1:ack",
+  "title": "Common Ground op ack",
+  "type": "object",
+  "properties": {
+    "v": {
+      "type": "number",
+      "const": 1
+    },
+    "op_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "turn_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "rejected"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "replayed": {
+      "type": "boolean"
+    },
+    "rejected_by": {
+      "type": "string",
+      "enum": [
+        "server",
+        "adapter"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "inverse": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {}
+      }
+    },
+    "code": {
+      "type": "string",
+      "enum": [
+        "invalid_op",
+        "unknown_op_type",
+        "unknown_target",
+        "duplicate_object_id",
+        "revision_conflict",
+        "idempotency_conflict",
+        "capability_denied",
+        "capability_expired",
+        "approval_required",
+        "approval_invalid",
+        "anchor_out_of_range",
+        "object_limit",
+        "payload_too_large",
+        "already_undone",
+        "internal"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "suggestion": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "v",
+    "op_id",
+    "turn_id",
+    "seq",
+    "status",
+    "revision"
+  ],
+  "additionalProperties": {}
+}
