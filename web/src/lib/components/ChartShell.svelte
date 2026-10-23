@@ -8,6 +8,7 @@
   import Icon from "@/lib/components/Icon.svelte"
   import type { IconName } from "@/lib/components/icons"
   import { startChartBridge } from "@/lib/chart/bridge-wiring"
+  import { HumanJournalRecorder } from "@/lib/ops/human-journal"
 import { bridge } from "@/lib/api/bridge"
   import { docs } from "@/lib/api/docs"
   import { ApiError, api, type Quote, type SearchResult } from "@/lib/api/client"
@@ -52,7 +53,9 @@ import { bridge } from "@/lib/api/bridge"
   let tab = $state<"agent" | "console" | "history">("console")
   let journalVersion = $state(0)
   let bridgeError = $state<string | null>(null)
+  let journalError = $state<string | null>(null)
   let chartId = $state("")
+  let humanJournal: HumanJournalRecorder | null = null
   let chartBridge: ReturnType<typeof startChartBridge> | null = null
 
   let refreshTimer: number | undefined
@@ -89,6 +92,7 @@ import { bridge } from "@/lib/api/bridge"
             log = [entry, ...log].slice(0, 100)
           },
           onViewportChange: () => chartBridge?.scheduleSync(),
+          onHumanOp: (event) => humanJournal?.record(event),
         },
       },
     )
@@ -125,6 +129,16 @@ import { bridge } from "@/lib/api/bridge"
     chartId = sessionStorage.getItem("amaterasu.chartId") ?? crypto.randomUUID()
     sessionStorage.setItem("amaterasu.chartId", chartId)
     if (mode === "live") {
+      humanJournal = new HumanJournalRecorder({
+        docId: chartId,
+        onRecorded: () => {
+          journalVersion += 1
+          journalError = null
+        },
+        onError: (message) => {
+          journalError = message
+        },
+      })
       bridge.startStream()
     }
     chartBridge = startChartBridge({
@@ -151,6 +165,8 @@ import { bridge } from "@/lib/api/bridge"
       window.clearTimeout(searchTimer)
       window.clearTimeout(docTimer)
       chartBridge?.dispose()
+      humanJournal?.dispose()
+      humanJournal = null
       instance.dispose()
       if (dev) delete (window as unknown as { __amaterasu?: ChartController }).__amaterasu
       controller = null
@@ -738,6 +754,11 @@ import { bridge } from "@/lib/api/bridge"
 
       {#if bridgeError}
         <p class="border-b border-down/30 bg-down-soft px-3 py-1.5 text-[10px] text-down" role="alert">{bridgeError}</p>
+      {/if}
+      {#if journalError}
+        <p class="border-b border-select/30 bg-select-soft px-3 py-1.5 text-[10px] text-select" role="alert">
+          edit saved locally · journal: {journalError}
+        </p>
       {/if}
 
       {#if tab === "agent"}

@@ -103,6 +103,22 @@ export const docs = {
       headers,
     })
   },
+  record: async (
+    docId: string,
+    records: Array<{
+      envelope: Record<string, unknown>
+      result: unknown
+      inverse: unknown[]
+      snapshot: unknown
+    }>,
+  ) => {
+    const headers = await capabilityHeaders("cap_human")
+    return apiRequest<{ docId: string; acks: JournalAck[] }>(`${docPath(docId)}/records`, {
+      method: "POST",
+      body: JSON.stringify({ records }),
+      headers,
+    })
+  },
   approve: async (docId: string, approvalId: string) => {
     const headers = await capabilityHeaders("cap_human")
     return apiRequest<ApprovalResult>(

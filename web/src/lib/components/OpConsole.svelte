@@ -30,7 +30,9 @@
       return
     }
     const ops = Array.isArray(parsed) ? parsed : [parsed]
-    for (const op of ops) controller.applyOp(op)
+    controller.withHumanTurn(() => {
+      for (const op of ops) controller.applyOp(op)
+    })
   }
 
   function insertPreset(kind: Kind): void {

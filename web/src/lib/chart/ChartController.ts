@@ -18,6 +18,7 @@ import { demoCandles, type Candle } from "@/lib/data/mock"
 import { diffCandles } from "@/lib/data/diff"
 import {
   DocStore,
+  OpSchema,
   replayApplied,
   type AnchorCheck,
   type JournalReplayOp,
@@ -49,11 +50,22 @@ export interface ControllerSummary {
   canRedo: boolean
 }
 
+export interface HumanOpEvent {
+  op: Op
+  result: OpResult
+  before: DocPayload
+  after: DocPayload
+  /** One user gesture shares a turn id. */
+  turnId: string
+}
+
 export interface ControllerListeners {
   onChange?: () => void
   onLog?: (entry: LogEntry) => void
   /** Fired when the visible range changes (pan/zoom/resize) — used for context sync. */
   onViewportChange?: () => void
+  /** Fired after a successful human edit, for the journal recorder. Agent ops never fire this. */
+  onHumanOp?: (event: HumanOpEvent) => void
 }
 
 export interface ControllerElements {
@@ -97,6 +109,7 @@ export class ChartController {
   private pane = { width: 0, height: 0, dpr: 1 }
   private tool: Tool = "select"
   private selected = new Set<string>()
+  private humanTurn: string | null = null
   private hovered: string | null = null
   private drawing: DrawingState | null = null
   private dragging: DraggingState | null = null
@@ -220,15 +233,38 @@ export class ChartController {
     this.emitChange()
   }
 
-  applyOp(raw: unknown, label?: string): OpResult {
+  applyOp(raw: unknown, label?: string, source: "human" | "agent" = "human"): OpResult {
     const { op, snappedTo } = this.withDataSnap(raw)
+    const parsed = OpSchema.safeParse(op)
+    const human = source === "human" && parsed.success && parsed.data.op !== "set_view" && this.listeners.onHumanOp
+    const before = human ? this.store.exportDoc() : null
     const result = this.store.applyOp(op)
     if (result.ok && snappedTo.length > 0) result.snappedTo = snappedTo
     this.syncSeries()
     this.surface.invalidate("all")
     this.listeners.onLog?.({ label: label ?? describeOp(raw), result })
+    if (human && result.ok && before) {
+      this.listeners.onHumanOp?.({
+        op: parsed.data,
+        result,
+        before,
+        after: this.store.exportDoc(),
+        turnId: this.humanTurn ?? `turn_human_${crypto.randomUUID()}`,
+      })
+    }
     this.emitChange()
     return result
+  }
+
+  /** Share one turn across several human ops (multi-select delete). */
+  withHumanTurn<T>(action: () => T): T {
+    const previous = this.humanTurn
+    this.humanTurn = previous ?? `turn_human_${crypto.randomUUID()}`
+    try {
+      return action()
+    } finally {
+      this.humanTurn = previous
+    }
   }
 
   /** Replaces the document from a persisted workspace payload (per symbol). */
@@ -516,10 +552,10 @@ export class ChartController {
 
   /** Surgical undo for one agent turn: removes that turn's shapes and computed series. */
   undoTurnBySource(messageID: string): void {
-    this.applyOp({ op: "clear", sourceMessageID: messageID }, "undo agent turn")
+    this.applyOp({ op: "clear", sourceMessageID: messageID }, "undo agent turn", "agent")
     for (const series of this.store.series) {
       if (series.source?.messageID === messageID) {
-        this.applyOp({ op: "remove_series", id: series.id }, "undo agent series")
+        this.applyOp({ op: "remove_series", id: series.id }, "undo agent series", "agent")
       }
     }
   }
@@ -882,7 +918,9 @@ export class ChartController {
       event.preventDefault()
       const ids = [...this.selected]
       this.selected = new Set()
-      for (const id of ids) this.applyOp({ op: "remove", id }, "delete annotation")
+      this.withHumanTurn(() => {
+        for (const id of ids) this.applyOp({ op: "remove", id }, "delete annotation")
+      })
     }
   }
 

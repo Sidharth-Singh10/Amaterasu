@@ -52,7 +52,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
         activeTurnMessage = messageID
       }
       const before = opts.controller.exportDoc()
-      const result = opts.controller.applyOp(op, "agent op")
+      const result = opts.controller.applyOp(op, "agent op", "agent")
       const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
       void bridge
         .opAck(requestId, { ...result, inverse, snapshot: opts.controller.exportDoc() })
@@ -68,7 +68,7 @@ export function startChartBridge(opts: BridgeWiringOptions) {
       if (!op || !opId) return
 
       const before = opts.controller.exportDoc()
-      const result = opts.controller.applyOp(op, "journal op")
+      const result = opts.controller.applyOp(op, "journal op", "agent")
       const inverse = result.ok ? inverseOf(before, opts.controller.exportDoc()) : []
       const ack: Record<string, unknown> = {
         op_id: opId,
