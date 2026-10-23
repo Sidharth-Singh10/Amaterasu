@@ -66,7 +66,7 @@ pub enum BatchItem {
     Rejected(Value),
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct AckInput {
     pub status: String,
     #[serde(default)]
@@ -308,6 +308,40 @@ impl JournalStore {
     pub fn begin_single(&self, doc_id: &str, envelope: Value) -> Result<BatchItem, JournalError> {
         self.begin_batch(doc_id, &[envelope])
             .map(|mut items| items.remove(0))
+    }
+
+    /// Records adapter-applied ops in one transaction. Unlike `begin_batch`, no dispatch or
+    /// waiter is involved: the adapter has already applied the change locally.
+    pub fn record_batch(
+        &self,
+        doc_id: &str,
+        records: &[(Value, AckInput)],
+    ) -> Result<Vec<Value>, JournalError> {
+        validate_doc_id(doc_id)?;
+        let mut connection = self.connection.lock().expect("journal lock poisoned");
+        let transaction = connection.transaction()?;
+        ensure_doc_tx(&transaction, doc_id)?;
+
+        let mut acks = Vec::with_capacity(records.len());
+        for (envelope, input) in records {
+            match begin_one_tx(&transaction, &self.capabilities, doc_id, envelope)? {
+                BatchItem::Pending(op) => {
+                    let ack = finalize_tx(
+                        &transaction,
+                        doc_id,
+                        &op.op_id,
+                        &op.turn_id,
+                        op.seq,
+                        &op.envelope,
+                        input.clone(),
+                    )?;
+                    acks.push(ack);
+                }
+                BatchItem::Replay(ack) | BatchItem::Rejected(ack) => acks.push(ack),
+            }
+        }
+        transaction.commit()?;
+        Ok(acks)
     }
 
     /// Finalizes an op with the adapter's ack. Idempotent: finalizing twice returns the stored ack.

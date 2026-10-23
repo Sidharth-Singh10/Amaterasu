@@ -790,3 +790,70 @@ async fn the_graph_adapter_capability_is_seeded_and_scoped() {
     assert_eq!(body["acks"][0]["status"], "applied");
     assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
 }
+
+#[tokio::test]
+async fn human_records_are_applied_with_inverse_and_snapshot() {
+    let harness = harness("human-record").await;
+    let token = harness.token("cap_human");
+    let mut envelope = envelope("human_1");
+    envelope["actor"] = json!({ "kind": "human", "id": "local" });
+    envelope["capability"] = json!("cap_human");
+    envelope["type"] = json!("chart.shape.create");
+    envelope["target"] = json!({ "kind": "chart.shape" });
+    envelope["payload"] = json!({
+        "op": {
+            "op": "draw",
+            "kind": "trendline",
+            "points": [{ "t": 1, "p": 10 }, { "t": 2, "p": 20 }]
+        }
+    });
+    let record = json!({
+        "envelope": envelope,
+        "result": { "ok": true, "id": "a1" },
+        "inverse": inverse(),
+        "snapshot": { "v": 1, "annotations": [], "series": [] }
+    });
+
+    let response = harness
+        .router
+        .clone()
+        .oneshot(with_token(
+            post(
+                "/api/docs/doc_api/records",
+                json!({ "records": [record.clone()] }),
+            ),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["acks"][0]["status"], "applied");
+    assert_eq!(body["acks"][0]["revision"], 1);
+    let op_id = body["acks"][0]["op_id"].clone();
+    assert_eq!(harness.journal.meta("doc_api").unwrap().revision, 1);
+
+    let audit = harness.journal.audit("doc_api").unwrap();
+    assert_eq!(audit.len(), 1);
+    assert_eq!(audit[0]["actor"]["kind"], "human");
+    assert_eq!(audit[0]["actor"]["id"], "local");
+
+    let snapshot = harness.journal.snapshot("doc_api").unwrap().unwrap();
+    assert_eq!(snapshot["revision"], 1);
+    assert_eq!(snapshot["snapshot"]["v"], 1);
+
+    // A replay of the same record key returns the original ack without a second audit entry.
+    let replay = harness
+        .router
+        .clone()
+        .oneshot(with_token(
+            post("/api/docs/doc_api/records", json!({ "records": [record] })),
+            &token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), StatusCode::OK);
+    let replay = body_json(replay).await;
+    assert_eq!(replay["acks"][0]["op_id"], op_id);
+    assert_eq!(harness.journal.audit("doc_api").unwrap().len(), 1);
+}

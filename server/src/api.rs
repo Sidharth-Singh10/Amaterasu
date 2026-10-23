@@ -62,6 +62,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/docs/{doc_id}", get(doc_meta))
         .route("/api/docs/{doc_id}/snapshot", get(doc_snapshot))
         .route("/api/docs/{doc_id}/ops", get(doc_ops).post(doc_submit_ops))
+        .route("/api/docs/{doc_id}/records", post(doc_record_ops))
         .route("/api/docs/{doc_id}/acks", post(doc_acks))
         .route("/api/docs/{doc_id}/audit", get(doc_audit))
         .route("/api/docs/{doc_id}/turns/{turn_id}/undo", post(doc_undo))
@@ -555,6 +556,60 @@ async fn doc_submit_ops(
         }
         Err(error) => return Err(error),
     };
+    Ok(Json(json!({ "docId": doc_id, "acks": acks })))
+}
+
+#[derive(Debug, Deserialize)]
+struct RecordItem {
+    envelope: Value,
+    #[serde(default)]
+    result: Option<Value>,
+    #[serde(default)]
+    inverse: Option<Value>,
+    #[serde(default)]
+    snapshot: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RecordBody {
+    records: Vec<RecordItem>,
+}
+
+/// Records edits the browser adapter has already applied. There is no dispatch wait; the
+/// server assigns ids/revisions and writes the audit entry in one transaction.
+async fn doc_record_ops(
+    State(state): State<AppState>,
+    Path(doc_id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<RecordBody>,
+) -> Result<Json<Value>, ApiError> {
+    if body.records.is_empty() {
+        return Err(ApiError::BadRequest("records must not be empty".into()));
+    }
+    let envelopes = body
+        .records
+        .iter()
+        .map(|record| record.envelope.clone())
+        .collect::<Vec<_>>();
+    require_batch_token(&state, &headers, &envelopes)?;
+
+    let records = body
+        .records
+        .into_iter()
+        .map(|record| {
+            (
+                record.envelope,
+                AckInput {
+                    status: "applied".into(),
+                    result: record.result,
+                    inverse: record.inverse,
+                    snapshot: record.snapshot,
+                    ..AckInput::default()
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    let acks = state.journal.record_batch(&doc_id, &records)?;
     Ok(Json(json!({ "docId": doc_id, "acks": acks })))
 }
 
