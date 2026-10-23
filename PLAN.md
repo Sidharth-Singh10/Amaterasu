@@ -380,8 +380,10 @@ OpResult = { ok: boolean; id?: string; normalizedPoints?: Anchor[]; snappedTo?: 
   also has a replay helper, a ten-shape turn undo test, and a p95 journal ack benchmark (~0.5 ms).
   Reload restores the workspace snapshot, then the journal snapshot, then a replay of applied ops.
   A second adapter now lives in Weave: `graph.*` envelopes apply to its Zustand knowledge graph and
-  return node/edge inverses; `cap_graph` is bound to `weave-agent`. Browser snapshot undo remains
-  the local UX. See `spec/protocol.md` §6–§10 and §17.
+  return node/edge inverses; `cap_graph` is bound to `weave-agent`. Human chart and manual graph
+  edits are recorded through `POST /records` with `cap_human` and their own inverse/snapshot; one
+  gesture is one turn. Browser snapshot undo remains the local UX and is not journaled in v1.
+  See `spec/protocol.md` §6–§10 and §17.
 
 #### 6.3.10 Live data reconciliation
 

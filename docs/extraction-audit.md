@@ -86,8 +86,9 @@ The plan in `COMMON_GROUND.md` says Phase 1 ports the reducer. Reordered:
    destructive agent ops, and a Journal drawer that reads the log, verifies the audit chain, and
    drives undo/approve.
 5. **Phase 2 (mostly done):** `canvas-mcp` tools, ed25519 capability tokens, approval gate,
-   audit/history, ten-shape turn undo, structured self-correction, and replay/latency proofs.
-   Remaining: a wire-level HTTP/SSE conformance target.
+   audit/history, ten-shape turn undo, structured self-correction, replay/latency proofs, and
+   human-edit recording (`/records`) in both adapters. Remaining: a wire-level HTTP/SSE
+   conformance target.
 6. **Phase 3 (adapter done):** `packages/canvas-graph` + the Weave SSE bridge apply graph
    envelopes, merge duplicates, and return inverses. The 90-second demo and 5 external testers
    remain.

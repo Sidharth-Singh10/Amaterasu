@@ -72,7 +72,8 @@ node/edge inverses, and acks the journal (`weave/frontend/src/lib/common-ground.
 Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journals every agent
 chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
 browser's inverse ops, and exposes document metadata, snapshots, op history, audit, and
-forward-only undo endpoints. Destructive agent ops require a one-shot human approval, surfaced in
+forward-only undo endpoints. Human edits are recorded after local application with their own
+inverse and snapshot, so the same journal shows both actors. Destructive agent ops require a one-shot human approval, surfaced in
 the Journal tab. On reload the shell restores the workspace snapshot, falling back to the journal
 snapshot or a replay of applied ops. The browser still owns projection and anchor resolution.
 
@@ -87,6 +88,7 @@ snapshot or a replay of applied ops. The browser still owns projection and ancho
 | `GET /api/docs/{doc_id}/audit` | Append-only audit entries + chain verification |
 | `POST /api/docs/{doc_id}/ops` | Journal a batch, dispatch to the browser, wait for acks |
 | `POST /api/docs/{doc_id}/acks` | Finalize dispatched ops with adapter results/inverses |
+| `POST /api/docs/{doc_id}/records` | Journal human edits the adapter has already applied |
 | `POST /api/docs/{doc_id}/turns/{turn_id}/undo` | Replay a turn's inverses as a new turn |
 | `POST /api/docs/{doc_id}/approvals/{approval_id}` | Apply a rejected destructive op once, with human approval |
 | `POST /api/chart/op` | Pre-application submit from the chart plugin (journal + capability + browser ack) |

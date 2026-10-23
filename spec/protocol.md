@@ -471,6 +471,7 @@ v0: HTTP + SSE.
 | `/api/docs` | POST | Create a document |
 | `/api/docs/{doc_id}` | GET | Snapshot: revision, objects, unresolved |
 | `/api/docs/{doc_id}/ops` | POST | Submit a batch; returns acks and blocks until the adapter acks |
+| `/api/docs/{doc_id}/records` | POST | Record already-applied adapter edits (human path) |
 | `/api/docs/{doc_id}/turns/{turn_id}/undo` | POST | Forward-only undo |
 | `/api/docs/{doc_id}/ops?after={seq}` | GET | Read the log |
 | `/api/docs/{doc_id}/audit` | GET | Audit entries (JSONL with `Accept: application/x-ndjson`) |
@@ -558,6 +559,9 @@ chart bridge:
 - `blake3` audit chain with genesis, verification, and first-break reporting.
 - Adapter-supplied inverses, reverse-ordered undo planning, and `undone_by` linkage. Undo attempts
   for unknown or already-undone turns are journaled as typed rejections.
+- Human edits are recorded through `POST /api/docs/{id}/records` after the adapter applies them:
+  the server assigns ids/revisions, stores the inverse and snapshot, and audits
+  `actor.kind = "human"`. One gesture is one turn; local snapshot undo remains unjournaled in v1.
 - Applied acks may carry an opaque adapter snapshot. The server persists the latest snapshot with
   its revision and serves it from `GET /api/docs/{id}/snapshot`; the browser falls back to it when
   no workspace snapshot exists.
@@ -604,7 +608,8 @@ Not yet enforced or implemented:
 - An HTTP/SSE conformance adapter. The Rust harness drives the journal directly and the HTTP
   endpoints have separate integration tests; a target that speaks the wire protocol end to end is
   still open. The Weave bridge is a product adapter, not a fixture target.
-- Human-authored graph edits are not journaled; only agent envelopes go through Common Ground.
+- Weave note-ingestion deltas are not yet journaled; manual graph edits are.
+- Local snapshot undo is not journaled; use the Journal's forward-only undo for journaled turns.
 
 Known inverse limitation in the chart adapter: `update` merges style keys, so an inverse cannot
 remove a key that the original update introduced. `draw` now accepts an explicit id, so re-creating
