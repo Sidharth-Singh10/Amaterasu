@@ -73,9 +73,24 @@ Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journ
 chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
 browser's inverse ops, and exposes document metadata, snapshots, op history, audit, and
 forward-only undo endpoints. Human edits are recorded after local application with their own
-inverse and snapshot, so the same journal shows both actors. Destructive agent ops require a one-shot human approval, surfaced in
-the Journal tab. On reload the shell restores the workspace snapshot, falling back to the journal
-snapshot or a replay of applied ops. The browser still owns projection and anchor resolution.
+inverse and snapshot, so the same journal shows both actors. Destructive agent ops require a
+one-shot human approval, surfaced in the Journal tab. On reload the shell restores the workspace
+snapshot, falling back to the journal snapshot or a replay of applied ops. The browser still owns
+projection and anchor resolution.
+
+### Human edits
+
+Manual chart edits and manual Weave graph edits use the same protocol path:
+
+1. The adapter applies the edit locally and computes the before/after inverse.
+2. It posts an envelope plus result, inverse, and snapshot to
+   `POST /api/docs/{doc_id}/records` with a `cap_human` token.
+3. The server assigns the op id and revision, stores the audit entry with
+   `actor.kind = "human"`, and refreshes the Journal.
+
+One gesture is one turn; multi-object deletes are one turn with several records. View changes,
+position-only drags, and agent ops are not double-recorded. Local snapshot undo remains local in
+v1; use the Journal's forward-only undo for turns that are in the journal.
 
 | Endpoint | Purpose |
 |---|---|
