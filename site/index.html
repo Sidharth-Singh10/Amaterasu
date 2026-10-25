@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Common Ground — the action layer for humans and AI agents</title>
+    <meta
+      name="description"
+      content="Common Ground is an open protocol for humans and AI agents editing the same workspace. Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log."
+    />
+    <meta name="theme-color" content="#0b0f14" />
+    <link rel="canonical" href="https://sidharth-singh10.github.io/Amaterasu/" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Common Ground — the action layer for humans and AI agents" />
+    <meta
+      property="og:description"
+      content="Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log. An open protocol for agent-native workspaces."
+    />
+    <meta property="og:url" content="https://sidharth-singh10.github.io/Amaterasu/" />
+    <meta property="og:image" content="https://sidharth-singh10.github.io/Amaterasu/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Common Ground — the action layer for humans and AI agents" />
+    <meta
+      name="twitter:description"
+      content="Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log."
+    />
+    <meta name="twitter:image" content="https://sidharth-singh10.github.io/Amaterasu/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "Common Ground",
+        "description": "An open protocol for humans and AI agents editing the same workspace with typed, reversible, attributable operations.",
+        "codeRepository": "https://github.com/Sidharth-Singh10/Amaterasu",
+        "programmingLanguage": ["TypeScript", "Rust"],
+        "license": "https://opensource.org/licenses/MIT"
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="./" aria-label="Common Ground home">
+        <svg class="wordmark-mark" viewBox="0 0 28 28" aria-hidden="true">
+          <path d="M3 21V7h5.5L14 16.5 19.5 7H25v14h-4.2V13.7L16.4 22h-4.8L7.2 13.7V21H3Z" />
+        </svg>
+        <span>Common Ground</span>
+      </a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">
+        <span></span><span></span>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="nav" class="nav" aria-label="Primary">
+        <a href="#problem">Why</a>
+        <a href="#protocol">Protocol</a>
+        <a href="#demo">Demo</a>
+        <a href="#adapters">Adapters</a>
+        <a href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md">SDK</a>
+        <a class="nav-cta" href="https://github.com/Sidharth-Singh10/Amaterasu" rel="noreferrer">
+          GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-intro">
+          <p class="eyebrow"><span class="dot"></span> Open protocol · MIT · v0.1</p>
+          <h1 id="hero-title">
+            MCP gave agents tools.<br />
+            Common Ground gives them<br />
+            a <em>shared workspace.</em>
+          </h1>
+        </div>
+
+        <div class="hero-body">
+          <div class="hero-copy">
+            <p class="lede">
+              A typed, reversible, attributable action layer for humans and AI agents editing the
+              same canvas. Agents send semantic operations. Every action is scoped, journaled,
+              and undoable.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary" href="#demo">Open the live demo</a>
+              <a class="button" href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/spec/protocol.md">Read the spec</a>
+            </div>
+
+            <div class="install" data-copy>
+              <span class="prompt" aria-hidden="true">$</span>
+              <code>npm i @common-ground/canvas-core</code>
+              <button class="copy" type="button" aria-label="Copy install command">Copy</button>
+            </div>
+
+            <ul class="hero-meta" aria-label="Project facts">
+              <li>6 conformance fixtures</li>
+              <li>2 adapters</li>
+              <li>1 Rust journal</li>
+              <li>MCP native</li>
+            </ul>
+          </div>
+
+          <div class="trace" aria-label="Example journal trace">
+          <div class="trace-head">
+            <span class="trace-title">journal · doc_reliance</span>
+            <span class="trace-live"><span class="dot"></span> rev 41</span>
+          </div>
+
+          <div class="trace-rows">
+            <div class="trace-row">
+              <span class="actor human">human</span>
+              <span class="op">chart.shape.update</span>
+              <span class="status applied">applied</span>
+            </div>
+            <div class="trace-row">
+              <span class="actor agent">agent</span>
+              <span class="op">chart.shape.create</span>
+              <span class="status applied">applied</span>
+            </div>
+            <div class="trace-row">
+              <span class="actor agent">agent</span>
+              <span class="op">chart.series.add</span>
+              <span class="status applied">applied</span>
+            </div>
+            <div class="trace-row trace-row-warn">
+              <span class="actor agent">agent</span>
+              <span class="op">chart.shape.delete</span>
+              <span class="status pending">approval</span>
+            </div>
+            <div class="trace-row trace-row-quiet">
+              <span class="actor human">human</span>
+              <span class="op">approval.granted</span>
+              <span class="status applied">applied</span>
+            </div>
+          </div>
+
+          <div class="trace-chain">
+            <div class="chain-label">audit chain</div>
+            <div class="chain-line"><span>prev</span> blake3:0000…0000</div>
+            <div class="chain-line accent"><span>hash</span> blake3:7f3a…c19e</div>
+            <div class="chain-line"><span>turn</span> turn_42 · 5 ops · 1 undoable</div>
+          </div>
+
+            <div class="trace-foot">
+              <span class="mono">verified ✓</span>
+              <span>capability checked</span>
+              <span>inverse stored</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="problem" class="section section-problem" aria-labelledby="problem-title">
+        <div class="section-head">
+          <p class="kicker">01 / the gap</p>
+          <h2 id="problem-title">The agent can see the screen. It cannot touch the document.</h2>
+          <p class="section-lede">
+            Computer use guesses coordinates. MCP standardizes verbs. Neither gives you a stable
+            object, a scoped permission, or a record of what changed.
+          </p>
+        </div>
+
+        <div class="grid grid-3">
+          <article class="card">
+            <p class="card-index">01</p>
+            <h3>Pixels have no identity</h3>
+            <p>
+              A click at (812, 430) is not a trendline. Layout changes, zoom, a different interval,
+              and the action is gone. Precision domains need coordinates in the data, not the
+              viewport.
+            </p>
+          </article>
+          <article class="card">
+            <p class="card-index">02</p>
+            <h3>MCP tools are stateless verbs</h3>
+            <p>
+              <code>draw_line(x1, y1, x2, y2)</code> has no object it created, no inverse, no
+              notion of who authorized it, and no way to undo only that turn.
+            </p>
+          </article>
+          <article class="card">
+            <p class="card-index">03</p>
+            <h3>Collaboration assumes humans</h3>
+            <p>
+              Multiplayer infrastructure tracks cursors and human edits. It has no agent actor, no
+              capability scope, no approval gate, and no provenance.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="protocol" class="section section-protocol" aria-labelledby="protocol-title">
+        <div class="section-head">
+          <p class="kicker">02 / the loop</p>
+          <h2 id="protocol-title">One write path. Four guarantees.</h2>
+          <p class="section-lede">
+            Every mutation — mouse, agent, or import — becomes the same envelope. The server
+            assigns ids and revisions, the adapter owns projection, and the journal keeps the
+            evidence.
+          </p>
+        </div>
+
+        <div class="loop">
+          <ol class="steps">
+            <li class="step">
+              <span class="step-num">1</span>
+              <div>
+                <h3>Typed operation</h3>
+                <p>Actor, turn, capability, target, idempotency key, and an optional rationale.</p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num">2</span>
+              <div>
+                <h3>Capability check</h3>
+                <p>Scoped, expiring grants. Destructive ops can require a one-shot human approval.</p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num">3</span>
+              <div>
+                <h3>Adapter acknowledgement</h3>
+                <p>Applied or rejected, with a normalized result, an inverse, or a retry hint.</p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num">4</span>
+              <div>
+                <h3>Audit and undo</h3>
+                <p>Hash-chained history. One turn reverts atomically; an undo is a new turn.</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="code-panel" aria-label="Protocol example">
+            <div class="code-head">
+              <span>envelope</span>
+              <span class="mono">POST /api/docs/doc_reliance/ops</span>
+            </div>
+            <pre><code><span class="c-key">"type"</span>: <span class="c-str">"chart.shape.create"</span>,
+<span class="c-key">"actor"</span>: { <span class="c-key">"kind"</span>: <span class="c-str">"agent"</span>, <span class="c-key">"id"</span>: <span class="c-str">"chart-analyst"</span> },
+<span class="c-key">"capability"</span>: <span class="c-str">"cap_agent"</span>,
+<span class="c-key">"turn_id"</span>: <span class="c-str">"turn_42"</span>,
+<span class="c-key">"target"</span>: { <span class="c-key">"kind"</span>: <span class="c-str">"annotation"</span> },
+<span class="c-key">"payload"</span>: { <span class="c-key">"op"</span>: <span class="c-str">"draw"</span>, <span class="c-key">"kind"</span>: <span class="c-str">"trendline"</span> },
+<span class="c-key">"idempotency_key"</span>: <span class="c-str">"turn_42:1"</span></code></pre>
+            <div class="code-arrow" aria-hidden="true">↓</div>
+            <div class="code-head">
+              <span>ack</span>
+              <span class="mono">200 · rev 41</span>
+            </div>
+            <pre><code><span class="c-key">"status"</span>: <span class="c-str">"applied"</span>,
+<span class="c-key">"result"</span>: { <span class="c-key">"id"</span>: <span class="c-str">"an_9"</span> },
+<span class="c-key">"inverse"</span>: [{ <span class="c-key">"op"</span>: <span class="c-str">"remove"</span>, <span class="c-key">"id"</span>: <span class="c-str">"an_9"</span> }]</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="demo" class="section section-demo" aria-labelledby="demo-title">
+        <div class="section-head demo-head">
+          <p class="kicker">03 / live demo</p>
+          <div>
+            <h2 id="demo-title">See the loop.</h2>
+            <p class="section-lede">
+              The real chart shell and overlay engine, running on deterministic data. Draw, move,
+              delete, pan, and zoom. The agent is disabled in the static demo; run it locally to
+              connect a model.
+            </p>
+          </div>
+          <div class="demo-actions">
+            <a class="button button-primary" href="./demo/?demo=1">Open full screen</a>
+          </div>
+        </div>
+
+        <div class="demo-frame" id="demo-frame">
+          <button class="demo-poster" type="button" id="demo-launch" aria-label="Launch interactive demo">
+            <img src="./demo-poster.png" alt="Amaterasu chart with a trendline and range drawn on Indian market candles" width="1600" height="960" />
+            <span class="demo-play"><span aria-hidden="true">▶</span> Launch interactive demo</span>
+            <span class="demo-note">sample data · no signup · runs in your browser</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="adapters" class="section section-adapters" aria-labelledby="adapters-title">
+        <div class="section-head">
+          <p class="kicker">04 / adapters</p>
+          <h2 id="adapters-title">One protocol. More than charts.</h2>
+          <p class="section-lede">
+            The document model belongs to the adapter. The protocol only owns the envelope, the ack,
+            the turn, the capability, and the audit chain.
+          </p>
+        </div>
+
+        <div class="grid grid-2">
+          <article class="adapter">
+            <div class="adapter-head">
+              <span class="adapter-tag">reference</span>
+              <h3>Chart</h3>
+              <p>Annotations and computed series anchored in time and price.</p>
+            </div>
+            <pre class="mini-code"><code><span class="c-key">draw</span> <span class="c-str">trendline</span>
+  <span class="c-key">points</span>: [{ t: 1700000000, p: 2400 },
+           { t: 1700864000, p: 2485 }]
+  <span class="c-key">source</span>: ses_1 / msg_1
+
+<span class="c-key">store</span>.beginTurn()
+<span class="c-key">store</span>.applyOp(op)
+<span class="c-key">store</span>.commitTurn()</code></pre>
+            <a class="text-link" href="https://www.npmjs.com/package/@common-ground/canvas-chart">canvas-chart on npm ↗</a>
+          </article>
+
+          <article class="adapter">
+            <div class="adapter-head">
+              <span class="adapter-tag">second domain</span>
+              <h3>Graph</h3>
+              <p>Nodes, edges, merges, and view state over the same journal.</p>
+            </div>
+            <pre class="mini-code"><code><span class="c-key">node.create</span> n_react  <span class="c-str">"React"</span>
+<span class="c-key">node.create</span> n_svelte <span class="c-str">"Svelte"</span>
+<span class="c-key">edge.create</span> e_1
+  source: n_react
+  target: n_svelte
+
+<span class="c-key">merge</span> n_react → n_svelte</code></pre>
+            <a class="text-link" href="https://www.npmjs.com/package/@common-ground/canvas-graph">canvas-graph on npm ↗</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="conformance" class="section section-conformance" aria-labelledby="conformance-title">
+        <div class="section-head">
+          <p class="kicker">05 / proof</p>
+          <h2 id="conformance-title">Test the contract, not the demo.</h2>
+          <p class="section-lede">
+            Six language-agnostic fixtures run against more than one implementation. If an adapter
+            passes, it behaves like the protocol says — not like the reference app happens to.
+          </p>
+        </div>
+
+        <div class="conformance">
+          <ul class="fixture-list">
+            <li><span>01</span> anchor survival</li>
+            <li><span>02</span> undo / redo</li>
+            <li><span>03</span> idempotent retry</li>
+            <li><span>04</span> capability denial</li>
+            <li><span>05</span> malformed op</li>
+            <li><span>06</span> audit-chain tamper</li>
+          </ul>
+          <div class="targets">
+            <div class="target">
+              <span class="target-status">passing</span>
+              <h3>TypeScript MemoryTarget</h3>
+              <p>Reference target shipped in <code>canvas-conformance</code>.</p>
+            </div>
+            <div class="target">
+              <span class="target-status">passing</span>
+              <h3>Rust journal</h3>
+              <p>Axum + SQLite harness in <code>server/tests/conformance.rs</code>.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="install" class="section section-install" aria-labelledby="install-title">
+        <div class="section-head">
+          <p class="kicker">06 / start</p>
+          <h2 id="install-title">Install the layer.</h2>
+          <p class="section-lede">
+            No server required to try the SDK. Add the protocol and a domain adapter, apply a turn,
+            undo it, and read the audit chain.
+          </p>
+        </div>
+
+        <div class="grid grid-3 install-grid">
+          <div class="install-card">
+            <h3>Protocol</h3>
+            <div class="install" data-copy>
+              <span class="prompt" aria-hidden="true">$</span>
+              <code>npm i @common-ground/canvas-core</code>
+              <button class="copy" type="button" aria-label="Copy protocol install command">Copy</button>
+            </div>
+            <p>Envelopes, acks, turns, capabilities, audit.</p>
+          </div>
+          <div class="install-card">
+            <h3>Chart adapter</h3>
+            <div class="install" data-copy>
+              <span class="prompt" aria-hidden="true">$</span>
+              <code>npm i @common-ground/canvas-chart</code>
+              <button class="copy" type="button" aria-label="Copy chart install command">Copy</button>
+            </div>
+            <p>Anchors, annotations, series, turns, replay.</p>
+          </div>
+          <div class="install-card">
+            <h3>MCP server</h3>
+            <div class="install" data-copy>
+              <span class="prompt" aria-hidden="true">$</span>
+              <code>npx -y @common-ground/canvas-mcp</code>
+              <button class="copy" type="button" aria-label="Copy MCP command">Copy</button>
+            </div>
+            <p>Four tools over a running journal.</p>
+          </div>
+        </div>
+
+        <div class="callout">
+          <p>
+            <strong>Five minutes to first ack.</strong> The quickstart applies three ops, undoes the
+            turn, and redoes it — no browser or API key.
+          </p>
+          <a class="text-link" href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md">Read the SDK guide ↗</a>
+        </div>
+      </section>
+
+      <section class="section section-faq" aria-labelledby="faq-title">
+        <div class="section-head">
+          <p class="kicker">07 / questions</p>
+          <h2 id="faq-title">Plain answers.</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Is this a CRDT?</summary>
+            <p>
+              No. v1 is server-authoritative. The journal assigns revisions and serializes ops.
+              CRDT multiplayer and offline conflict resolution are later work, not claims.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need the Rust service?</summary>
+            <p>
+              No. The SDK is TypeScript. The Rust service is the reference journal, capability
+              issuer, and static host. You can implement the protocol in your own backend; the
+              conformance corpus is how you prove it.
+            </p>
+          </details>
+          <details>
+            <summary>Does it replace MCP?</summary>
+            <p>
+              No. It complements MCP. MCP standardizes how an agent calls a tool; Common Ground
+              standardizes the state that tool mutates, who authorized it, and how it is undone.
+            </p>
+          </details>
+          <details>
+            <summary>What is Amaterasu?</summary>
+            <p>
+              The reference app: an AI chart analyst for Indian markets that draws on the chart
+              through the same op DSL as the mouse. It is the proof that the protocol survives a
+              real, precision-sensitive product.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use it with my canvas?</summary>
+            <p>
+              Yes. Define your object types and ops, implement a store with one write path, compute
+              inverses, and run the six fixtures. The graph adapter is a compact example.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <p class="kicker">the action layer</p>
+        <h2 id="closing-title">Give the agent a document, not a screenshot.</h2>
+        <div class="closing-actions">
+          <a class="button button-primary" href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md">Read the SDK guide</a>
+          <a class="button" href="https://github.com/Sidharth-Singh10/Amaterasu">Star on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <a class="wordmark" href="./">
+          <svg class="wordmark-mark" viewBox="0 0 28 28" aria-hidden="true">
+            <path d="M3 21V7h5.5L14 16.5 19.5 7H25v14h-4.2V13.7L16.4 22h-4.8L7.2 13.7V21H3Z" />
+          </svg>
+          <span>Common Ground</span>
+        </a>
+        <p>Typed, reversible, attributable actions for humans and agents.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/spec/protocol.md">Spec</a>
+        <a href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md">SDK</a>
+        <a href="https://github.com/Sidharth-Singh10/Amaterasu/tree/master/spec/conformance">Conformance</a>
+        <a href="https://www.npmjs.com/org/common-ground">npm</a>
+        <a href="https://github.com/Sidharth-Singh10/Amaterasu">GitHub</a>
+      </nav>
+      <p class="footer-note">MIT · Built by Sidharth Singh · <span id="year">2026</span></p>
+    </footer>
+
+    <script src="./main.js" defer></script>
+  </body>
+</html>

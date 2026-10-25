@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sidharth-singh10.github.io/Amaterasu/sitemap.xml

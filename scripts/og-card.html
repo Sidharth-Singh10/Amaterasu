@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("../node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2") format("woff2");
+        font-weight: 100 700;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; width: 1200px; height: 630px; }
+      body {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(700px 340px at 78% -10%, rgba(93, 145, 233, 0.19), transparent 70%),
+          #0b0f14;
+        color: #e3e9f2;
+        font-family: "IBM Plex Sans", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(148, 161, 179, 0.055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 161, 179, 0.055) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: linear-gradient(110deg, black, transparent 78%);
+      }
+      .top {
+        position: absolute;
+        top: 40px;
+        left: 64px;
+        right: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .mark { width: 30px; height: 30px; fill: #5d91e9; }
+      .meta {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94a1b3;
+      }
+      .content {
+        position: absolute;
+        top: 136px;
+        left: 64px;
+        width: 720px;
+      }
+      .eyebrow {
+        margin: 0 0 22px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #5d91e9;
+      }
+      h1 {
+        margin: 0;
+        font-size: 60px;
+        line-height: 1.02;
+        letter-spacing: -0.045em;
+        font-weight: 600;
+      }
+      h1 em {
+        font-style: normal;
+        color: #5d91e9;
+      }
+      p.sub {
+        margin: 24px 0 0;
+        max-width: 620px;
+        color: #94a1b3;
+        font-size: 20px;
+        line-height: 1.5;
+      }
+      .bottom {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 18px;
+        border-top: 1px solid rgba(148, 161, 179, 0.18);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5f6d80;
+      }
+      .bottom b { color: #94a1b3; font-weight: 500; }
+      .trace {
+        position: absolute;
+        top: 160px;
+        right: 64px;
+        width: 330px;
+        border: 1px solid rgba(148, 161, 179, 0.26);
+        background: rgba(16, 22, 31, 0.94);
+        box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.95);
+      }
+      .trace-head {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(148, 161, 179, 0.14);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        color: #94a1b3;
+      }
+      .trace-head .live { color: #26a69a; }
+      .row {
+        display: grid;
+        grid-template-columns: 42px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(148, 161, 179, 0.07);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+      }
+      .actor { color: #5f6d80; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .actor.a { color: #5d91e9; }
+      .op { color: #e3e9f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .st { padding: 2px 4px; font-size: 8px; color: #26a69a; background: rgba(38, 166, 154, 0.1); }
+      .st.w { color: #e6ad33; background: rgba(230, 173, 51, 0.14); }
+      .chain {
+        padding: 11px 14px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        line-height: 1.8;
+        color: #5f6d80;
+      }
+      .chain span { color: #5d91e9; }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 28 28" aria-hidden="true">
+          <path d="M3 21V7h5.5L14 16.5 19.5 7H25v14h-4.2V13.7L16.4 22h-4.8L7.2 13.7V21H3Z" />
+        </svg>
+        Common Ground
+      </div>
+      <div class="meta">Open protocol · MIT · v0.1</div>
+    </div>
+
+    <div class="content">
+      <p class="eyebrow">The action layer for agent-native workspaces</p>
+      <h1>MCP gave agents tools.<br />Common Ground gives<br />them a <em>shared workspace.</em></h1>
+      <p class="sub">Typed operations. Scoped capabilities. Acknowledgements, per-turn undo, and a hash-chained audit log.</p>
+    </div>
+
+    <div class="trace">
+      <div class="trace-head"><span>journal · doc_reliance</span><span class="live">rev 41</span></div>
+      <div class="row"><span class="actor">human</span><span class="op">chart.shape.update</span><span class="st">applied</span></div>
+      <div class="row"><span class="actor a">agent</span><span class="op">chart.shape.create</span><span class="st">applied</span></div>
+      <div class="row"><span class="actor a">agent</span><span class="op">chart.series.add</span><span class="st">applied</span></div>
+      <div class="row"><span class="actor a">agent</span><span class="op">chart.shape.delete</span><span class="st w">approval</span></div>
+      <div class="chain"><span>prev</span> blake3:0000…0000<br /><span>hash</span> blake3:7f3a…c19e<br /><span>turn</span> turn_42 · 5 ops</div>
+    </div>
+
+    <div class="bottom">
+      <span><b>TypeScript + Rust</b> · 6 conformance fixtures · 2 adapters</span>
+      <span>github.com/Sidharth-Singh10/Amaterasu</span>
+    </div>
+  </body>
+</html>
