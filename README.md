@@ -3,6 +3,12 @@
 A self-hosted, TradingView-style charting app for Indian markets, with an embedded AI agent
 that draws directly on your charts.
 
+[![CI](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml)
+[![canvas-core](https://img.shields.io/npm/v/@common-ground/canvas-core?label=canvas-core)](https://www.npmjs.com/package/@common-ground/canvas-core)
+[![canvas-chart](https://img.shields.io/npm/v/@common-ground/canvas-chart?label=canvas-chart)](https://www.npmjs.com/package/@common-ground/canvas-chart)
+[![canvas-mcp](https://img.shields.io/npm/v/@common-ground/canvas-mcp?label=canvas-mcp)](https://www.npmjs.com/package/@common-ground/canvas-mcp)
+[![License: MIT](https://img.shields.io/badge/license-MIT-5d91e9.svg)](LICENSE)
+
 Amaterasu pairs live OHLC data from the INDmoney MCP with an [OpenCode](https://opencode.ai)
 agent that reads and annotates charts through a structured overlay protocol. Instead of
 screenshots, the agent works with chart state as data — OHLC arrays, visible ranges, and
@@ -10,6 +16,45 @@ existing annotations — and draws trendlines, rectangles, Fibonacci retracement
 computed indicator series through the same op DSL the mouse uses.
 
 > Not affiliated with INDmoney. Market data is provided by the INDmoney MCP.
+
+## Common Ground
+
+Amaterasu is the reference app for **Common Ground**, an open protocol for humans and AI agents
+editing the same visual workspace. Agents send typed operations; every op is acknowledged,
+attributable, reversible, scoped by a capability, and recorded in a hash-chained audit log.
+
+- [Landing page](https://sidharth-singh10.github.io/Amaterasu/)
+- [Interactive demo](https://sidharth-singh10.github.io/Amaterasu/demo/?demo=1)
+- [SDK guide](docs/sdk.md)
+- [Protocol specification](spec/protocol.md)
+- [Conformance fixtures](spec/conformance/)
+- [MCP server](packages/canvas-mcp/README.md)
+
+Install the protocol and a chart adapter:
+
+```sh
+npm install @common-ground/canvas-core @common-ground/canvas-chart zod
+```
+
+```ts
+import { DocStore } from "@common-ground/canvas-chart"
+
+const store = new DocStore({ checkAnchor: () => ({ ok: true, warnings: [] }) })
+store.beginTurn()
+store.applyOp({
+  op: "draw",
+  kind: "hline",
+  points: [{ t: 1_700_000_000, p: 2400 }],
+})
+store.commitTurn()
+store.undo()
+```
+
+The MCP server exposes a running journal to Claude Desktop, OpenCode, and other MCP clients:
+
+```sh
+npx -y @common-ground/canvas-mcp
+```
 
 ## Features
 
@@ -52,7 +97,7 @@ Rust service (axum, :8787)
 - **Drawing** — the chart-bridge plugin and the browser exchange ops over plugin RPC, so
   refreshing data never depends on the agent.
 
-## Common Ground protocol (draft)
+## Common Ground protocol (v0.1)
 
 Amaterasu is the first reference app for **Common Ground**: a typed, reversible, attributable
 protocol for humans and agents editing the same visual workspace. Ops carry an actor, a turn, a
@@ -119,8 +164,11 @@ v1; use the Journal's forward-only undo for turns that are in the journal.
 | `weave/` (separate repo) | Weave frontend bridge: `graph.*` envelopes over SSE |
 | `packages/canvas-mcp/` | MCP server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
 | `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
+| `examples/` | SDK quickstarts that use the published packages |
 | `spec/` | Protocol specification, generated JSON Schemas, conformance cases |
-| `docs/` | Extraction audit and implementation notes |
+| `site/` | Common Ground landing page and static demo composition |
+| `launch/` | Launch essay and post drafts |
+| `docs/` | SDK guide, release guide, extraction audit, launch status |
 | `server/` | Rust (axum) service — MCP client + OAuth, cache, OpenCode bridge, SSE, SQLite, static hosting |
 | `opencode/` | The agent's project — chart-bridge plugin, agent config, permissions |
 | `deploy/` | nginx vhost, systemd units, env template, deployment runbook |
@@ -167,7 +215,8 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 
 ## MCP server
 
-`packages/canvas-mcp` exposes the protocol over stdio for MCP clients:
+`packages/canvas-mcp` exposes the protocol over stdio for MCP clients. Registry name:
+`io.github.Sidharth-Singh10/common-ground`.
 
 | Tool | Purpose |
 |---|---|
@@ -176,7 +225,13 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 | `turn_undo` | Replay a turn's inverses as a new audited turn |
 | `state_query` | Recent ops plus audit-chain verification |
 
-Run it directly:
+Run the published package:
+
+```sh
+COMMON_GROUND_URL=http://127.0.0.1:8787 npx -y @common-ground/canvas-mcp
+```
+
+Or run the checkout directly:
 
 ```sh
 COMMON_GROUND_URL=http://127.0.0.1:8787 node packages/canvas-mcp/src/main.ts
@@ -188,8 +243,8 @@ Claude Desktop / MCP client config:
 {
   "mcpServers": {
     "common-ground": {
-      "command": "node",
-      "args": ["/home/levi/amaterasu/packages/canvas-mcp/src/main.ts"],
+      "command": "npx",
+      "args": ["-y", "@common-ground/canvas-mcp"],
       "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
     }
   }
@@ -206,10 +261,14 @@ protocol envelopes from `spec/protocol.md`; domain shorthand is an adapter conce
 | `npm run test --workspace @amaterasu/web` | Web unit tests (Vitest) |
 | `npm run check --workspace @amaterasu/web` | `svelte-kit sync` + `svelte-check` |
 | `npm run verify:e2e --workspace @amaterasu/web` | Browser E2E checks (dev server running) |
-| `npm run test:packages` | Protocol package tests (core + chart + MCP + conformance) |
+| `npm run test:packages` | Protocol package tests (core + chart + graph + MCP + conformance) |
 | `npm run typecheck:packages` | Typecheck all protocol packages |
+| `npm run build:packages` | Build ESM + declarations into each package's `dist/` |
+| `npm run verify:dist` | Pack and install all five packages into a clean temp project |
 | `npm run schemas` | Regenerate `spec/schemas/` from the zod definitions |
 | `npm run verify` | Web typecheck + tests + package typecheck + package tests |
+| `npm run build:site` | Compose the landing page and demo into `_site/` |
+| `npm run preview:site` | Serve `_site/` on `http://127.0.0.1:4173` |
 | `npm run build --workspace @amaterasu/web` | Static SPA build into `web/build` |
 | `cargo test --manifest-path server/Cargo.toml` | Rust unit, HTTP integration, conformance, and p95 latency tests |
 | `cargo test --manifest-path server/Cargo.toml -- --ignored` | Live OAuth discovery + DCR check |
@@ -253,8 +312,13 @@ the one-time INDmoney consent, upgrades, and troubleshooting.
 
 ## Documentation
 
-[`PLAN.md`](PLAN.md) is the design of record: architecture, the overlay engine spec, the op
-protocol, and the build plan.
+- [`PLAN.md`](PLAN.md) — the design of record: architecture, overlay engine, op protocol, build plan
+- [`docs/sdk.md`](docs/sdk.md) — install, adapter model, capabilities, audit, MCP
+- [`docs/releasing.md`](docs/releasing.md) — npm, MCP registry, tags, and Pages releases
+- [`docs/launch-status.md`](docs/launch-status.md) — launch criteria and verification evidence
+- [`docs/extraction-audit.md`](docs/extraction-audit.md) — what moved out of Amaterasu
+- [`spec/protocol.md`](spec/protocol.md) — normative protocol v0.1
+- [`launch/`](launch/) — launch essay and post drafts
 
 ## Contributing
 
