@@ -1,12 +1,49 @@
 {
   "name": "@common-ground/canvas-graph",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "Common Ground graph adapter: schemas, reducer, inverses, and merge",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "description": "Graph adapter for Common Ground: schemas, reducer, inverses, and merge",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sidharth-Singh10/Amaterasu.git",
+    "directory": "packages/canvas-graph"
+  },
+  "homepage": "https://sidharth-singh10.github.io/Amaterasu/",
+  "bugs": {
+    "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
+  },
+  "keywords": [
+    "common-ground",
+    "graph",
+    "knowledge-graph",
+    "adapter",
+    "undo",
+    "zod"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

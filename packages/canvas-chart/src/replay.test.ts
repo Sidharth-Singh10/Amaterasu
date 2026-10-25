@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { replayApplied, type JournalReplayOp } from "./replay"
+import { replayApplied, type JournalReplayOp } from "./replay.ts"
 
 const draw: JournalReplayOp = {
   seq: 2,

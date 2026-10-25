@@ -1,0 +1,14 @@
+{
+  "name": "@common-ground/example-chart-quickstart",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Apply chart ops, group them into a turn, and undo the turn",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@common-ground/canvas-chart": "^0.1.0",
+    "@common-ground/canvas-core": "^0.1.0"
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { GraphStore } from "./graph-store"
-import { inverseOf } from "./inverse"
+import { GraphStore } from "./graph-store.ts"
+import { inverseOf } from "./inverse.ts"
 
 const node = (id: string, label = id, kind = "concept") => ({ op: "node.create" as const, id, label, kind })
 const edge = (id: string, source: string, target: string, relation = "related to") => ({

@@ -15,7 +15,7 @@ import {
   type Series,
   type SetViewOp,
   type UpdateOp,
-} from "./schema"
+} from "./schema.ts"
 
 /**
  * Single write path for mouse input, agent ops, and imports. Snapshot-based undo:

@@ -1,4 +1,4 @@
-import type { Annotation, DocPayload, Op, Series } from "./schema"
+import type { Annotation, DocPayload, Op, Series } from "./schema.ts"
 
 /**
  * A protocol-level inverse produced by the chart adapter. The journal stores these on the

@@ -3,7 +3,10 @@ node_modules/
 .svelte-kit/
 build/
 out/
+dist/
+_site/
 target/
+*.tgz
 *.log
 .env
 .env.*

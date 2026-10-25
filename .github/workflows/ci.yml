@@ -24,7 +24,7 @@ jobs:
       - run: npm run test --workspace @amaterasu/web
 
   packages:
-    name: Protocol packages (typecheck + tests + schema drift)
+    name: Protocol packages (typecheck + tests + build + pack smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,8 @@ jobs:
         run: |
           npm run schemas
           git diff --exit-code -- spec/schemas
+      - run: npm run build:packages
+      - run: npm run verify:dist
 
   server:
     name: Server (fmt + clippy + tests)

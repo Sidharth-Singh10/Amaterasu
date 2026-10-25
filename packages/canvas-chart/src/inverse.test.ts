@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { Annotation, DocPayload, Series } from "./schema"
-import { inverseOf } from "./inverse"
+import type { Annotation, DocPayload, Series } from "./schema.ts"
+import { inverseOf } from "./inverse.ts"
 
 function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {

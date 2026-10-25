@@ -1,4 +1,4 @@
-import type { GraphDoc, GraphOp } from "./schema"
+import type { GraphDoc, GraphOp } from "./schema.ts"
 
 /** Diffs two graph documents into the ops that restore the "before" state. */
 export function inverseOf(before: GraphDoc, after: GraphDoc): GraphOp[] {

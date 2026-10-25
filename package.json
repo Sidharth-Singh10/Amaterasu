@@ -9,6 +9,11 @@
   "scripts": {
     "dev": "npm run dev --workspace @amaterasu/web",
     "build": "npm run build --workspace @amaterasu/web",
+    "build:packages": "npm run build --workspace @common-ground/canvas-core && npm run build --workspace @common-ground/canvas-chart && npm run build --workspace @common-ground/canvas-graph && npm run build --workspace @common-ground/canvas-conformance && npm run build --workspace @common-ground/canvas-mcp",
+    "clean:packages": "rm -rf packages/*/dist",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "build:site": "node scripts/build-site.mjs",
+    "preview:site": "python3 -m http.server 4173 --directory _site",
     "test": "npm run test --workspace @amaterasu/web",
     "test:core": "npm run test --workspace @common-ground/canvas-core",
     "test:chart": "npm run test --workspace @common-ground/canvas-chart",
@@ -17,8 +22,13 @@
     "test:conformance": "npm run test --workspace @common-ground/canvas-conformance",
     "test:packages": "npm run test:core && npm run test:chart && npm run test:graph && npm run test:mcp && npm run test:conformance",
     "typecheck:packages": "npm run typecheck --workspace @common-ground/canvas-core && npm run typecheck --workspace @common-ground/canvas-chart && npm run typecheck --workspace @common-ground/canvas-graph && npm run typecheck --workspace @common-ground/canvas-mcp && npm run typecheck --workspace @common-ground/canvas-conformance",
-    "schemas": "npm run schemas --workspace @common-ground/canvas-core",
+    "schemas": "node packages/canvas-core/scripts/emit-schemas.ts",
     "typecheck": "npm run typecheck --workspace @amaterasu/web",
     "verify": "npm run typecheck && npm run test && npm run typecheck:packages && npm run test:packages"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "typescript": "~5.9.0",
+    "vitest": "^5.0.1"
   }
 }

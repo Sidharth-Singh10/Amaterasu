@@ -4,11 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "npm run build --workspace @common-ground/canvas-chart",
     "dev": "vite dev",
+    "prebuild": "npm run build --workspace @common-ground/canvas-chart",
     "build": "vite build",
     "preview": "vite preview",
+    "precheck": "npm run build --workspace @common-ground/canvas-chart",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "typecheck": "npm run check",
+    "pretest": "npm run build --workspace @common-ground/canvas-chart",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:e2e": "node scripts/e2e-check.mjs"

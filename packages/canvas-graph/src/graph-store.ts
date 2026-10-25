@@ -6,7 +6,7 @@ import {
   type GraphNode,
   type GraphOp,
   type GraphResult,
-} from "./schema"
+} from "./schema.ts"
 
 /** Single write path for graph agents and imports. Positions/view are adapter concerns. */
 export class GraphStore {

@@ -1,5 +1,5 @@
-import { DocStore, type DocDeps } from "./doc-store"
-import type { DocPayload } from "./schema"
+import { DocStore, type DocDeps } from "./doc-store.ts"
+import type { DocPayload } from "./schema.ts"
 
 /** The subset of a journal op needed to reconstruct a document. */
 export interface JournalReplayOp {

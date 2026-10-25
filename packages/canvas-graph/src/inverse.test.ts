@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { inverseOf } from "./inverse"
-import type { GraphDoc } from "./schema"
+import { inverseOf } from "./inverse.ts"
+import type { GraphDoc } from "./schema.ts"
 
 const doc = (): GraphDoc => ({
   v: 1,

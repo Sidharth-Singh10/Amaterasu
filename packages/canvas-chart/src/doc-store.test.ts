@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import { CAPS, type OpResult, type SetViewOp } from "./schema"
-import { DocStore } from "./doc-store"
+import { CAPS, type OpResult, type SetViewOp } from "./schema.ts"
+import { DocStore } from "./doc-store.ts"
 
 const IN_WINDOW = (t: number) => t >= 1000 && t <= 5000
 

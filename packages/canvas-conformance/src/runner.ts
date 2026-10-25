@@ -16,8 +16,20 @@ const UNDO_ACTOR: Actor = { kind: "human", id: "conformance-user" }
 const CREATED_AT = "2026-10-20T09:41:02Z"
 const EPSILON = 1e-9
 
+function defaultFixturesDir(): string {
+  // In the repo, read the canonical fixtures under spec/. In the published package, use the
+  // copy that `scripts/copy-fixtures.mjs` places next to the compiled runner.
+  const repoDir = fileURLToPath(new URL("../../../spec/conformance/cases", import.meta.url))
+  try {
+    if (readdirSync(repoDir).length > 0) return repoDir
+  } catch {
+    // The package was installed outside the monorepo.
+  }
+  return fileURLToPath(new URL("./fixtures", import.meta.url))
+}
+
 export function loadFixtures(directory?: string): Fixture[] {
-  const dir = directory ?? fileURLToPath(new URL("../../../spec/conformance/cases", import.meta.url))
+  const dir = directory ?? defaultFixturesDir()
   return readdirSync(dir)
     .filter((file) => file.endsWith(".json"))
     .sort()

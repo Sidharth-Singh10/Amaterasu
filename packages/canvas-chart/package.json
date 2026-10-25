@@ -1,15 +1,50 @@
 {
   "name": "@common-ground/canvas-chart",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "Chart adapter: zod schemas, DocStore reducer, and inverse computation",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "description": "Chart adapter for Common Ground: zod schemas, DocStore reducer, inverses, and replay",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sidharth-Singh10/Amaterasu.git",
+    "directory": "packages/canvas-chart"
+  },
+  "homepage": "https://sidharth-singh10.github.io/Amaterasu/",
+  "bugs": {
+    "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
+  },
+  "keywords": [
+    "common-ground",
+    "chart",
+    "annotations",
+    "drawing",
+    "adapter",
+    "undo",
+    "zod"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
