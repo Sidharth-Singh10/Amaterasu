@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish SDK and release
+    runs-on: ubuntu-latest
+    env:
+      TAG_VERSION: ${{ github.ref_name }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      MCP_PUBLISHER_VERSION: v1.8.4
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Verify version matches server.json and packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${TAG_VERSION#v}"
+          PKG_VERSION="$(node -p "require('./packages/canvas-mcp/package.json').version")"
+          SERVER_VERSION="$(node -p "require('./server.json').version")"
+          test "$VERSION" = "$PKG_VERSION" || { echo "tag $VERSION != package $PKG_VERSION"; exit 1; }
+          test "$VERSION" = "$SERVER_VERSION" || { echo "tag $VERSION != server.json $SERVER_VERSION"; exit 1; }
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - run: npm run verify
+      - run: npm run build:packages
+      - run: npm run verify:dist
+
+      - name: Publish npm packages
+        if: env.NPM_TOKEN != ''
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+        run: |
+          set -euo pipefail
+          for workspace in \
+            @common-ground/canvas-core \
+            @common-ground/canvas-chart \
+            @common-ground/canvas-graph \
+            @common-ground/canvas-conformance \
+            @common-ground/canvas-mcp
+          do
+            if npm view "${workspace}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
+              echo "skip ${workspace}@${RELEASE_VERSION}: already published"
+            else
+              npm publish --workspace "$workspace" --access public --provenance
+            fi
+          done
+
+      - name: Wait for npm versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for workspace in \
+            @common-ground/canvas-core \
+            @common-ground/canvas-chart \
+            @common-ground/canvas-graph \
+            @common-ground/canvas-conformance \
+            @common-ground/canvas-mcp
+          do
+            for attempt in $(seq 1 30); do
+              if npm view "${workspace}@${RELEASE_VERSION}" version >/dev/null 2>&1; then break; fi
+              if [ "$attempt" -eq 30 ]; then echo "${workspace}@${RELEASE_VERSION} never appeared on npm"; exit 1; fi
+              sleep 2
+            done
+          done
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Download and verify mcp-publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          archive="mcp-publisher_${os}_${arch}.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      - name: Validate and publish MCP registry entry
+        run: |
+          ./mcp-publisher validate
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "docs/releases/${RELEASE_VERSION}.md" ]; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Common Ground v${RELEASE_VERSION}" \
+              --notes-file "docs/releases/${RELEASE_VERSION}.md"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Common Ground v${RELEASE_VERSION}" \
+              --generate-notes
+          fi

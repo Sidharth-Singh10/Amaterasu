@@ -1,0 +1,33 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Sidharth-Singh10/common-ground",
+  "title": "Common Ground",
+  "description": "Typed, reversible, auditable document ops for AI agents and humans.",
+  "websiteUrl": "https://sidharth-singh10.github.io/Amaterasu/",
+  "repository": {
+    "url": "https://github.com/Sidharth-Singh10/Amaterasu",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@common-ground/canvas-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "COMMON_GROUND_URL",
+          "description": "Base URL of the running Common Ground server",
+          "format": "string",
+          "isRequired": false,
+          "default": "http://127.0.0.1:8787"
+        }
+      ]
+    }
+  ]
+}
