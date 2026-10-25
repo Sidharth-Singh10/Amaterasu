@@ -4,9 +4,6 @@ A self-hosted, TradingView-style charting app for Indian markets, with an embedd
 that draws directly on your charts.
 
 [![CI](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml)
-[![canvas-core](https://img.shields.io/npm/v/@common-ground/canvas-core?label=canvas-core)](https://www.npmjs.com/package/@common-ground/canvas-core)
-[![canvas-chart](https://img.shields.io/npm/v/@common-ground/canvas-chart?label=canvas-chart)](https://www.npmjs.com/package/@common-ground/canvas-chart)
-[![canvas-mcp](https://img.shields.io/npm/v/@common-ground/canvas-mcp?label=canvas-mcp)](https://www.npmjs.com/package/@common-ground/canvas-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-5d91e9.svg)](LICENSE)
 
 Amaterasu pairs live OHLC data from the INDmoney MCP with an [OpenCode](https://opencode.ai)
@@ -16,6 +13,10 @@ existing annotations — and draws trendlines, rectangles, Fibonacci retracement
 computed indicator series through the same op DSL the mouse uses.
 
 > Not affiliated with INDmoney. Market data is provided by the INDmoney MCP.
+
+> **SDK status:** the `@common-ground/*` packages are built and ready for `0.1.0`, but npm
+> publication is intentionally paused. Until the release, use the workspace source in `packages/`;
+> the install commands below describe the published build.
 
 ## Common Ground
 

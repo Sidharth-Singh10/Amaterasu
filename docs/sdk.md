@@ -8,6 +8,10 @@ hash-chained audit log. Every accepted turn can be undone.
 The protocol is transport-neutral. The SDK ships schemas, adapters, a conformance corpus, and an
 MCP bridge; the Rust service in this repository is one implementation of the journal.
 
+> **Release status:** the `0.1.0` packages are built, packed, and validated. npm publication is
+> intentionally paused. Until the release, use the workspace source in `packages/` or the tarballs
+> produced by `npm run build:packages`; the install commands below describe the published build.
+
 ## Packages
 
 | Package | Use it for |

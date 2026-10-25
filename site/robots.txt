@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sidharth-singh10.github.io/Amaterasu/sitemap.xml
+# Noindex preview until the SDK packages are published.
