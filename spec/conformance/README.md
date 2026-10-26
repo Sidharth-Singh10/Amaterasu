@@ -12,7 +12,7 @@ npm run test:conformance
 
 The suite currently runs against `MemoryTarget`, a minimal reference implementation of the
 protocol spine (revisions, idempotency, capabilities, audit chain) with a 2D object model. It
-proves the fixtures and the spec. It is **not** evidence that `cg-server` or the chart adapter
+proves the fixtures and the spec. It is **not** evidence that `tenon-server` or the chart adapter
 conform; those targets are wired in Phase 1.
 
 ## The six cases
@@ -65,4 +65,4 @@ Unspecified fields are not asserted.
 | Target | Status |
 |---|---|
 | `MemoryTarget` (reference, TS) | 6/6 |
-| `cg-server` + chart adapter (Rust/TS) | not wired — Phase 1 |
+| `tenon-server` + chart adapter (Rust/TS) | not wired — Phase 1 |

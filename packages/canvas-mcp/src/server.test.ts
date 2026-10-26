@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { afterEach, describe, expect, it } from "vitest"
-import type { CommonGroundClient } from "./client.ts"
+import type { TenonClient } from "./client.ts"
 import { createServer } from "./server.ts"
 
 function textOf(result: unknown): string {
@@ -11,7 +11,7 @@ function textOf(result: unknown): string {
   return first.text
 }
 
-describe("Common Ground MCP server", () => {
+describe("Tenon MCP server", () => {
   let close: (() => Promise<void>) | undefined
 
   afterEach(async () => {
@@ -48,11 +48,11 @@ describe("Common Ground MCP server", () => {
         calls.push(`undo:${docId}:${turnId}`)
         return { docId, applied: true, acks: [] }
       },
-    } as unknown as CommonGroundClient
+    } as unknown as TenonClient
 
     const server = createServer(stub)
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-    const client = new Client({ name: "canvas-mcp-test", version: "0.0.1" })
+    const client = new Client({ name: "tenon-mcp-test", version: "0.0.1" })
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
     close = async () => {
       await client.close()

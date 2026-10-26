@@ -25,13 +25,13 @@ export interface AuditResponse {
   verification: { ok: boolean; broken_at?: number; reason?: string }
 }
 
-export class CommonGroundError extends Error {
+export class TenonError extends Error {
   readonly status: number
   readonly code: string
 
   constructor(status: number, code: string, message: string) {
     super(message)
-    this.name = "CommonGroundError"
+    this.name = "TenonError"
     this.status = status
     this.code = code
   }
@@ -41,7 +41,7 @@ export class CommonGroundError extends Error {
  * Thin HTTP client shared by the MCP tools. The transport is deliberately boring: the server
  * owns the journal and the browser adapter owns domain application.
  */
-export class CommonGroundClient {
+export class TenonClient {
   private readonly baseUrl: string
   private readonly fetchImpl: typeof fetch
   private readonly tokens = new Map<string, string>()
@@ -91,7 +91,7 @@ export class CommonGroundClient {
     return this.request(`/api/docs/${encodeURIComponent(docId)}/ops`, {
       method: "POST",
       body: JSON.stringify({ ops }),
-      headers: { "x-cg-capability": token },
+      headers: { "x-tenon-capability": token },
     })
   }
 
@@ -99,7 +99,7 @@ export class CommonGroundClient {
     const token = await this.tokenFor("cap_undo")
     return this.request(
       `/api/docs/${encodeURIComponent(docId)}/turns/${encodeURIComponent(turnId)}/undo`,
-      { method: "POST", body: "{}", headers: { "x-cg-capability": token } },
+      { method: "POST", body: "{}", headers: { "x-tenon-capability": token } },
     )
   }
 
@@ -121,7 +121,7 @@ export class CommonGroundClient {
     }
     if (!response.ok) {
       const record = (body ?? {}) as { error?: string; message?: string }
-      throw new CommonGroundError(
+      throw new TenonError(
         response.status,
         record.error ?? "http_error",
         record.message ?? `${response.status} ${response.statusText}`,

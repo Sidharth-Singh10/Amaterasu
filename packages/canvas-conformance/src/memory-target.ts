@@ -14,7 +14,7 @@ import {
   type Envelope,
   type HashFn,
   type Turn,
-} from "@common-ground/canvas-core"
+} from "@tenon-protocol/core"
 import type { ConformanceTarget, DocSeed, DocSnapshot, Point, SeedObject, Viewport } from "./types.ts"
 
 const sha256: HashFn = (input) => createHash("sha256").update(input).digest("hex")
@@ -40,7 +40,7 @@ interface Rejection {
  *
  * It is deliberately small: a 2D object model (`obj.point.create/update/delete`) plus `obj.viewport.set`.
  * The chart adapter maps its own vocabulary onto the same protocol spine. This target is not
- * the production server; it exists so the spec can be tested before `cg-server` exists.
+ * the production server; it exists so the spec can be tested before `tenon-server` exists.
  */
 export class MemoryTarget implements ConformanceTarget {
   private docId = "doc_conformance"

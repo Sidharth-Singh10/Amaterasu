@@ -1,8 +1,8 @@
 # Show HN draft
 
-**Title (67 chars)**
+**Title (56 chars)**
 
-Show HN: Common Ground – typed, reversible actions for AI agents
+Show HN: Tenon – typed, reversible actions for AI agents
 
 **URL**
 
@@ -10,14 +10,14 @@ https://sidharth-singh10.github.io/Amaterasu/
 
 **Body**
 
-Hi HN — I built Common Ground, an open protocol for humans and AI agents editing the same visual
+Hi HN — I built Tenon, an open protocol for humans and AI agents editing the same visual
 workspace.
 
 The problem: screenshot agents are impressive until they touch something real. A click at (812,
 430) is not a trendline. MCP standardized how agents call tools, but a tool call like
 `draw_line(x1, y1, x2, y2)` still has no object, no undo, no capability, and no audit trail.
 
-Common Ground gives every mutation a typed envelope (actor, turn, capability, target, idempotency
+Tenon gives every mutation a typed envelope (actor, turn, capability, target, idempotency
 key, rationale), a server-assigned revision, an adapter ack, and an inverse. Destructive agent ops
 can require a one-shot human approval. Every attempt — applied or rejected — goes into a
 hash-chained audit log. Undo is a new turn that replays the stored inverses.

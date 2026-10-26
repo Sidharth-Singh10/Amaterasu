@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:common-ground:protocol:1:turn",
-  "title": "Common Ground turn",
+  "$id": "urn:tenon:protocol:1:turn",
+  "title": "Tenon turn",
   "type": "object",
   "properties": {
     "turn_id": {

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { EnvelopeSchema } from "@common-ground/canvas-core"
+import { EnvelopeSchema } from "@tenon-protocol/core"
 import { z } from "zod"
-import type { CommonGroundClient } from "./client.ts"
+import type { TenonClient } from "./client.ts"
 
 async function textResult(action: () => Promise<unknown>) {
   try {
@@ -23,11 +23,11 @@ async function textResult(action: () => Promise<unknown>) {
 }
 
 /**
- * The four Common Ground tools. Tool inputs are envelopes, not domain shorthands: an adapter
+ * The four Tenon tools. Tool inputs are envelopes, not domain shorthands: an adapter
  * registers its own op types and the server remains domain-neutral.
  */
-export function createServer(client: CommonGroundClient): McpServer {
-  const server = new McpServer({ name: "common-ground", version: "0.1.0" })
+export function createServer(client: TenonClient): McpServer {
+  const server = new McpServer({ name: "tenon", version: "0.1.0" })
 
   server.registerTool(
     "doc_get",
@@ -36,7 +36,7 @@ export function createServer(client: CommonGroundClient): McpServer {
       description:
         "Read a document's revision, pending count, audit status, and latest adapter snapshot.",
       inputSchema: {
-        doc_id: z.string().min(1).describe("Common Ground document id"),
+        doc_id: z.string().min(1).describe("Tenon document id"),
       },
     },
     async ({ doc_id }) => textResult(() => client.docGet(doc_id)),
@@ -49,7 +49,7 @@ export function createServer(client: CommonGroundClient): McpServer {
       description:
         "Submit one or more protocol envelopes. The server journals and capability-checks them before the adapter applies them, and blocks until the adapter acks.",
       inputSchema: {
-        doc_id: z.string().min(1).describe("Common Ground document id"),
+        doc_id: z.string().min(1).describe("Tenon document id"),
         ops: z.array(EnvelopeSchema).min(1).describe("Envelopes to apply in order"),
       },
     },
@@ -64,7 +64,7 @@ export function createServer(client: CommonGroundClient): McpServer {
       description:
         "Undo one applied turn by replaying its adapter-supplied inverses as a new audited turn. A turn can be undone once; undo of an undo redoes it.",
       inputSchema: {
-        doc_id: z.string().min(1).describe("Common Ground document id"),
+        doc_id: z.string().min(1).describe("Tenon document id"),
         turn_id: z.string().min(1).describe("Turn id to undo"),
       },
     },
@@ -78,7 +78,7 @@ export function createServer(client: CommonGroundClient): McpServer {
       description:
         "Read document metadata, recent journaled ops, and the audit chain with verification.",
       inputSchema: {
-        doc_id: z.string().min(1).describe("Common Ground document id"),
+        doc_id: z.string().min(1).describe("Tenon document id"),
         limit: z.number().int().min(1).max(200).optional().describe("Maximum ops to return"),
       },
     },

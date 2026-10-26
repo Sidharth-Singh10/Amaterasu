@@ -24,7 +24,7 @@ pub struct Config {
     pub opencode_directory: String,
     /// SQLite file holding per-symbol workspace documents.
     pub workspaces_db: PathBuf,
-    /// SQLite file holding the Common Ground op journal.
+    /// SQLite file holding the Tenon op journal.
     pub journal_db: PathBuf,
 }
 

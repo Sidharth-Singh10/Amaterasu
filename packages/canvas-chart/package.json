@@ -1,8 +1,8 @@
 {
-  "name": "@common-ground/canvas-chart",
+  "name": "@tenon-protocol/chart",
   "version": "0.1.0",
   "type": "module",
-  "description": "Chart adapter for Common Ground: zod schemas, DocStore reducer, inverses, and replay",
+  "description": "Chart adapter for Tenon: zod schemas, DocStore reducer, inverses, and replay",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
   },
   "keywords": [
-    "common-ground",
+    "tenon",
     "chart",
     "annotations",
     "drawing",

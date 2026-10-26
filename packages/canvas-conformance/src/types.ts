@@ -5,7 +5,7 @@ import type {
   AuditVerification,
   CapabilityClaims,
   Turn,
-} from "@common-ground/canvas-core"
+} from "@tenon-protocol/core"
 
 /** Document-space point. The conformance domain is a minimal 2D object model. */
 export interface Point {

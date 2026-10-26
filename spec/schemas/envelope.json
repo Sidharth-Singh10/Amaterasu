@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:common-ground:protocol:1:envelope",
-  "title": "Common Ground op envelope",
+  "$id": "urn:tenon:protocol:1:envelope",
+  "title": "Tenon op envelope",
   "type": "object",
   "properties": {
     "v": {

@@ -1,5 +1,5 @@
-import type { DocPayload, InverseOp, Op, OpResult } from "@common-ground/canvas-chart"
-import { inverseOf } from "@common-ground/canvas-chart"
+import type { DocPayload, InverseOp, Op, OpResult } from "@tenon-protocol/chart"
+import { inverseOf } from "@tenon-protocol/chart"
 import { docs } from "@/lib/api/docs"
 import type { HumanOpEvent } from "@/lib/chart/ChartController"
 

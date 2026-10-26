@@ -1,8 +1,8 @@
 {
-  "name": "@common-ground/canvas-graph",
+  "name": "@tenon-protocol/graph",
   "version": "0.1.0",
   "type": "module",
-  "description": "Graph adapter for Common Ground: schemas, reducer, inverses, and merge",
+  "description": "Graph adapter for Tenon: schemas, reducer, inverses, and merge",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
   },
   "keywords": [
-    "common-ground",
+    "tenon",
     "graph",
     "knowledge-graph",
     "adapter",

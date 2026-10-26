@@ -1,4 +1,4 @@
-import { DocStore } from "@common-ground/canvas-chart"
+import { DocStore } from "@tenon-protocol/chart"
 
 const DAY = 86_400
 const start = 1_700_000_000

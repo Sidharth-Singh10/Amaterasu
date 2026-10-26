@@ -223,7 +223,7 @@ export default Plugin.define({
           method: "POST",
           headers: {
             "content-type": "application/json",
-            ...(token ? { "x-cg-capability": token } : {}),
+            ...(token ? { "x-tenon-capability": token } : {}),
           },
           body: JSON.stringify({ chartId: chart.chartId, requestId: crypto.randomUUID(), op }),
           signal: AbortSignal.timeout(OP_TIMEOUT_MS + 10_000),

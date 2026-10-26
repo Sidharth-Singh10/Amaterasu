@@ -1,12 +1,12 @@
 # LinkedIn draft
 
-MCP gave agents tools. Common Ground gives them a shared workspace.
+MCP gave agents tools. Tenon gives them a shared workspace.
 
 Most agent demos still end with a screenshot and a click. That works for exploration, but not for
 software where precision matters. A click at (812, 430) is not a trendline. It has no id, no
 inverse, no owner, and no audit trail.
 
-I published Common Ground, an open protocol for humans and AI agents editing the same visual
+I published Tenon, an open protocol for humans and AI agents editing the same visual
 workspace. Every mutation is a typed envelope: actor, turn, capability, target, idempotency key, and
 an optional rationale. The adapter applies or rejects it. The server journals the result and the
 inverse. A turn can be undone atomically. Destructive ops can require a human approval. Every

@@ -1,17 +1,17 @@
-# @common-ground/canvas-mcp
+# @tenon-protocol/mcp
 
-Stdio MCP server for **Common Ground**. It exposes a running Common Ground journal to MCP clients:
+Stdio MCP server for **Tenon**. It exposes a running Tenon journal to MCP clients:
 read document metadata, apply typed envelopes, undo a turn, and query the audit chain.
 
-The package is a thin client. The Common Ground server owns ids, revisions, capability checks, and
+The package is a thin client. The Tenon server owns ids, revisions, capability checks, and
 the audit chain; a browser or graph adapter applies the ops and returns acks.
 
 ## Install
 
 ```sh
-npm install -g @common-ground/canvas-mcp
+npm install -g @tenon-protocol/mcp
 # or run without installing
-npx -y @common-ground/canvas-mcp
+npx -y @tenon-protocol/mcp
 ```
 
 ## Tools
@@ -25,18 +25,18 @@ npx -y @common-ground/canvas-mcp
 
 `op_apply` takes full protocol envelopes, including `turn_id`, `seq`, `actor`, `capability`,
 `type`, `target`, `payload`, and `idempotency_key`. The server assigns ids and revisions. The
-client fetches and caches the signed `X-CG-Capability` token for the envelope's capability, so the
-Common Ground server must be reachable for token minting.
+client fetches and caches the signed `X-Tenon-Capability` token for the envelope's capability, so the
+Tenon server must be reachable for token minting.
 
 ## Configure
 
 ```json
 {
   "mcpServers": {
-    "common-ground": {
+    "tenon": {
       "command": "npx",
-      "args": ["-y", "@common-ground/canvas-mcp"],
-      "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
+      "args": ["-y", "@tenon-protocol/mcp"],
+      "env": { "TENON_URL": "http://127.0.0.1:8787" }
     }
   }
 }
@@ -44,7 +44,7 @@ Common Ground server must be reachable for token minting.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `COMMON_GROUND_URL` | `AMATERASU_URL`, then `http://127.0.0.1:8787` | Base URL of the Common Ground server |
+| `TENON_URL` | `AMATERASU_URL`, then `http://127.0.0.1:8787` | Base URL of the Tenon server |
 | `AMATERASU_URL` | — | Fallback for existing Amaterasu deployments |
 
 `doc_id` is the document configured in the adapter. For Amaterasu it is the chart id in
@@ -54,7 +54,7 @@ The server writes only JSON-RPC to stdout; diagnostics go to stderr.
 
 ## Requirements
 
-You need a running Common Ground server and a connected adapter. The registry metadata for this
-package is [`io.github.Sidharth-Singh10/common-ground`](https://registry.modelcontextprotocol.io/).
+You need a running Tenon server and a connected adapter. The registry metadata for this
+package is [`io.github.Sidharth-Singh10/tenon`](https://registry.modelcontextprotocol.io/).
 
 MIT licensed.

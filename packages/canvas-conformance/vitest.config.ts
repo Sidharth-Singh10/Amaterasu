@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   resolve: {
     alias: {
-      "@common-ground/canvas-core": fileURLToPath(new URL("../canvas-core/src/index.ts", import.meta.url)),
+      "@tenon-protocol/core": fileURLToPath(new URL("../canvas-core/src/index.ts", import.meta.url)),
     },
   },
   test: {

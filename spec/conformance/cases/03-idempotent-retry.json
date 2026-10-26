@@ -10,7 +10,7 @@
       {
         "v": 1,
         "cap_id": "cap_write",
-        "iss": "cg-local",
+        "iss": "tenon-local",
         "sub": { "actor_id": "conformance", "session": "ses_conformance" },
         "documents": ["doc_*"],
         "op_types": ["obj.point.*", "obj.viewport.*"],

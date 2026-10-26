@@ -14,5 +14,5 @@ export async function capabilityToken(capId: string): Promise<string> {
 }
 
 export async function capabilityHeaders(capId: string): Promise<Record<string, string>> {
-  return { "x-cg-capability": await capabilityToken(capId) }
+  return { "x-tenon-capability": await capabilityToken(capId) }
 }

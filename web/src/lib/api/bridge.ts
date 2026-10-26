@@ -1,4 +1,4 @@
-import type { OpResult } from "@common-ground/canvas-chart"
+import type { OpResult } from "@tenon-protocol/chart"
 import { apiRequest } from "./client"
 
 /** Raw OpenCode message (rendered defensively by the chat panel). */

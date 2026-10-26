@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-20
 **Scope:** `/home/levi/amaterasu` at `4fba760`
-**Purpose:** decide what moves into Common Ground packages, what stays in the Amaterasu adapter,
+**Purpose:** decide what moves into Tenon packages, what stays in the Amaterasu adapter,
 and what dies. Pairs with `spec/protocol.md` v0.1.
 
 Baseline verified before any change: **91 web tests**, **30 Rust tests**, svelte-check clean.
@@ -11,7 +11,7 @@ Baseline verified before any change: **91 web tests**, **30 Rust tests**, svelte
 
 ## 1. Summary
 
-The repo already implements the two hardest client-side pieces of Common Ground:
+The repo already implements the two hardest client-side pieces of Tenon:
 
 - data-space anchors with a four-tier resolver;
 - a single write path with per-turn snapshot undo.
@@ -23,7 +23,7 @@ persistence is a last-write-wins JSON blob per symbol.
 
 So Phase 1 is not primarily an extraction. It is the addition of the journal, followed by moving
 the client pieces behind the protocol. Extraction without the journal would relocate chart code
-without making any claim in `COMMON_GROUND.md` true.
+without making any claim in `TENON.md` true.
 
 ---
 
@@ -31,23 +31,23 @@ without making any claim in `COMMON_GROUND.md` true.
 
 | Path | What it is | Disposition | Notes |
 |---|---|---|---|
-| `packages/canvas-chart/src/schema.ts` | zod schemas for chart ops, annotations, series, doc payload | **Stays**, re-scoped as `@common-ground/canvas-chart` | It is the domain vocabulary, not the protocol. Envelope wraps it. |
-| `packages/canvas-chart/src/doc-store.ts` | `DocStore`, single write path, snapshot undo | **Stays** in `canvas-chart` (extracted Phase 1b) | Stays chart-shaped; `canvas-core` remains domain-neutral. |
+| `packages/canvas-chart/src/schema.ts` | zod schemas for chart ops, annotations, series, doc payload | **Stays**, re-scoped as `@tenon-protocol/chart` | It is the domain vocabulary, not the protocol. Envelope wraps it. |
+| `packages/canvas-chart/src/doc-store.ts` | `DocStore`, single write path, snapshot undo | **Stays** in `@tenon-protocol/chart` (extracted Phase 1b) | Stays chart-shaped; `@tenon-protocol/core` remains domain-neutral. |
 | `packages/canvas-chart/src/doc-store.test.ts` | 22 reducer tests | **Stays** with the adapter | The regression net for the extraction. |
 | `web/src/lib/chart/transform.ts` | LWC projection, per-pane transform | **Stays** in the chart adapter | Depends on lightweight-charts; not portable. |
 | `web/src/lib/chart/anchoring.test.ts` | resolver tier tests | **Stays**, becomes conformance case input | Keep local tests; add protocol fixtures. |
 | `web/src/lib/chart/ChartController.ts` | chart lifecycle, pointer input, op application, snapshot | **Splits**: lifecycle/input stays; op intake + resolver policy moves behind an adapter interface | 954 lines; do not move wholesale. |
-| `web/src/lib/chart/bridge-wiring.ts` | SSE → apply → ack, turn grouping by messageID | **Splits**: turn policy moves to `canvas-core`; transport moves to `canvas-mcp` | Turn id derivation is protocol, not chart. |
+| `web/src/lib/chart/bridge-wiring.ts` | SSE → apply → ack, turn grouping by messageID | **Splits**: turn policy moves to `@tenon-protocol/core`; transport moves to `@tenon-protocol/mcp` | Turn id derivation is protocol, not chart. |
 | `web/src/lib/overlays/*` | painter, registry, hit-test, snap, 13 renderers | **Stays** in the chart adapter | Correctly domain-specific and well tested (23 renderer tests). |
 | `web/src/lib/overlays/snap.ts` | snap candidates and data-space tolerance | **Stays**, but the data-space tolerance rule is specified in the protocol | Only chart has OHLC/swing/fib candidates. |
 | `web/src/lib/components/*` | chart shell, chat panel, op console | **Stays** | The reference app UI. History drawer is new here. |
 | `web/src/lib/api/*` | REST/SSE client | **Stays**; endpoints retarget to `/api/docs/...` | |
 | `server/src/workspace.rs` | `workspace_docs(key, payload, updated_at)` blob store | **Demoted** to a materialized snapshot cache | No longer authoritative. Keep for fast loads. |
-| `server/src/api.rs` | axum routes | **Grows** into `cg-server`; route table is replaced by `/api/docs/...` | Preserve `/api/candles`, `/api/search`, `/api/quote`, `/api/stream`. |
+| `server/src/api.rs` | axum routes | **Grows** into `tenon-server`; route table is replaced by `/api/docs/...` | Preserve `/api/candles`, `/api/search`, `/api/quote`, `/api/stream`. |
 | `server/src/indmoney/*` | MCP client, OAuth, normalization, token store | **Stays in Amaterasu** | Market data is app-domain, not platform. It is the reason the wedge exists. |
-| `server/src/opencode.rs`, `server/src/bridge.rs` | OpenCode process/API bridge, RPC fan-out | **Evolves** into `canvas-mcp`'s host bridge | The RPC event plumbing is reusable. |
+| `server/src/opencode.rs`, `server/src/bridge.rs` | OpenCode process/API bridge, RPC fan-out | **Evolves** into `@tenon-protocol/mcp`'s host bridge | The RPC event plumbing is reusable. |
 | `server/src/cache.rs` | data cache | **Stays in Amaterasu** | |
-| `opencode/.opencode/plugins/chart-bridge/index.ts` | RPC, 8 `chart_*` tools, source stamping | **Moves** to `canvas-mcp` + chart tool registration | Tool schemas should be generated from the domain schema instead of hand-written JSON Schema. |
+| `opencode/.opencode/plugins/chart-bridge/index.ts` | RPC, 8 `chart_*` tools, source stamping | **Moves** to `@tenon-protocol/mcp` + chart tool registration | Tool schemas should be generated from the domain schema instead of hand-written JSON Schema. |
 | `opencode/.opencode/agents/chart-analyst.md` | agent instructions | **Stays** | Reference-app prompt. |
 | `deploy/*` | nginx, systemd, runbook | **Stays**, later splits | Hosted deploy is the same box. |
 | `PLAN.md` | Amaterasu design of record | **Stays** | Update the Phase 4 op-log claim to reflect reality. |
@@ -75,17 +75,17 @@ without making any claim in `COMMON_GROUND.md` true.
 
 ## 4. What this means for the build order
 
-The plan in `COMMON_GROUND.md` says Phase 1 ports the reducer. Reordered:
+The plan in `TENON.md` says Phase 1 ports the reducer. Reordered:
 
 1. **Phase 0 (this week):** spec v0.1, this audit, protocol schemas, conformance fixtures and runner.
 2. **Phase 1a (done):** journal in the Rust server — `doc_ops` table, revisions, idempotency, hash chain,
    acks. The existing bridge journals at dispatch and finalizes on the browser ack.
 3. **Phase 1b (done):** extract `DocStore` and inverse computation into `packages/canvas-chart` (the
-   adapter, not `canvas-core`), with the reducer and inverse tests moved and passing.
+   adapter, not `@tenon-protocol/core`), with the reducer and inverse tests moved and passing.
 4. **Phase 1c (done):** local capability registry with typed denials, one-shot approvals for
    destructive agent ops, and a Journal drawer that reads the log, verifies the audit chain, and
    drives undo/approve.
-5. **Phase 2 (mostly done):** `canvas-mcp` tools, ed25519 capability tokens, approval gate,
+5. **Phase 2 (mostly done):** `@tenon-protocol/mcp` tools, ed25519 capability tokens, approval gate,
    audit/history, ten-shape turn undo, structured self-correction, replay/latency proofs, and
    human-edit recording (`/records`) in both adapters. Remaining: a wire-level HTTP/SSE
    conformance target.
@@ -119,5 +119,5 @@ today's client-only semantics under new package names.
 3. How the adapter reports a *partially* successful undo turn to the UI.
 4. Whether to keep `workspace_docs` as a snapshot cache or delete it in favour of log replay once
    p95 replay time is measured.
-5. Package naming: `@common-ground/canvas-core` vs `@common-ground/core`. Decide before publishing;
-   irrelevant to imports inside this repo.
+5. Package naming is settled at `@tenon-protocol/*`; source directories keep the
+   `packages/canvas-*` names.

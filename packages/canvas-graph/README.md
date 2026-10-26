@@ -1,19 +1,19 @@
-# @common-ground/canvas-graph
+# @tenon-protocol/graph
 
-Graph adapter for **Common Ground**. A second domain proves the protocol is not chart-specific:
+Graph adapter for **Tenon**. A second domain proves the protocol is not chart-specific:
 nodes, edges, merges, and view state go through the same envelope, ack, turn, undo, and audit
 machinery as the chart adapter.
 
 ## Install
 
 ```sh
-npm install @common-ground/canvas-graph zod
+npm install @tenon-protocol/graph zod
 ```
 
 ## Quick start
 
 ```ts
-import { GraphStore, inverseOf } from "@common-ground/canvas-graph"
+import { GraphStore, inverseOf } from "@tenon-protocol/graph"
 
 const store = new GraphStore()
 
@@ -51,8 +51,8 @@ inverses so a turn can be undone without replaying the whole document.
 
 ## Related packages
 
-- [`@common-ground/canvas-core`](../canvas-core) — envelopes, acks, capabilities, audit
-- [`@common-ground/canvas-chart`](../canvas-chart) — the chart adapter
-- [`@common-ground/canvas-conformance`](../canvas-conformance) — fixtures and runner
+- [`@tenon-protocol/core`](../canvas-core) — envelopes, acks, capabilities, audit
+- [`@tenon-protocol/chart`](../canvas-chart) — the chart adapter
+- [`@tenon-protocol/conformance`](../canvas-conformance) — fixtures and runner
 
 MIT licensed.

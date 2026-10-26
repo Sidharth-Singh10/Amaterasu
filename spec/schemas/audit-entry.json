@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:common-ground:protocol:1:audit-entry",
-  "title": "Common Ground audit entry",
+  "$id": "urn:tenon:protocol:1:audit-entry",
+  "title": "Tenon audit entry",
   "type": "object",
   "properties": {
     "v": {

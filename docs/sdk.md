@@ -1,6 +1,6 @@
-# Common Ground SDK
+# Tenon SDK
 
-The Common Ground SDK is a small set of packages for building a shared workspace that humans and
+The Tenon SDK is a small set of packages for building a shared workspace that humans and
 AI agents can edit safely. An agent sends a typed operation; an adapter validates and applies it
 against domain state; the server journals it, checks the capability, and records it in a
 hash-chained audit log. Every accepted turn can be undone.
@@ -16,26 +16,26 @@ MCP bridge; the Rust service in this repository is one implementation of the jou
 
 | Package | Use it for |
 |---|---|
-| [`@common-ground/canvas-core`](https://www.npmjs.com/package/@common-ground/canvas-core) | Envelopes, acks, turns, capabilities, audit helpers |
-| [`@common-ground/canvas-chart`](https://www.npmjs.com/package/@common-ground/canvas-chart) | Chart annotations, computed series, `DocStore`, replay |
-| [`@common-ground/canvas-graph`](https://www.npmjs.com/package/@common-ground/canvas-graph) | Nodes, edges, merges, graph inverses |
-| [`@common-ground/canvas-conformance`](https://www.npmjs.com/package/@common-ground/canvas-conformance) | Six fixtures and a runner for your own target |
-| [`@common-ground/canvas-mcp`](https://www.npmjs.com/package/@common-ground/canvas-mcp) | MCP stdio server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
+| [`@tenon-protocol/core`](https://www.npmjs.com/package/@tenon-protocol/core) | Envelopes, acks, turns, capabilities, audit helpers |
+| [`@tenon-protocol/chart`](https://www.npmjs.com/package/@tenon-protocol/chart) | Chart annotations, computed series, `DocStore`, replay |
+| [`@tenon-protocol/graph`](https://www.npmjs.com/package/@tenon-protocol/graph) | Nodes, edges, merges, graph inverses |
+| [`@tenon-protocol/conformance`](https://www.npmjs.com/package/@tenon-protocol/conformance) | Six fixtures and a runner for your own target |
+| [`@tenon-protocol/mcp`](https://www.npmjs.com/package/@tenon-protocol/mcp) | MCP stdio server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
 
-All packages are ESM, require Node 20 or newer, and are MIT licensed. `canvas-core` and the
-adapters depend on zod 4.
+All packages are ESM, require Node 20 or newer, and are MIT licensed.
+`@tenon-protocol/core` and the adapters depend on zod 4.
 
 ## Install
 
 ```sh
 # Protocol only
-npm install @common-ground/canvas-core zod
+npm install @tenon-protocol/core zod
 
 # Chart adapter
-npm install @common-ground/canvas-chart zod
+npm install @tenon-protocol/chart zod
 
 # MCP server
-npm install -g @common-ground/canvas-mcp
+npm install -g @tenon-protocol/mcp
 ```
 
 ## The shape of an operation
@@ -57,8 +57,8 @@ npm install -g @common-ground/canvas-mcp
 }
 ```
 
-The envelope is validated by `canvas-core`; the payload is validated by the adapter. The server
-assigns `op_id` and the revision, then returns an ack:
+The envelope is validated by `@tenon-protocol/core`; the payload is validated by the adapter.
+The server assigns `op_id` and the revision, then returns an ack:
 
 ```json
 {
@@ -88,7 +88,7 @@ The chart package is the reference domain. A chart adapter owns three things:
    to the server. The server journals the inverse; the adapter does not replay history to undo.
 
 ```ts
-import { DocStore } from "@common-ground/canvas-chart"
+import { DocStore } from "@tenon-protocol/chart"
 
 const store = new DocStore({ checkAnchor })
 const result = store.applyOp({ op: "draw", kind: "hline", points: [{ t, p }] })
@@ -114,7 +114,7 @@ The graph adapter is a compact example: nodes, edges, merge, and view state in a
 `CapabilityClaimsSchema` describes a scoped, expiring grant:
 
 ```ts
-import { CapabilityClaimsSchema } from "@common-ground/canvas-core"
+import { CapabilityClaimsSchema } from "@tenon-protocol/core"
 
 const claims = CapabilityClaimsSchema.parse({
   v: 1,
@@ -130,7 +130,7 @@ const claims = CapabilityClaimsSchema.parse({
 })
 ```
 
-The reference server signs claims as an Ed25519 `cg1.…` token. Destructive ops can require a
+The reference server signs claims as an Ed25519 `tn1.…` token. Destructive ops can require a
 one-shot human approval, which the browser surfaces before the op is applied.
 
 ## Audit
@@ -151,10 +151,10 @@ target can use SHA-256 or whatever it already has.
 ```json
 {
   "mcpServers": {
-    "common-ground": {
+    "tenon": {
       "command": "npx",
-      "args": ["-y", "@common-ground/canvas-mcp"],
-      "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
+      "args": ["-y", "@tenon-protocol/mcp"],
+      "env": { "TENON_URL": "http://127.0.0.1:8787" }
     }
   }
 }
@@ -165,7 +165,7 @@ The MCP server is a thin client over a running journal. It does not store state 
 ## Conformance
 
 ```ts
-import { MemoryTarget, loadFixtures, runSuite } from "@common-ground/canvas-conformance"
+import { MemoryTarget, loadFixtures, runSuite } from "@tenon-protocol/conformance"
 
 const results = await runSuite(new MemoryTarget(), loadFixtures())
 ```

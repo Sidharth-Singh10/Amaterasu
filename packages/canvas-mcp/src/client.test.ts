@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it } from "vitest"
-import { CommonGroundClient } from "./client.ts"
+import { TenonClient } from "./client.ts"
 
 const meta = {
   doc: { doc_id: "doc_1", revision: 2, next_seq: 3, pending: 0, audit_seq: 2 },
@@ -20,12 +20,12 @@ async function serve(handler: (request: IncomingMessage, response: ServerRespons
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const port = (server.address() as AddressInfo).port
   return {
-    client: new CommonGroundClient(`http://127.0.0.1:${port}`),
+    client: new TenonClient(`http://127.0.0.1:${port}`),
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   }
 }
 
-describe("CommonGroundClient", () => {
+describe("TenonClient", () => {
   let close: (() => Promise<void>) | undefined
 
   afterEach(async () => {
@@ -79,7 +79,7 @@ describe("CommonGroundClient", () => {
       seen.push({
         method: request.method,
         url: request.url,
-        token: request.headers["x-cg-capability"] as string | undefined,
+        token: request.headers["x-tenon-capability"] as string | undefined,
         body: await body(request),
       })
       if (request.url?.endsWith("/ops")) {

@@ -2,7 +2,7 @@ import type { AuditEntry } from "./protocol.ts"
 
 /**
  * Audit chain helpers. The chain format is protocol-level; the concrete hash function is the
- * server's (blake3 in `cg-server`). Keeping the function injectable lets a target verify a chain
+ * server's (blake3 in `tenon-server`). Keeping the function injectable lets a target verify a chain
  * with whatever primitive it uses while the fixtures assert linkage and tamper detection.
  */
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import type { Anchor } from "@common-ground/canvas-chart"
+import type { Anchor } from "@tenon-protocol/chart"
 import { makeFakeAdapters } from "@/lib/testing/fake-adapters"
-import { DocStore } from "@common-ground/canvas-chart"
+import { DocStore } from "@tenon-protocol/chart"
 import { Transform, type ResolveFailure } from "./transform"
 
 /**

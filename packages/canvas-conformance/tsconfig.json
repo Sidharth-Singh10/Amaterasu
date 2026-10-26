@@ -13,7 +13,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@common-ground/canvas-core": ["../canvas-core/src/index.ts"]
+      "@tenon-protocol/core": ["../canvas-core/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]

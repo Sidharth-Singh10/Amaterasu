@@ -2,7 +2,7 @@
 
 **Title**
 
-Common Ground: an MCP server for reversible, auditable document edits (open source, MIT)
+Tenon: an MCP server for reversible, auditable document edits (open source, MIT)
 
 **Body**
 
@@ -10,7 +10,7 @@ Most MCP servers expose a set of verbs. That works until an agent needs to edit 
 owns. Then you need more than a tool call: you need an object id, an inverse, a capability, and a
 record of who did what.
 
-I built **Common Ground** around that idea. It is an open protocol plus a TypeScript SDK. The MCP
+I built **Tenon** around that idea. It is an open protocol plus a TypeScript SDK. The MCP
 server is a thin client over a journal:
 
 | Tool | What it does |
@@ -23,7 +23,7 @@ server is a thin client over a journal:
 Install:
 
 ```sh
-npx -y @common-ground/canvas-mcp
+npx -y @tenon-protocol/mcp
 ```
 
 Config:
@@ -31,16 +31,16 @@ Config:
 ```json
 {
   "mcpServers": {
-    "common-ground": {
+    "tenon": {
       "command": "npx",
-      "args": ["-y", "@common-ground/canvas-mcp"],
-      "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
+      "args": ["-y", "@tenon-protocol/mcp"],
+      "env": { "TENON_URL": "http://127.0.0.1:8787" }
     }
   }
 }
 ```
 
-The server needs a running Common Ground journal and a connected adapter. It does not store state
+The server needs a running Tenon journal and a connected adapter. It does not store state
 itself. The reference journal is a Rust/axum service in the same repo; the reference adapter is a
 chart canvas, and there is a second graph adapter to show the protocol is not chart-specific.
 
@@ -50,7 +50,7 @@ Why envelopes instead of simple tools: an envelope carries `actor`, `turn_id`, `
 possible. A rejected op can carry a `suggestion` (for example, the nearest valid time anchor) so the
 agent can self-correct.
 
-Registry name: `io.github.Sidharth-Singh10/common-ground`
+Registry name: `io.github.Sidharth-Singh10/tenon`
 
 Caveats, so nobody is surprised:
 
@@ -64,7 +64,7 @@ Links:
 
 - Landing: https://sidharth-singh10.github.io/Amaterasu/
 - Repo: https://github.com/Sidharth-Singh10/Amaterasu
-- MCP package: https://www.npmjs.com/package/@common-ground/canvas-mcp
+- MCP package: https://www.npmjs.com/package/@tenon-protocol/mcp
 - Spec: https://github.com/Sidharth-Singh10/Amaterasu/blob/master/spec/protocol.md
 
 Happy to answer questions about the envelope/ack design, the capability tokens, or what it took to

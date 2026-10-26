@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:common-ground:protocol:1:batch",
-  "title": "Common Ground op batch",
+  "$id": "urn:tenon:protocol:1:batch",
+  "title": "Tenon op batch",
   "type": "object",
   "properties": {
     "ops": {

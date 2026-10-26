@@ -1,7 +1,10 @@
-# Common Ground implementation report
+# Tenon implementation report
+
+> **Historical naming note:** this report predates the rename. Its `canvas-*` package labels
+> and directory paths refer to what are now the `@tenon-protocol/*` packages.
 
 **Date:** 2026-10-24  
-**Primary source of intent:** `COMMON_GROUND.md`  
+**Primary source of intent:** `TENON.md`  
 **Secondary sources:** `spec/protocol.md`, `docs/extraction-audit.md`, `PLAN.md`, README files, git history  
 **Repositories:** `Sidharth-Singh10/Amaterasu` (master `0e1471d`), `Sidharth-Singh10/weave` (master `4e13326`)  
 **State:** both working trees clean and pushed to `origin/master`
@@ -10,7 +13,7 @@
 
 ## 1. Executive summary
 
-Common Ground has moved from a concept document to a working protocol, runtime, and two reference
+Tenon has moved from a concept document to a working protocol, runtime, and two reference
 adapters.
 
 The strongest parts are:
@@ -19,14 +22,14 @@ The strongest parts are:
 - an append-only SQLite journal with revisions, idempotency, turns, typed rejections, and a
   blake3 audit chain;
 - signed ed25519 capability tokens, scoped claims, and one-shot human approval for destructive ops;
-- a reusable chart adapter (`canvas-chart`), a graph adapter (`canvas-graph`), and a stdio MCP
-  server (`canvas-mcp`);
+- a reusable chart adapter (`@tenon-protocol/chart`), a graph adapter (`@tenon-protocol/graph`), and a stdio MCP
+  server (`@tenon-protocol/mcp`);
 - two adapters in products: Amaterasu's chart and Weave's knowledge graph;
 - human and agent edits recorded in the same journal;
 - two conformance targets passing all six fixtures;
 - a verified 60-second intro video and 40-second 1.5× cut.
 
-The main gaps against `COMMON_GROUND.md` are:
+The main gaps against `TENON.md` are:
 
 - no wire-level HTTP/SSE conformance target (the Rust harness drives the journal directly);
 - no generic “define 3 object types and 5 ops” SDK surface; the two domains are still code-defined;
@@ -39,12 +42,12 @@ The main gaps against `COMMON_GROUND.md` are:
 
 ## 2. Phase alignment
 
-| Phase in `COMMON_GROUND.md` | Status | What exists | Gap / deviation |
+| Phase in `TENON.md` | Status | What exists | Gap / deviation |
 |---|---|---|---|
-| **Phase 0 — Extraction audit and spec v0** | **Done** | `spec/protocol.md` v0.1, `docs/extraction-audit.md`, JSON Schemas, six fixtures, conformance runner, CI, npm workspace | Licensing and a separate `common-ground/` monorepo were not decided; work stayed in Amaterasu |
-| **Phase 1 — canvas-core and chart adapter** | **Substantially done** | Protocol schemas in `canvas-core`; reducer/schemas/anchors/undo in `canvas-chart`; Rust server with SQLite, snapshots, HTTP/SSE; Amaterasu wired; 141 JS + 70 Rust tests; journal p95 ~0.5 ms | No WebSocket; no domain reducer in `canvas-core`; draw→reload→restore was not re-verified live in a connected INDmoney session; p95 measured on the journal, not the full browser round trip |
-| **Phase 2 — Agent bridge and policy** | **Mostly done** | `canvas-mcp` tools; ed25519 capability tokens; approval mode; audit + Journal UI; structured suggestions; 10-shape/undo integration test; replay helper; human record path | Wire-level conformance target missing; 10-shape demo is an integration test with a fake browser, not a live OpenCode run; audit replay is not the default reload path |
-| **Phase 3 — Reference demo and second adapter** | **Partial** | `canvas-graph`; Weave SSE bridge; merge; live Weave agent create/undo/approval; 60-second intro and 40-second 1.5× cut | No 90-second demo; 0 of 5 external testers; Weave human-edit path has typecheck/build coverage but no completed browser click-through; graph clustering/explanation are existing Weave projections, not journaled ops |
+| **Phase 0 — Extraction audit and spec v0** | **Done** | `spec/protocol.md` v0.1, `docs/extraction-audit.md`, JSON Schemas, six fixtures, conformance runner, CI, npm workspace | Licensing and a separate `tenon/` monorepo were not decided; work stayed in Amaterasu |
+| **Phase 1 — canvas-core and chart adapter** | **Substantially done** | Protocol schemas in `@tenon-protocol/core`; reducer/schemas/anchors/undo in `@tenon-protocol/chart`; Rust server with SQLite, snapshots, HTTP/SSE; Amaterasu wired; 141 JS + 70 Rust tests; journal p95 ~0.5 ms | No WebSocket; no domain reducer in `@tenon-protocol/core`; draw→reload→restore was not re-verified live in a connected INDmoney session; p95 measured on the journal, not the full browser round trip |
+| **Phase 2 — Agent bridge and policy** | **Mostly done** | `@tenon-protocol/mcp` tools; ed25519 capability tokens; approval mode; audit + Journal UI; structured suggestions; 10-shape/undo integration test; replay helper; human record path | Wire-level conformance target missing; 10-shape demo is an integration test with a fake browser, not a live OpenCode run; audit replay is not the default reload path |
+| **Phase 3 — Reference demo and second adapter** | **Partial** | `@tenon-protocol/graph`; Weave SSE bridge; merge; live Weave agent create/undo/approval; 60-second intro and 40-second 1.5× cut | No 90-second demo; 0 of 5 external testers; Weave human-edit path has typecheck/build coverage but no completed browser click-through; graph clustering/explanation are existing Weave projections, not journaled ops |
 | **Phase 4 — Open-source launch** | **Not started** | Spec, packages, conformance suite, docs, intro video exist in repositories | No landing page, MCP registry listing, launch posts, essay, or external adapter |
 | **Phase 5 — Hosted alpha** | **Not started** | None | No multi-tenant Postgres, auth, share links, metering, audit export, design partners, or billing |
 
@@ -64,9 +67,9 @@ benchmark is ~0.5 ms, which is encouraging, but not the same measurement.
 | `shape.create/update/delete`, `series.add/remove`, `view.set`, `state.get` | **Done with chart names** | Chart DSL: `draw/update/remove/clear/set_view/add_series/remove_series`; `state.get` is the `get_state` tool / `doc_get`, not a journaled op |
 | Anchors survive interval changes and reject out of range | **Existing, partial evidence** | Existing anchoring tests and resolver; conformance fixture 01 tests a 2D point model, not a real interval switch |
 | Ack protocol; per-turn undo/redo; idempotency | **Done** | Applied/rejected acks; forward-only undo; redo is undo of undo; applied-key replay and conflict rejection |
-| Capability: read + apply for one agent; human approval for destructive ops | **Done** | `cap_local`, `cap_human`, `cap_undo`, `cap_graph`; ed25519 `cg1` tokens; one-shot approvals |
+| Capability: read + apply for one agent; human approval for destructive ops | **Done** | `cap_local`, `cap_human`, `cap_undo`, `cap_graph`; ed25519 `tn1` tokens; one-shot approvals |
 | Audit log + history UI | **Done** | Hash chain, verification, Amaterasu Journal tab, Weave panel |
-| MCP tools; live demo in OpenCode and Claude | **Partial** | `canvas-mcp` exposes four tools; OpenCode chart plugin live-verified earlier; Claude config documented but not live-tested |
+| MCP tools; live demo in OpenCode and Claude | **Partial** | `@tenon-protocol/mcp` exposes four tools; OpenCode chart plugin live-verified earlier; Claude config documented but not live-tested |
 | SQLite persistence; single user; local server | **Done** | SQLite journal and workspace store; local Rust service |
 | Amaterasu UI: agent panel, approval prompt, history drawer | **Done** | Chat panel, Journal tab with approve/undo |
 
@@ -80,10 +83,10 @@ documented non-goals.
 
 ## 4. Definition-of-done audit
 
-`COMMON_GROUND.md` asks whether a developer can:
+`TENON.md` asks whether a developer can:
 
-1. **Add `canvas-core` to an app.**  
-   **Partial.** `@common-ground/canvas-core` exists in the npm workspace and Amaterasu consumes the
+1. **Add `@tenon-protocol/core` to an app.**  
+   **Partial.** `@tenon-protocol/core` exists in the npm workspace and Amaterasu consumes the
    chart package, but nothing is published to a registry. The server and clients share the
    workspace, not an external SDK install.
 
@@ -92,7 +95,7 @@ documented non-goals.
    There is no public “register an object type and op set” API; consumers would edit the packages.
 
 3. **Expose them as MCP tools.**  
-   **Partial.** `canvas-mcp` exposes `doc_get`, `op_apply`, `turn_undo`, `state_query`, but the
+   **Partial.** `@tenon-protocol/mcp` exposes `doc_get`, `op_apply`, `turn_undo`, `state_query`, but the
    tools are fixed, not generated from a consumer’s object/op definitions. `op_apply` does accept
    full protocol envelopes.
 
@@ -112,22 +115,22 @@ chart and Weave graph).
 
 ## 5. Architecture and stack alignment
 
-| `COMMON_GROUND.md` decision | Implemented | Notes |
+| `TENON.md` decision | Implemented | Notes |
 |---|---|---|
-| `canvas-core` (TS): schema, reducer, anchors, undo, presence | **Partial** | `canvas-core` has protocol schema/capability/audit; reducer, anchors, and inverse logic live in `canvas-chart`; no presence |
-| `cg-server` (Rust): axum/tokio, SQLite, WebSocket + HTTP | **Partial** | Rust/axum/tokio and SQLite exist; transport is HTTP + SSE, not WebSocket |
-| `canvas-mcp` | **Done** | stdio MCP server with four tools |
+| `@tenon-protocol/core` (TS): schema, reducer, anchors, undo, presence | **Partial** | `@tenon-protocol/core` has protocol schema/capability/audit; reducer, anchors, and inverse logic live in `@tenon-protocol/chart`; no presence |
+| `tenon-server` (Rust): axum/tokio, SQLite, WebSocket + HTTP | **Partial** | Rust/axum/tokio and SQLite exist; transport is HTTP + SSE, not WebSocket |
+| `@tenon-protocol/mcp` | **Done** | stdio MCP server with four tools |
 | `canvas-policy` (Rust): capabilities, approvals, audit | **Merged** | Implemented in `server/src/capability.rs` and the journal; no separate crate |
 | `canvas-react` / `canvas-svelte` bindings | **Not built** | Amaterasu uses its Svelte app directly; Weave uses React |
 | SQLite → Postgres | **SQLite only** | No hosted store |
-| TypeScript + zod | **Done** | `canvas-core`, `canvas-chart`, `canvas-graph`, conformance |
+| TypeScript + zod | **Done** | `@tenon-protocol/core`, `@tenon-protocol/chart`, `@tenon-protocol/graph`, conformance |
 | lightweight-charts v5 | **Done** | Amaterasu chart engine |
 | React Flow | **Done** | Weave graph |
 | MCP TS SDK | **Done** | `@modelcontextprotocol/sdk` 1.32.1 |
 | Ed25519 capability tokens | **Done locally** | Persisted issuer key; no hosted issuer, rotation, or revocation |
 | blake3 audit chain | **Done** | Canonical JSON; genesis; first-break reporting |
 | pnpm workspaces + Cargo workspace | **Partial** | npm workspaces and a standalone `server/` Cargo package; not pnpm, not a multi-crate Cargo workspace |
-| Separate `common-ground/` repo | **Deferred** | Protocol and adapters live in Amaterasu; Weave remains a separate repo |
+| Separate `tenon/` repo | **Deferred** | Protocol and adapters live in Amaterasu; Weave remains a separate repo |
 
 Repository layout differs from §10: there is no `crates/` or `apps/` tree. The actual layout is
 `spec/`, `packages/`, `server/`, `web/`, plus the separate Weave repo.
@@ -169,7 +172,7 @@ Repository layout differs from §10: there is no `crates/` or `apps/` tree. The 
 
 - Scoped `CapabilityClaims` and `ApprovalPolicy`.
 - `cap_local` (chart agent), `cap_human`, `cap_undo`, `cap_graph` (Weave agent).
-- Ed25519 `cg1.<claims>.<signature>` tokens with a persisted `0600` key.
+- Ed25519 `tn1.<claims>.<signature>` tokens with a persisted `0600` key.
 - One-shot approvals with 5-minute TTL, bound to capability, document, op type, and idempotency key.
 - Typed denials: unknown, expired, actor/session mismatch, document/type out of scope, no apply,
   `approval_required`, `approval_invalid`.
@@ -192,7 +195,7 @@ or unreachable servers.
 
 ### 6.3 Chart adapter
 
-`packages/canvas-chart` (`@common-ground/canvas-chart`) contains:
+`packages/canvas-chart` (`@tenon-protocol/chart`) contains:
 
 - The chart DSL schemas, including an explicit optional id on `draw` so replay and inverse restore
   preserve annotation identity.
@@ -224,21 +227,21 @@ recording, filtering, and retry.
 
 Weave (`frontend/src/lib`):
 
-- `common-ground.ts`: SSE bridge, graph op application, protocol inverses, acks, snapshots.
+- `tenon.ts`: SSE bridge, graph op application, protocol inverses, acks, snapshots.
 - `graph-record.ts`: records manual graph edits with `cap_human`, one turn per action, aggregate
   patch for multi-object changes.
 - `store.ts`: human node/edge/rename actions capture before/after snapshots; position-only drags
   and view changes are excluded.
-- `CommonGroundPanel.tsx`: Journal view with audit status, approvals, undo, and full document id.
-- `app/common-ground/[...path]/route.ts`: streaming same-origin proxy for HTTP and SSE.
-- `scripts/cg-smoke.mjs`: live node-creation check.
+- `TenonPanel.tsx`: Journal view with audit status, approvals, undo, and full document id.
+- `app/tenon/[...path]/route.ts`: streaming same-origin proxy for HTTP and SSE.
+- `scripts/tenon-smoke.mjs`: live node-creation check.
 
 ### 6.5 MCP
 
-`packages/canvas-mcp` (`@common-ground/canvas-mcp`):
+`packages/canvas-mcp` (`@tenon-protocol/mcp`):
 
 - `doc_get`: metadata, audit verification, latest snapshot.
-- `op_apply`: validates envelopes with `canvas-core` and posts them to the journal.
+- `op_apply`: validates envelopes with `@tenon-protocol/core` and posts them to the journal.
 - `turn_undo`: forward-only undo.
 - `state_query`: metadata, ops, audit.
 - stdio transport; token fetching/caching; 4 tests.
@@ -249,18 +252,18 @@ Weave (`frontend/src/lib`):
 
 - Amaterasu **Journal** tab: groups ops by turn, shows actor, applied/rejected status, revision,
   audit verification, approve/apply for `approval_required`, and undo.
-- Weave **CG** panel: same core history, approval, and undo actions for graph documents.
+- Weave **Tenon** panel: same core history, approval, and undo actions for graph documents.
 - Approver identity is recorded in the audit entry (`approved_by`).
 
 ### 6.7 Video
 
 The separate `~/projects/deepseek-video` project contains:
 
-- `out/common-ground-intro-1080p.mp4` — 60 s, 1920×1080, 30 fps, silent.
-- `out/common-ground-intro-1080p-1.5x.mp4` — 40 s, 1.5× cut, silent.
+- `out/tenon-intro-1080p.mp4` — 60 s, 1920×1080, 30 fps, silent.
+- `out/tenon-intro-1080p-1.5x.mp4` — 40 s, 1.5× cut, silent.
 - `public/videos/` copies and a poster used by the video project README.
-- `storyboards/common-ground-intro.md` — brief, scene table, claims, and verification.
-- Composition `CommonGroundIntro`; the full render and 1.5× cut both passed `scripts/verify.sh`.
+- `storyboards/tenon-intro.md` — brief, scene table, claims, and verification.
+- Composition `TenonIntro`; the full render and 1.5× cut both passed `scripts/verify.sh`.
 
 This is an intro, not the 90-second demo requested in Phase 3.
 
@@ -273,11 +276,11 @@ This is an intro, not the 90-second demo requested in Phase 3.
 | Suite | Count | Result |
 |---|---:|---|
 | Web (Svelte/Vitest) | 72 | Pass |
-| `canvas-core` | 18 | Pass |
-| `canvas-chart` | 32 | Pass |
-| `canvas-graph` | 7 | Pass |
-| `canvas-mcp` | 4 | Pass |
-| `canvas-conformance` | 8 | Pass |
+| `@tenon-protocol/core` | 18 | Pass |
+| `@tenon-protocol/chart` | 32 | Pass |
+| `@tenon-protocol/graph` | 7 | Pass |
+| `@tenon-protocol/mcp` | 4 | Pass |
+| `@tenon-protocol/conformance` | 8 | Pass |
 | **JS total** | **141** | **Pass** |
 | Rust unit | 56 | Pass |
 | Rust conformance harness | 1 | Pass (all six fixtures) |
@@ -319,7 +322,7 @@ round trip.
 
 ---
 
-## 8. Deviations from `COMMON_GROUND.md`
+## 8. Deviations from `TENON.md`
 
 These are deliberate and documented in `spec/protocol.md` §15 and §17.
 
@@ -330,14 +333,14 @@ These are deliberate and documented in `spec/protocol.md` §15 and §17.
 3. **Object ids are client-generated.** The server rejects duplicates rather than assigning object
    ids; it assigns op ids and sequence numbers.
 4. **One repository, hard package boundaries.** The protocol and adapters live in Amaterasu; the
-   separate `common-ground/` monorepo is deferred to open-source launch.
+   separate `tenon/` monorepo is deferred to open-source launch.
 5. **Anchor resolution is client-side.** The server does not reject on anchor grounds; adapters
    return `anchor_out_of_range`.
 6. **Approval can be applied by the UI.** The server endpoint replays the stored rejected envelope
    instead of requiring another model turn.
-7. **Transport is HTTP + SSE.** `COMMON_GROUND.md` says WebSocket; the implementation uses SSE.
-8. **`canvas-core` is not the whole runtime.** The reducer and inverses live in `canvas-chart`;
-   `canvas-core` is the protocol layer.
+7. **Transport is HTTP + SSE.** `TENON.md` says WebSocket; the implementation uses SSE.
+8. **`@tenon-protocol/core` is not the whole runtime.** The reducer and inverses live in `@tenon-protocol/chart`;
+   `@tenon-protocol/core` is the protocol layer.
 9. **Capabilities are locally issued.** Ed25519 tokens exist, but there is no hosted issuer,
    public-key distribution, rotation, or revocation.
 10. **MCP tools are fixed, not generated from consumer schemas.** The tool surface works, but the
@@ -381,7 +384,7 @@ These are deliberate and documented in `spec/protocol.md` §15 and §17.
   stay authoritative but the final snapshot depends on ack order.
 - **Snapshot storage:** full chart/graph snapshots per record can grow; no pruning or compression
   policy yet.
-- **Weave duplication:** `canvas-graph` and Weave’s adapter mirror the same domain logic instead of
+- **Weave duplication:** `@tenon-protocol/graph` and Weave’s adapter mirror the same domain logic instead of
   importing one package across repos. They can drift.
 - **Approval/undo UX:** Amaterasu and Weave have panels, but there is no unified approval inbox or
   cross-adapter history.
@@ -393,19 +396,19 @@ These are deliberate and documented in `spec/protocol.md` §15 and §17.
 | §19 action | Status | Note |
 |---|---|---|
 | 1. Freeze the op envelope spec to one page | **Partial** | `spec/protocol.md` v0.1 is written and stable, but longer than one page |
-| 2. Inventory and extract chart DSL / overlay reducer | **Done** | `canvas-chart`; audit document; tests moved |
+| 2. Inventory and extract chart DSL / overlay reducer | **Done** | `@tenon-protocol/chart`; audit document; tests moved |
 | 3. Write and record the 90-second demo | **Not done** | 60-second intro and 40-second 1.5× cut exist instead |
 | 4. Interview 5 visual SaaS builders | **Not done** | No tester sessions recorded |
-| 5. Decide repo name, license, separation | **Partial** | “Common Ground” name in use; license and repo separation undecided |
-| 6. Create monorepo skeleton and CI | **Partial** | CI and npm workspaces exist; no separate `common-ground/` monorepo or pnpm/Cargo workspace |
+| 5. Decide repo name, license, separation | **Partial** | “Tenon” name in use; license and repo separation undecided |
+| 6. Create monorepo skeleton and CI | **Partial** | CI and npm workspaces exist; no separate `tenon/` monorepo or pnpm/Cargo workspace |
 
 ---
 
 ## 11. Bottom line
 
-Common Ground is beyond a prototype: the protocol, journal, audit chain, capability gate,
+Tenon is beyond a prototype: the protocol, journal, audit chain, capability gate,
 approval flow, MCP surface, chart adapter, graph adapter, and both product integrations are real
-and tested. The implementation does not yet satisfy the full `COMMON_GROUND.md` definition of done
+and tested. The implementation does not yet satisfy the full `TENON.md` definition of done
 because the generic SDK path, wire-level conformance, live 90-second demo, five tester sessions,
 open-source launch, and hosted alpha are not complete.
 

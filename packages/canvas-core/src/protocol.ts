@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 /**
- * Common Ground protocol v1 schemas.
+ * Tenon protocol v1 schemas.
  *
  * These are the executable form of `spec/protocol.md`. JSON Schemas in `spec/schemas/`
  * are generated from this file (`npm run schemas`), so the document and the code cannot

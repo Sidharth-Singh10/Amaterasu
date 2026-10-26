@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import type { DocPayload } from "@common-ground/canvas-chart"
+import type { DocPayload } from "@tenon-protocol/chart"
 import type { HumanOpEvent } from "@/lib/chart/ChartController"
 import { HumanJournalRecorder, type HumanJournalRecord } from "./human-journal"
 

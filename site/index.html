@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Common Ground — the action layer for humans and AI agents</title>
+    <title>Tenon — the action layer for humans and AI agents</title>
     <meta
       name="description"
-      content="Common Ground is an open protocol for humans and AI agents editing the same workspace. Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log."
+      content="Tenon is an open protocol for humans and AI agents editing the same workspace. Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log."
     />
     <meta name="theme-color" content="#0b0f14" />
     <meta name="robots" content="noindex,nofollow" />
@@ -20,7 +20,8 @@
     />
     <link rel="stylesheet" href="./styles.css" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Common Ground — the action layer for humans and AI agents" />
+    <meta property="og:site_name" content="Tenon" />
+    <meta property="og:title" content="Tenon — the action layer for humans and AI agents" />
     <meta
       property="og:description"
       content="Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log. An open protocol for agent-native workspaces."
@@ -28,7 +29,7 @@
     <meta property="og:url" content="https://sidharth-singh10.github.io/Amaterasu/" />
     <meta property="og:image" content="https://sidharth-singh10.github.io/Amaterasu/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Common Ground — the action layer for humans and AI agents" />
+    <meta name="twitter:title" content="Tenon — the action layer for humans and AI agents" />
     <meta
       name="twitter:description"
       content="Typed ops, scoped capabilities, acknowledgements, per-turn undo, and a hash-chained audit log."
@@ -38,7 +39,7 @@
       {
         "@context": "https://schema.org",
         "@type": "SoftwareSourceCode",
-        "name": "Common Ground",
+        "name": "Tenon",
         "description": "An open protocol for humans and AI agents editing the same workspace with typed, reversible, attributable operations.",
         "codeRepository": "https://github.com/Sidharth-Singh10/Amaterasu",
         "programmingLanguage": ["TypeScript", "Rust"],
@@ -56,11 +57,11 @@
     </div>
 
     <header class="site-header">
-      <a class="wordmark" href="./" aria-label="Common Ground home">
+      <a class="wordmark" href="./" aria-label="Tenon home">
         <svg class="wordmark-mark" viewBox="0 0 28 28" aria-hidden="true">
-          <path d="M3 21V7h5.5L14 16.5 19.5 7H25v14h-4.2V13.7L16.4 22h-4.8L7.2 13.7V21H3Z" />
+          <path d="M4 4h20v5h-6v15h-8V9H4V4Z" /><rect x="16" y="13" width="5" height="5" />
         </svg>
-        <span>Common Ground</span>
+        <span>Tenon</span>
       </a>
 
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">
@@ -86,7 +87,7 @@
           <p class="eyebrow"><span class="dot"></span> Open protocol · MIT · v0.1</p>
           <h1 id="hero-title">
             MCP gave agents tools.<br />
-            Common Ground gives them<br />
+            Tenon gives them<br />
             a <em>shared workspace.</em>
           </h1>
         </div>
@@ -106,7 +107,7 @@
 
             <div class="install" data-copy>
               <span class="prompt" aria-hidden="true">$</span>
-              <code>npm i @common-ground/canvas-core</code>
+              <code>npm i @tenon-protocol/core</code>
               <button class="copy" type="button" aria-label="Copy install command">Copy</button>
             </div>
 
@@ -324,7 +325,7 @@
 <span class="c-key">store</span>.beginTurn()
 <span class="c-key">store</span>.applyOp(op)
 <span class="c-key">store</span>.commitTurn()</code></pre>
-            <a class="text-link" href="https://www.npmjs.com/package/@common-ground/canvas-chart">canvas-chart on npm ↗</a>
+            <a class="text-link" href="https://www.npmjs.com/package/@tenon-protocol/chart">chart on npm ↗</a>
           </article>
 
           <article class="adapter">
@@ -340,7 +341,7 @@
   target: n_svelte
 
 <span class="c-key">merge</span> n_react → n_svelte</code></pre>
-            <a class="text-link" href="https://www.npmjs.com/package/@common-ground/canvas-graph">canvas-graph on npm ↗</a>
+            <a class="text-link" href="https://www.npmjs.com/package/@tenon-protocol/graph">graph on npm ↗</a>
           </article>
         </div>
       </section>
@@ -368,7 +369,7 @@
             <div class="target">
               <span class="target-status">passing</span>
               <h3>TypeScript MemoryTarget</h3>
-              <p>Reference target shipped in <code>canvas-conformance</code>.</p>
+              <p>Reference target shipped in <code>@tenon-protocol/conformance</code>.</p>
             </div>
             <div class="target">
               <span class="target-status">passing</span>
@@ -394,7 +395,7 @@
             <h3>Protocol</h3>
             <div class="install" data-copy>
               <span class="prompt" aria-hidden="true">$</span>
-              <code>npm i @common-ground/canvas-core</code>
+              <code>npm i @tenon-protocol/core</code>
               <button class="copy" type="button" aria-label="Copy protocol install command">Copy</button>
             </div>
             <p>Envelopes, acks, turns, capabilities, audit.</p>
@@ -403,7 +404,7 @@
             <h3>Chart adapter</h3>
             <div class="install" data-copy>
               <span class="prompt" aria-hidden="true">$</span>
-              <code>npm i @common-ground/canvas-chart</code>
+              <code>npm i @tenon-protocol/chart</code>
               <button class="copy" type="button" aria-label="Copy chart install command">Copy</button>
             </div>
             <p>Anchors, annotations, series, turns, replay.</p>
@@ -412,7 +413,7 @@
             <h3>MCP server</h3>
             <div class="install" data-copy>
               <span class="prompt" aria-hidden="true">$</span>
-              <code>npx -y @common-ground/canvas-mcp</code>
+              <code>npx -y @tenon-protocol/mcp</code>
               <button class="copy" type="button" aria-label="Copy MCP command">Copy</button>
             </div>
             <p>Four tools over a running journal.</p>
@@ -452,7 +453,7 @@
           <details>
             <summary>Does it replace MCP?</summary>
             <p>
-              No. It complements MCP. MCP standardizes how an agent calls a tool; Common Ground
+              No. It complements MCP. MCP standardizes how an agent calls a tool; Tenon
               standardizes the state that tool mutates, who authorized it, and how it is undone.
             </p>
           </details>
@@ -488,9 +489,9 @@
       <div class="footer-brand">
         <a class="wordmark" href="./">
           <svg class="wordmark-mark" viewBox="0 0 28 28" aria-hidden="true">
-            <path d="M3 21V7h5.5L14 16.5 19.5 7H25v14h-4.2V13.7L16.4 22h-4.8L7.2 13.7V21H3Z" />
+            <path d="M4 4h20v5h-6v15h-8V9H4V4Z" /><rect x="16" y="13" width="5" height="5" />
           </svg>
-          <span>Common Ground</span>
+          <span>Tenon</span>
         </a>
         <p>Typed, reversible, attributable actions for humans and agents.</p>
       </div>
@@ -498,7 +499,7 @@
         <a href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/spec/protocol.md">Spec</a>
         <a href="https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md">SDK</a>
         <a href="https://github.com/Sidharth-Singh10/Amaterasu/tree/master/spec/conformance">Conformance</a>
-        <a href="https://www.npmjs.com/org/common-ground">npm</a>
+        <a href="https://www.npmjs.com/org/tenon-protocol">npm</a>
         <a href="https://github.com/Sidharth-Singh10/Amaterasu">GitHub</a>
       </nav>
       <p class="footer-note">MIT · Built by Sidharth Singh · <span id="year">2026</span></p>

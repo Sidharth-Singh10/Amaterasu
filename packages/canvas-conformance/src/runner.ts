@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import type { Ack, Actor } from "@common-ground/canvas-core"
+import type { Ack, Actor } from "@tenon-protocol/core"
 import type {
   CaseResult,
   Check,

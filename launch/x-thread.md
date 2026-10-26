@@ -3,7 +3,7 @@
 **Post 1**
 
 MCP gave agents tools.
-Common Ground gives them a shared workspace.
+Tenon gives them a shared workspace.
 
 An open protocol for humans and AI agents editing the same canvas — typed ops, scoped
 capabilities, acks, per-turn undo, and a hash-chained audit log.
@@ -26,7 +26,7 @@ authorized it, or how to undo it.
 
 **Post 4**
 
-Common Ground makes every mutation the same envelope:
+Tenon makes every mutation the same envelope:
 
 actor · turn · capability · target · idempotency key · rationale
 
@@ -46,7 +46,7 @@ That one contract buys four things:
 
 It is not a CRDT and not a replacement for MCP.
 
-v1 is server-authoritative. MCP standardizes how an agent calls a tool; Common Ground standardizes
+v1 is server-authoritative. MCP standardizes how an agent calls a tool; Tenon standardizes
 the state it mutates and the record it leaves behind.
 
 **Post 7**
@@ -54,7 +54,7 @@ the state it mutates and the record it leaves behind.
 Published today:
 
 - TypeScript SDK (core, chart, graph, conformance)
-- MCP server: `npx -y @common-ground/canvas-mcp`
+- MCP server: `npx -y @tenon-protocol/mcp`
 - Protocol spec + 6 language-agnostic fixtures
 - Amaterasu reference app
 

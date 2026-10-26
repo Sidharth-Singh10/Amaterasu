@@ -1,6 +1,6 @@
-# @common-ground/canvas-chart
+# @tenon-protocol/chart
 
-Chart adapter for **Common Ground**. It turns agent and human intent into validated, data-space
+Chart adapter for **Tenon**. It turns agent and human intent into validated, data-space
 annotations and computed series, with snapshot undo and replay.
 
 Coordinates are always `(t, p)`: canonical epoch seconds of a real bar plus price. Pixels never
@@ -9,13 +9,13 @@ appear in the document, so drawings survive pan, zoom, and interval changes.
 ## Install
 
 ```sh
-npm install @common-ground/canvas-chart zod
+npm install @tenon-protocol/chart zod
 ```
 
 ## Quick start
 
 ```ts
-import { DocStore } from "@common-ground/canvas-chart"
+import { DocStore } from "@tenon-protocol/chart"
 
 const store = new DocStore({
   // Resolve anchors against the candles currently loaded in your chart.
@@ -73,7 +73,7 @@ pre-turn state. Without an explicit turn, every op is its own undo step.
 ## Replay
 
 ```ts
-import { replayApplied } from "@common-ground/canvas-chart"
+import { replayApplied } from "@tenon-protocol/chart"
 
 const { doc, applied, skipped } = replayApplied(journalOps)
 store.replaceDoc(doc)
@@ -85,8 +85,8 @@ is missing.
 
 ## Related packages
 
-- [`@common-ground/canvas-core`](../canvas-core) — envelopes, acks, capabilities, audit
-- [`@common-ground/canvas-graph`](../canvas-graph) — the same protocol over a knowledge graph
-- [`@common-ground/canvas-conformance`](../canvas-conformance) — fixtures and runner
+- [`@tenon-protocol/core`](../canvas-core) — envelopes, acks, capabilities, audit
+- [`@tenon-protocol/graph`](../canvas-graph) — the same protocol over a knowledge graph
+- [`@tenon-protocol/conformance`](../canvas-conformance) — fixtures and runner
 
 MIT licensed.

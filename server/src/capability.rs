@@ -28,7 +28,7 @@ pub enum TokenError {
     Claims(#[from] serde_json::Error),
 }
 
-/// Ed25519 issuer for `cg1.<claims>.<signature>` capability tokens. The local key is persisted
+/// Ed25519 issuer for `tn1.<claims>.<signature>` capability tokens. The local key is persisted
 /// so tokens survive restarts; hosted deployments would publish the public key to verifiers.
 pub struct TokenIssuer {
     signing: SigningKey,
@@ -77,7 +77,7 @@ impl TokenIssuer {
 
     pub fn mint(&self, claims: &CapabilityClaims) -> Result<String, TokenError> {
         let encoded = URL_SAFE_NO_PAD.encode(serde_json::to_vec(claims)?);
-        let input = format!("cg1.{encoded}");
+        let input = format!("tn1.{encoded}");
         let signature = self.signing.sign(input.as_bytes());
         Ok(format!(
             "{input}.{}",
@@ -87,7 +87,7 @@ impl TokenIssuer {
 
     pub fn verify(&self, token: &str) -> Result<CapabilityClaims, TokenError> {
         let mut parts = token.split('.');
-        if parts.next() != Some("cg1") {
+        if parts.next() != Some("tn1") {
             return Err(TokenError::Format);
         }
         let payload = parts.next().ok_or(TokenError::Format)?;
@@ -97,7 +97,7 @@ impl TokenIssuer {
         }
         let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(signature)?)
             .map_err(|_| TokenError::Signature)?;
-        let input = format!("cg1.{payload}");
+        let input = format!("tn1.{payload}");
         self.signing
             .verifying_key()
             .verify(input.as_bytes(), &signature)
@@ -217,7 +217,7 @@ impl CapabilityRegistry {
         registry.mint(CapabilityClaims {
             v: 1,
             cap_id: "cap_local".into(),
-            iss: "cg-local".into(),
+            iss: "tenon-local".into(),
             sub: CapabilitySubject {
                 actor_id: "chart-analyst".into(),
                 session: None,
@@ -244,7 +244,7 @@ impl CapabilityRegistry {
         registry.mint(CapabilityClaims {
             v: 1,
             cap_id: "cap_human".into(),
-            iss: "cg-local".into(),
+            iss: "tenon-local".into(),
             sub: CapabilitySubject {
                 actor_id: "local".into(),
                 session: None,
@@ -272,7 +272,7 @@ impl CapabilityRegistry {
         registry.mint(CapabilityClaims {
             v: 1,
             cap_id: "cap_undo".into(),
-            iss: "cg-local".into(),
+            iss: "tenon-local".into(),
             sub: CapabilitySubject {
                 actor_id: "local".into(),
                 session: None,
@@ -290,7 +290,7 @@ impl CapabilityRegistry {
         registry.mint(CapabilityClaims {
             v: 1,
             cap_id: "cap_graph".into(),
-            iss: "cg-local".into(),
+            iss: "tenon-local".into(),
             sub: CapabilitySubject {
                 actor_id: "weave-agent".into(),
                 session: None,
@@ -647,7 +647,7 @@ mod tests {
         CapabilityClaims {
             v: 1,
             cap_id: cap_id.into(),
-            iss: "cg-local".into(),
+            iss: "tenon-local".into(),
             sub: CapabilitySubject {
                 actor_id: actor.into(),
                 session: None,
@@ -771,7 +771,7 @@ mod tests {
     fn tokens_round_trip_and_reject_tampering() {
         let registry = CapabilityRegistry::default();
         let token = registry.token_for("cap_local").unwrap();
-        assert!(token.starts_with("cg1."));
+        assert!(token.starts_with("tn1."));
         let claims = registry.verify_token(&token).unwrap();
         assert_eq!(claims.cap_id, "cap_local");
         assert!(!registry.public_key().is_empty());
@@ -780,7 +780,7 @@ mod tests {
         let mut payload = parts[1].to_string();
         let first = payload.remove(0);
         payload.insert(0, if first == 'A' { 'B' } else { 'A' });
-        let tampered = format!("cg1.{payload}.{}", parts[2]);
+        let tampered = format!("tn1.{payload}.{}", parts[2]);
         assert!(registry.verify_token(&tampered).is_err());
         assert!(registry.token_for("cap_missing").is_err());
     }

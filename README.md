@@ -14,13 +14,13 @@ computed indicator series through the same op DSL the mouse uses.
 
 > Not affiliated with INDmoney. Market data is provided by the INDmoney MCP.
 
-> **SDK status:** the `@common-ground/*` packages are built and ready for `0.1.0`, but npm
+> **SDK status:** the `@tenon-protocol/*` packages are built and ready for `0.1.0`, but npm
 > publication is intentionally paused. Until the release, use the workspace source in `packages/`;
 > the install commands below describe the published build.
 
-## Common Ground
+## Tenon
 
-Amaterasu is the reference app for **Common Ground**, an open protocol for humans and AI agents
+Amaterasu is the reference app for **Tenon**, an open protocol for humans and AI agents
 editing the same visual workspace. Agents send typed operations; every op is acknowledged,
 attributable, reversible, scoped by a capability, and recorded in a hash-chained audit log.
 
@@ -28,17 +28,18 @@ attributable, reversible, scoped by a capability, and recorded in a hash-chained
 - [Interactive demo](https://sidharth-singh10.github.io/Amaterasu/demo/?demo=1)
 - [SDK guide](docs/sdk.md)
 - [Protocol specification](spec/protocol.md)
+- [Build plan](TENON.md)
 - [Conformance fixtures](spec/conformance/)
 - [MCP server](packages/canvas-mcp/README.md)
 
 Install the protocol and a chart adapter:
 
 ```sh
-npm install @common-ground/canvas-core @common-ground/canvas-chart zod
+npm install @tenon-protocol/core @tenon-protocol/chart zod
 ```
 
 ```ts
-import { DocStore } from "@common-ground/canvas-chart"
+import { DocStore } from "@tenon-protocol/chart"
 
 const store = new DocStore({ checkAnchor: () => ({ ok: true, warnings: [] }) })
 store.beginTurn()
@@ -54,7 +55,7 @@ store.undo()
 The MCP server exposes a running journal to Claude Desktop, OpenCode, and other MCP clients:
 
 ```sh
-npx -y @common-ground/canvas-mcp
+npx -y @tenon-protocol/mcp
 ```
 
 ## Features
@@ -98,9 +99,9 @@ Rust service (axum, :8787)
 - **Drawing** — the chart-bridge plugin and the browser exchange ops over plugin RPC, so
   refreshing data never depends on the agent.
 
-## Common Ground protocol (v0.1)
+## Tenon protocol (v0.1)
 
-Amaterasu is the first reference app for **Common Ground**: a typed, reversible, attributable
+Amaterasu is the first reference app for **Tenon**: a typed, reversible, attributable
 protocol for humans and agents editing the same visual workspace. Ops carry an actor, a turn, a
 capability, and an idempotency key; the server owns revisions, the op log, and the audit chain;
 the client adapter owns projection and anchor resolution.
@@ -113,10 +114,10 @@ the client adapter owns projection and anchor resolution.
 The six fixtures pass against two targets: the TypeScript `MemoryTarget` in
 `packages/canvas-conformance` and the Rust journal harness in `server/tests/conformance.rs`.
 A second product adapter also exists: Weave's canvas applies `graph.*` envelopes, computes
-node/edge inverses, and acks the journal (`weave/frontend/src/lib/common-ground.ts`).
+node/edge inverses, and acks the journal (`weave/frontend/src/lib/tenon.ts`).
 
 Phase 1a–1c are wired, and Phase 2 is largely in place: the Rust service journals every agent
-chart op before dispatch, verifies an ed25519 `cg1.…` capability token on writes, records the
+chart op before dispatch, verifies an ed25519 `tn1.…` capability token on writes, records the
 browser's inverse ops, and exposes document metadata, snapshots, op history, audit, and
 forward-only undo endpoints. Human edits are recorded after local application with their own
 inverse and snapshot, so the same journal shows both actors. Destructive agent ops require a
@@ -160,20 +161,21 @@ v1; use the Journal's forward-only undo for turns that are in the journal.
 |---|---|
 | `web/` | SvelteKit 2 + Svelte 5 client — overlay engine, components, chart shell |
 | `packages/canvas-chart/` | Chart adapter: zod op/state schemas, `DocStore` reducer, inverse computation |
-| `packages/canvas-core/` | Common Ground protocol: envelope, ack, capability, audit, turn schemas |
+| `packages/canvas-core/` | Tenon protocol: envelope, ack, capability, audit, turn schemas |
 | `packages/canvas-graph/` | Second adapter: graph nodes/edges, merge, inverses |
 | `weave/` (separate repo) | Weave frontend bridge: `graph.*` envelopes over SSE |
 | `packages/canvas-mcp/` | MCP server: `doc_get`, `op_apply`, `turn_undo`, `state_query` |
 | `packages/canvas-conformance/` | Conformance fixtures runner and reference target |
 | `examples/` | SDK quickstarts that use the published packages |
 | `spec/` | Protocol specification, generated JSON Schemas, conformance cases |
-| `site/` | Common Ground landing page and static demo composition |
+| `site/` | Tenon landing page and static demo composition |
 | `launch/` | Launch essay and post drafts |
 | `docs/` | SDK guide, release guide, extraction audit, launch status |
 | `server/` | Rust (axum) service — MCP client + OAuth, cache, OpenCode bridge, SSE, SQLite, static hosting |
 | `opencode/` | The agent's project — chart-bridge plugin, agent config, permissions |
 | `deploy/` | nginx vhost, systemd units, env template, deployment runbook |
-| `PLAN.md` | The design of record |
+| `TENON.md` | Tenon protocol and product build plan |
+| `PLAN.md` | Amaterasu app design of record |
 
 ## Getting started
 
@@ -217,7 +219,7 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 ## MCP server
 
 `packages/canvas-mcp` exposes the protocol over stdio for MCP clients. Registry name:
-`io.github.Sidharth-Singh10/common-ground`.
+`io.github.Sidharth-Singh10/tenon`.
 
 | Tool | Purpose |
 |---|---|
@@ -229,13 +231,13 @@ OPENCODE_PASSWORD=dev-workspace-secret OPENCODE_MODEL=opencode-go/deepseek-v4.1-
 Run the published package:
 
 ```sh
-COMMON_GROUND_URL=http://127.0.0.1:8787 npx -y @common-ground/canvas-mcp
+TENON_URL=http://127.0.0.1:8787 npx -y @tenon-protocol/mcp
 ```
 
 Or run the checkout directly:
 
 ```sh
-COMMON_GROUND_URL=http://127.0.0.1:8787 node packages/canvas-mcp/src/main.ts
+TENON_URL=http://127.0.0.1:8787 node packages/canvas-mcp/src/main.ts
 ```
 
 Claude Desktop / MCP client config:
@@ -243,10 +245,10 @@ Claude Desktop / MCP client config:
 ```json
 {
   "mcpServers": {
-    "common-ground": {
+    "tenon": {
       "command": "npx",
-      "args": ["-y", "@common-ground/canvas-mcp"],
-      "env": { "COMMON_GROUND_URL": "http://127.0.0.1:8787" }
+      "args": ["-y", "@tenon-protocol/mcp"],
+      "env": { "TENON_URL": "http://127.0.0.1:8787" }
     }
   }
 }
@@ -313,7 +315,8 @@ the one-time INDmoney consent, upgrades, and troubleshooting.
 
 ## Documentation
 
-- [`PLAN.md`](PLAN.md) — the design of record: architecture, overlay engine, op protocol, build plan
+- [`TENON.md`](TENON.md) — the protocol and product build plan
+- [`PLAN.md`](PLAN.md) — the Amaterasu app design of record
 - [`docs/sdk.md`](docs/sdk.md) — install, adapter model, capabilities, audit, MCP
 - [`docs/releasing.md`](docs/releasing.md) — npm, MCP registry, tags, and Pages releases
 - [`docs/launch-status.md`](docs/launch-status.md) — launch criteria and verification evidence

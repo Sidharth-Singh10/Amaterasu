@@ -1,4 +1,4 @@
-# Releasing Common Ground
+# Releasing Tenon
 
 The SDK and the reference app are released from this repository. A release has four parts: npm
 packages, MCP registry metadata, a GitHub tag/release, and the GitHub Pages site. They are ordered
@@ -6,7 +6,8 @@ because the registry checks the published npm package and the landing page links
 
 ## One-time setup
 
-1. The npm organization `common-ground` exists and the publisher is an owner.
+1. The npm organization `tenon-protocol` exists and the publisher is an owner. The plain
+   `@tenon` scope is already in use on npm, so the packages publish under `@tenon-protocol`.
 2. `npm login` has been run on the release machine.
 3. GitHub Pages uses **GitHub Actions** as its source (`.github/workflows/pages.yml` deploys it).
 4. Optional: configure [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) for each
@@ -26,10 +27,11 @@ All five packages share one version. Update these together:
 - `server.json`
 - `CHANGELOG.md`
 
-The workspace dependency in `canvas-mcp` and `canvas-conformance` must accept the new version:
+The workspace dependency in `@tenon-protocol/mcp` and `@tenon-protocol/conformance` must accept
+the new version:
 
 ```json
-"@common-ground/canvas-core": "^0.1.0"
+"@tenon-protocol/core": "^0.1.0"
 ```
 
 Use `npm version <version> --no-git-tag-version --workspace <name>` for each package, or edit the
@@ -50,11 +52,11 @@ mcp-publisher validate
 Publish in dependency order:
 
 ```sh
-npm publish --workspace @common-ground/canvas-core --access public
-npm publish --workspace @common-ground/canvas-chart --access public
-npm publish --workspace @common-ground/canvas-graph --access public
-npm publish --workspace @common-ground/canvas-conformance --access public
-npm publish --workspace @common-ground/canvas-mcp --access public
+npm publish --workspace @tenon-protocol/core --access public
+npm publish --workspace @tenon-protocol/chart --access public
+npm publish --workspace @tenon-protocol/graph --access public
+npm publish --workspace @tenon-protocol/conformance --access public
+npm publish --workspace @tenon-protocol/mcp --access public
 ```
 
 `prepack` builds each package, so the tarballs contain `dist/`, README, LICENSE, and package.json
@@ -63,9 +65,9 @@ only.
 Verify:
 
 ```sh
-npm view @common-ground/canvas-core version
-npm view @common-ground/canvas-chart version
-npm view @common-ground/canvas-mcp version
+npm view @tenon-protocol/core version
+npm view @tenon-protocol/chart version
+npm view @tenon-protocol/mcp version
 ```
 
 ## MCP registry
@@ -73,7 +75,7 @@ npm view @common-ground/canvas-mcp version
 `packages/canvas-mcp/package.json` carries:
 
 ```json
-"mcpName": "io.github.Sidharth-Singh10/common-ground"
+"mcpName": "io.github.Sidharth-Singh10/tenon"
 ```
 
 `server.json` must use the same name and the published version. Validate before publishing:
@@ -91,7 +93,7 @@ Publish with GitHub OIDC (no local token):
 Verify:
 
 ```sh
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Sidharth-Singh10/common-ground"
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Sidharth-Singh10/tenon"
 ```
 
 ## GitHub release and tag
@@ -99,7 +101,7 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Sid
 After npm and the registry are verified:
 
 ```sh
-git tag -a v0.1.0 -m "Common Ground v0.1.0"
+git tag -a v0.1.0 -m "Tenon v0.1.0"
 git push origin v0.1.0
 ```
 
@@ -126,7 +128,7 @@ the absolute URLs in `site/index.html` and `site/sitemap.xml`.
 ## Rollback
 
 - npm: do not unpublish a published version. Deprecate it and publish a patch:
-  `npm deprecate @common-ground/<package>@<version> "reason"`.
+  `npm deprecate @tenon-protocol/<package>@<version> "reason"`.
 - MCP registry: publish a corrected `server.json` version. The registry is append-only per version.
 - GitHub: delete the release and move the tag only if the tag was not used as a dependency.
 - Pages: re-run the previous successful workflow from the Actions tab.
@@ -134,8 +136,8 @@ the absolute URLs in `site/index.html` and `site/sitemap.xml`.
 ## Post-release checks
 
 - [ ] all five npm URLs resolve
-- [ ] `npm install @common-ground/canvas-chart` works in a clean directory
-- [ ] `npx -y @common-ground/canvas-mcp` starts and answers `initialize`
+- [ ] `npm install @tenon-protocol/chart` works in a clean directory
+- [ ] `npx -y @tenon-protocol/mcp` starts and answers `initialize`
 - [ ] registry search returns the server
 - [ ] landing page and demo load over HTTPS
 - [ ] GitHub release links to the spec, npm, and landing page

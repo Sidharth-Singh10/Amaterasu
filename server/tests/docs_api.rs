@@ -113,7 +113,7 @@ fn post(path: &str, body: Value) -> Request<Body> {
 
 fn with_token(mut request: Request<Body>, token: &str) -> Request<Body> {
     request.headers_mut().insert(
-        "x-cg-capability",
+        "x-tenon-capability",
         HeaderValue::from_str(token).expect("valid token"),
     );
     request
@@ -431,7 +431,7 @@ async fn an_approval_replays_the_rejected_op_once() {
         .mint_capability(json!({
             "v": 1,
             "cap_id": "cap_guarded",
-            "iss": "cg-local",
+            "iss": "tenon-local",
             "sub": { "actor_id": "chart-analyst" },
             "documents": ["*"],
             "op_types": ["chart.shape.*"],
@@ -600,7 +600,7 @@ async fn writes_require_a_signed_capability_token() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = body_json(response).await;
     let token = body["token"].as_str().expect("token").to_string();
-    assert!(token.starts_with("cg1."));
+    assert!(token.starts_with("tn1."));
 
     let key = body_json(
         harness
@@ -770,7 +770,7 @@ async fn the_graph_adapter_capability_is_seeded_and_scoped() {
     envelope["type"] = json!("graph.node.create");
     envelope["target"] = json!({ "kind": "graph.node" });
     envelope["payload"] = json!({
-        "op": { "op": "node.create", "id": "n1", "label": "Common Ground", "kind": "concept" }
+        "op": { "op": "node.create", "id": "n1", "label": "Tenon", "kind": "concept" }
     });
 
     let request = with_token(

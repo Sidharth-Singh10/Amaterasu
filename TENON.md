@@ -1,17 +1,20 @@
-# Common Ground — Full Build Plan
+# Tenon — Full Build Plan
 
-**Working name:** Chisel
-**Status:** Draft for review
+**Name:** Tenon (formerly Common Ground)
+**Status:** v0.1 implemented; hosted alpha pending
 **Date:** 2026-10-20
 **Owner:** Sidharth Singh
 **Seed projects:** Amaterasu, Weave, OxiDock, PerOXO
 **Target:** 12 weeks from start to hosted alpha
 
+> **Naming note:** the protocol is Tenon. Published packages use the `@tenon-protocol/*`
+> scope; source directories keep the original `packages/canvas-*` names.
+
 ---
 
 ## 1. Executive summary
 
-Common Ground is an open protocol and runtime that lets humans and AI agents edit the same
+Tenon is an open protocol and runtime that lets humans and AI agents edit the same
 visual workspace safely. Instead of agents taking screenshots and clicking pixels, they send
 typed, semantic operations against a shared object model. Every operation is acknowledged,
 attributable, reversible, permission-scoped, and recorded.
@@ -19,14 +22,14 @@ attributable, reversible, permission-scoped, and recorded.
 The first product is **Amaterasu**: an AI chart analyst for Indian markets that draws directly
 on the chart. The platform is extracted from it:
 
-- `canvas-core` — protocol, document state, anchors, reducer, undo
-- `canvas-mcp` — agent bridge exposed as MCP tools and MCP Apps UI
-- `canvas-policy` — capabilities, approvals, audit
+- `@tenon-protocol/core` — protocol, document state, anchors, reducer, undo
+- `@tenon-protocol/mcp` — agent bridge exposed as MCP tools and MCP Apps UI
+- `tenon-policy` — capabilities, approvals, audit (planned)
 - adapters — chart (Amaterasu), knowledge graph (Weave), and later map/design/BI
 
 The thesis in one sentence:
 
-> **MCP gave agents tools. Common Ground gives them a shared workspace — every action typed,
+> **MCP gave agents tools. Tenon gives them a shared workspace — every action typed,
 > attributable, reversible, and scoped.**
 
 ---
@@ -67,7 +70,7 @@ Your last five projects are the same project in different clothes:
 | Graphite fork | Node canvas | Plans operations |
 
 You keep rebuilding the missing layer: **a safe, reversible, attributable way for humans and
-agents to manipulate shared state**. Common Ground is that layer, made explicit.
+agents to manipulate shared state**. Tenon is that layer, made explicit.
 
 ---
 
@@ -116,7 +119,7 @@ once the SDK is proven.
 | Memory | Mem0, Zep, Weave | Recall | Action, approval, undo |
 
 **Positioning:** the action layer for agent-native workspaces. Complementary to MCP Apps, not
-competitive with it. MCP Apps renders the UI; Common Ground owns the state the UI manipulates.
+competitive with it. MCP Apps renders the UI; Tenon owns the state the UI manipulates.
 
 ---
 
@@ -139,9 +142,9 @@ A versioned JSON protocol for shared visual state:
 
 ### Layer 2 — The runtime
 
-- **`canvas-core` (TypeScript)** — schema, reducer, anchors, undo, presence.
-- **`cg-server` (Rust)** — axum + tokio, SQLite now / Postgres later, WebSocket + HTTP.
-- **`canvas-mcp`** — MCP server exposing document read, op apply, turn undo, state query.
+- **`@tenon-protocol/core` (TypeScript)** — schema, reducer, anchors, undo, presence.
+- **`tenon-server` (Rust)** — axum + tokio, SQLite now / Postgres later, WebSocket + HTTP.
+- **`@tenon-protocol/mcp`** — MCP server exposing document read, op apply, turn undo, state query.
 - **`canvas-policy` (Rust)** — capability engine, approval modes, audit chain.
 - **`canvas-react` / `canvas-svelte`** — bindings for the two ecosystems you actually use.
 
@@ -283,7 +286,7 @@ Agent host (Claude, OpenCode, ChatGPT, IDE)
 canvas-mcp  ──────────────┐
                           │ JSON ops over WS/HTTP
                           ▼
-                   cg-server (Rust)
+                   tenon-server (Rust)
                    ├─ document store (SQLite → Postgres)
                    ├─ op log + undo/redo
                    ├─ capability engine
@@ -325,17 +328,17 @@ canvas-mcp  ──────────────┐
 ## 10. Repository layout
 
 ```
-common-ground/
+tenon/
 ├─ spec/
 │  ├─ protocol.md
 │  ├─ schemas/                 # JSON Schema for ops, acks, capabilities
 │  ├─ conformance/             # language-agnostic test corpus
 │  └─ rfcs/
 ├─ crates/
-│  ├─ cg-core/                 # domain types, anchors, reducer, undo
-│  ├─ cg-server/               # axum service, storage, WS, snapshots
-│  ├─ cg-policy/               # capabilities, approvals, audit
-│  └─ cg-mcp/                  # optional Rust MCP server
+│  ├─ tenon-core/                 # domain types, anchors, reducer, undo
+│  ├─ tenon-server/               # axum service, storage, WS, snapshots
+│  ├─ tenon-policy/               # capabilities, approvals, audit
+│  └─ tenon-mcp/                  # optional Rust MCP server
 ├─ packages/
 │  ├─ canvas-core/             # TS client core
 │  ├─ canvas-chart/            # chart adapter
@@ -359,10 +362,10 @@ to be usable from outside.
 
 ## 11. Relationship to existing projects
 
-| Project | Role in Common Ground | Action |
+| Project | Role in Tenon | Action |
 |---|---|---|
-| **Amaterasu** | Reference app; commercial wedge | Extract `chart-dsl` and overlay reducer; consume `canvas-core` |
-| **Weave** | Provenance + memory component; graph adapter demo | Add `canvas-graph`; link claims to audit entries |
+| **Amaterasu** | Reference app; commercial wedge | Extract `chart-dsl` and overlay reducer; consume `@tenon-protocol/core` |
+| **Weave** | Provenance + memory component; graph adapter demo | Add `@tenon-protocol/graph`; link claims to audit entries |
 | **OxiDock** | Scoped access patterns; later a remote-document adapter | Reuse capability/approval UX ideas |
 | **PerOXO** | Real-time transport lessons; not a dependency | Reuse ack/actor patterns |
 | **Portfolio** | Third demo (topic graph) | Add a read-only canvas adapter |
@@ -400,7 +403,7 @@ Do not merge repos. Extract, publish, and depend.
 
 A developer can:
 
-1. Add `canvas-core` to an app.
+1. Add `@tenon-protocol/core` to an app.
 2. Define 3 object types and 5 ops.
 3. Expose them as MCP tools.
 4. Watch an agent draw in under a day.
@@ -423,8 +426,8 @@ suite.
 
 ### Phase 1 — canvas-core and chart adapter (weeks 2–3)
 
-- Port reducer, anchors, undo, schemas into `canvas-core`.
-- Stand up `cg-server` with SQLite, WebSocket, snapshots.
+- Port reducer, anchors, undo, schemas into `@tenon-protocol/core`.
+- Stand up `tenon-server` with SQLite, WebSocket, snapshots.
 - Wire Amaterasu to the SDK with zero behavior regression.
 - Port existing tests; add conformance tests.
 
@@ -432,7 +435,7 @@ suite.
 
 ### Phase 2 — Agent bridge and policy (week 4)
 
-- `canvas-mcp` tools: `doc_get`, `op_apply`, `turn_undo`, `state_query`.
+- `@tenon-protocol/mcp` tools: `doc_get`, `op_apply`, `turn_undo`, `state_query`.
 - Capability tokens; approval mode; destructive-op gate.
 - Audit log + history UI.
 - Self-correction loop: reject → retry → ack.
@@ -442,7 +445,7 @@ suite.
 ### Phase 3 — Reference demo and second adapter (weeks 5–6)
 
 - Polish Amaterasu as "the AI analyst that draws, not chats."
-- Build `canvas-graph` on Weave: merge duplicates, cluster, explain with sources.
+- Build `@tenon-protocol/graph` on Weave: merge duplicates, cluster, explain with sources.
 - Write the 90-second demo script; record it.
 - Recruit 5 external testers.
 
@@ -534,7 +537,7 @@ Do not monetize the protocol. Monetize trust, retention, and team workflow.
 | Security incident | Low | High | Capability tokens, approval gates, no raw HTML, audit, least privilege |
 | Trading regulation / data licensing | Medium | Medium | Position as analysis tool, not advice; disclaimers; verify INDmoney terms; keep the SDK domain-neutral |
 | Spec fragmentation | Medium | Medium | One reference implementation first; conformance suite; publish only after 2 adapters pass |
-| Naming/trademark conflict ("Chisel") | Medium | Low | Search before launch; keep "Common Ground" as the concept name |
+| Naming/trademark conflict ("Tenon") | Medium | Medium | Search before launch; keep a fallback name |
 
 ---
 
@@ -545,7 +548,7 @@ Do not monetize the protocol. Monetize trust, retention, and team workflow.
 3. Should the reference server be Rust-only, or also a TypeScript implementation for adoption?
 4. How much of Weave's memory belongs in v1 versus v2?
 5. What is the exact open-source boundary — protocol + client, or server too?
-6. Is "Chisel" the right name? Check trademarks and domain availability.
+6. Is "Tenon" the right name? Check trademarks and domain availability.
 7. Do you want to run a paid trading product, given the regulatory surface?
 
 ---
@@ -575,8 +578,8 @@ Do not monetize the protocol. Monetize trust, retention, and team workflow.
 ## 21. One-paragraph pitch
 
 Every company is about to put an agent inside its product, and almost all of them will do it with
-screenshots, chat, or brittle tool calls. Common Ground is the missing action layer: a typed,
+screenshots, chat, or brittle tool calls. Tenon is the missing action layer: a typed,
 reversible, auditable protocol for humans and agents to edit the same visual state. We prove it
 with Amaterasu, an AI chart analyst that draws on the chart and shows its work, then open the
 protocol so any visual app can become agent-native in a day. MCP standardized what agents can do;
-Common Ground standardizes what they can safely change.
+Tenon standardizes what they can safely change.

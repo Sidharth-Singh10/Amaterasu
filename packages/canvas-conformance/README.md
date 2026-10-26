@@ -1,6 +1,6 @@
-# @common-ground/canvas-conformance
+# @tenon-protocol/conformance
 
-Six language-agnostic fixtures and a runner for **Common Ground** implementations.
+Six language-agnostic fixtures and a runner for **Tenon** implementations.
 
 The fixtures exercise anchor survival, undo/redo, idempotent retry, capability denial, malformed
 ops, and audit-chain tamper detection. The same corpus is run against the TypeScript
@@ -9,13 +9,13 @@ ops, and audit-chain tamper detection. The same corpus is run against the TypeSc
 ## Install
 
 ```sh
-npm install @common-ground/canvas-conformance @common-ground/canvas-core
+npm install @tenon-protocol/conformance @tenon-protocol/core
 ```
 
 ## Run the corpus
 
 ```ts
-import { MemoryTarget, loadFixtures, runSuite } from "@common-ground/canvas-conformance"
+import { MemoryTarget, loadFixtures, runSuite } from "@tenon-protocol/conformance"
 
 const results = await runSuite(new MemoryTarget(), loadFixtures())
 const failed = results.filter((result) => !result.ok)
@@ -50,8 +50,8 @@ the audit chain; the fixtures only describe observable behavior.
 
 ## Related packages
 
-- [`@common-ground/canvas-core`](../canvas-core) — protocol schemas and audit helpers
-- [`@common-ground/canvas-chart`](../canvas-chart) — chart adapter
-- [`@common-ground/canvas-graph`](../canvas-graph) — graph adapter
+- [`@tenon-protocol/core`](../canvas-core) — protocol schemas and audit helpers
+- [`@tenon-protocol/chart`](../canvas-chart) — chart adapter
+- [`@tenon-protocol/graph`](../canvas-graph) — graph adapter
 
 MIT licensed.

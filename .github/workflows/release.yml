@@ -55,11 +55,11 @@ jobs:
         run: |
           set -euo pipefail
           for workspace in \
-            @common-ground/canvas-core \
-            @common-ground/canvas-chart \
-            @common-ground/canvas-graph \
-            @common-ground/canvas-conformance \
-            @common-ground/canvas-mcp
+            @tenon-protocol/core \
+            @tenon-protocol/chart \
+            @tenon-protocol/graph \
+            @tenon-protocol/conformance \
+            @tenon-protocol/mcp
           do
             if npm view "${workspace}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
               echo "skip ${workspace}@${RELEASE_VERSION}: already published"
@@ -73,11 +73,11 @@ jobs:
         run: |
           set -euo pipefail
           for workspace in \
-            @common-ground/canvas-core \
-            @common-ground/canvas-chart \
-            @common-ground/canvas-graph \
-            @common-ground/canvas-conformance \
-            @common-ground/canvas-mcp
+            @tenon-protocol/core \
+            @tenon-protocol/chart \
+            @tenon-protocol/graph \
+            @tenon-protocol/conformance \
+            @tenon-protocol/mcp
           do
             for attempt in $(seq 1 30); do
               if npm view "${workspace}@${RELEASE_VERSION}" version >/dev/null 2>&1; then break; fi
@@ -122,10 +122,10 @@ jobs:
           set -euo pipefail
           if [ -f "docs/releases/${RELEASE_VERSION}.md" ]; then
             gh release create "$GITHUB_REF_NAME" \
-              --title "Common Ground v${RELEASE_VERSION}" \
+              --title "Tenon v${RELEASE_VERSION}" \
               --notes-file "docs/releases/${RELEASE_VERSION}.md"
           else
             gh release create "$GITHUB_REF_NAME" \
-              --title "Common Ground v${RELEASE_VERSION}" \
+              --title "Tenon v${RELEASE_VERSION}" \
               --generate-notes
           fi

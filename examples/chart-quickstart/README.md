@@ -17,5 +17,5 @@ The example shows the two pieces an adapter owns:
 - `beginTurn()` / `commitTurn()` groups ops into one undo step, so "undo this turn" removes the
   whole set rather than one shape at a time.
 
-See [`@common-ground/canvas-chart`](https://www.npmjs.com/package/@common-ground/canvas-chart) for
+See [`@tenon-protocol/chart`](https://www.npmjs.com/package/@tenon-protocol/chart) for
 the full op list.

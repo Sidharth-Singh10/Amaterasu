@@ -1,13 +1,13 @@
-# Common Ground Protocol
+# Tenon Protocol
 
 **Version:** 0.1 (Phase 0 draft)
-**Date:** 2026-10-20
+**Date:** 2026-10-20, renamed 2026-10-26
 **Status:** Frozen for implementation against the Amaterasu chart adapter
-**Concept name:** Common Ground (product name deferred)
+**Protocol name:** Tenon (formerly Common Ground)
 
 This document defines the wire contract between an agent host, the document server, and a
-visual client. It is the normative reference for `canvas-core`, `cg-server`, `canvas-mcp`, and
-any adapter that claims conformance.
+visual client. It is the normative reference for `@tenon-protocol/core`, `tenon-server`,
+`@tenon-protocol/mcp`, and any adapter that claims conformance.
 
 The key words MUST, MUST NOT, SHOULD, and MAY are used as in RFC 2119.
 
@@ -19,7 +19,7 @@ v0 covers one domain: a chart with data-space annotations and computed series. T
 itself is domain-neutral; the chart vocabulary lives in an adapter (§4.2).
 
 Out of scope for v0: multiplayer, CRDT merge, offline conflict resolution, rich text, mobile,
-hosted multi-tenancy. See `COMMON_GROUND.md` §9.2.
+hosted multi-tenancy. See `TENON.md` §9.2.
 
 ---
 
@@ -38,7 +38,7 @@ The server does **not** hold a document reducer. It holds an append-only log and
 materialized snapshot used for fast reads. Undo is computed from inverse ops supplied by the
 adapter that applied the original op (§6.4).
 
-This is a deliberate deviation from `COMMON_GROUND.md` §9, which shows the server owning the
+This is a deliberate deviation from `TENON.md` §9, which shows the server owning the
 document store and undo. It is recorded in §15.
 
 ---
@@ -318,11 +318,11 @@ This is what keeps the server domain-neutral while still making every op reversi
 ### 8.1 Token format
 
 ```text
-cg1.<base64url(claims_json)>.<base64url(ed25519_signature)>
+tn1.<base64url(claims_json)>.<base64url(ed25519_signature)>
 ```
 
-The signature covers `cg1.` plus the encoded claims. The token is transported in the
-`X-CG-Capability` header. The envelope's `capability` field carries only the `cap_id`, so the
+The signature covers `tn1.` plus the encoded claims. The token is transported in the
+`X-Tenon-Capability` header. The envelope's `capability` field carries only the `cap_id`, so the
 token is not duplicated into every audit entry.
 
 ### 8.2 Claims
@@ -331,7 +331,7 @@ token is not duplicated into every audit entry.
 {
   "v": 1,
   "cap_id": "cap_01J9Z4",
-  "iss": "cg-local",
+  "iss": "tenon-local",
   "sub": { "actor_id": "chart-analyst", "session": "ses_9f2" },
   "documents": ["doc_reliance_1d"],
   "op_types": ["chart.shape.*", "chart.series.*", "chart.view.set"],
@@ -510,11 +510,11 @@ same fixtures MUST be runnable by a Rust harness without changing the JSON.
 
 ---
 
-## 15. Deviations from `COMMON_GROUND.md`
+## 15. Deviations from `TENON.md`
 
 Recorded deliberately so the design of record and the implementation do not drift.
 
-1. **Server authority is split.** §9 shows `cg-server` owning the document store, op log, and undo.
+1. **Server authority is split.** §9 shows `tenon-server` owning the document store, op log, and undo.
    v0: the server owns ids, revisions, the log, idempotency, capabilities, and audit; the client
    adapter owns projection, anchor resolution, and inverse computation. Undo replays adapter-supplied
    inverses (§6.4).
@@ -585,8 +585,8 @@ chart bridge:
   the Rust journal harness in `server/tests/conformance.rs` with a minimal 2D adapter.
 - `packages/canvas-mcp` exposes `doc_get`, `op_apply`, `turn_undo`, and `state_query` over stdio,
   backed by the HTTP journal and the adapter snapshot.
-- Ed25519 `cg1.<claims>.<signature>` capability tokens, a persisted issuer key, and
-  `X-CG-Capability` on all write endpoints. Local mint/token endpoints are loopback-only.
+- Ed25519 `tn1.<claims>.<signature>` capability tokens, a persisted issuer key, and
+  `X-Tenon-Capability` on all write endpoints. Local mint/token endpoints are loopback-only.
 - A ten-shape turn undo test, an `expected_revision`/idempotency conflict test, a structured
   reject → retry → ack test, and a journal replay helper (`packages/canvas-chart/src/replay.ts`).
 - Reload restore order: workspace snapshot, then the journal snapshot, then replay of applied

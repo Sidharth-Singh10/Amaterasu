@@ -1,4 +1,4 @@
-//! Append-only op journal for Common Ground documents.
+//! Append-only op journal for Tenon documents.
 //!
 //! The journal is authoritative for op ids, per-document revisions, idempotency, turn
 //! boundaries, and the audit chain. It does **not** hold a domain reducer: applied results and
@@ -1675,7 +1675,7 @@ mod tests {
         json!({
             "v": 1,
             "cap_id": cap_id,
-            "iss": "cg-local",
+            "iss": "tenon-local",
             "sub": { "actor_id": actor },
             "documents": ["*"],
             "op_types": op_types,

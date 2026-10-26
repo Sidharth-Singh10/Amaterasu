@@ -115,7 +115,7 @@ describe("capabilities", () => {
     const claims = CapabilityClaimsSchema.parse({
       v: 1,
       cap_id: "cap_1",
-      iss: "cg-local",
+      iss: "tenon-local",
       sub: { actor_id: "chart-analyst" },
       documents: ["doc_*"],
       op_types: ["chart.shape.*"],

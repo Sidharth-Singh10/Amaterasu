@@ -25,17 +25,17 @@ questions in each thread.
 
 ## Pre-flight
 
-- [ ] `npm view @common-ground/canvas-core version` returns `0.1.0`
-- [ ] `npm view @common-ground/canvas-chart version` returns `0.1.0`
-- [ ] `npm view @common-ground/canvas-mcp version` returns `0.1.0`
-- [ ] `npx -y @common-ground/canvas-mcp` starts and answers `initialize`
-- [ ] MCP registry search returns `io.github.Sidharth-Singh10/common-ground`
+- [ ] `npm view @tenon-protocol/core version` returns `0.1.0`
+- [ ] `npm view @tenon-protocol/chart version` returns `0.1.0`
+- [ ] `npm view @tenon-protocol/mcp version` returns `0.1.0`
+- [ ] `npx -y @tenon-protocol/mcp` starts and answers `initialize`
+- [ ] MCP registry search returns `io.github.Sidharth-Singh10/tenon`
 - [ ] GitHub release `v0.1.0` exists and links to the spec, SDK, and landing page
 - [ ] Landing page loads at https://sidharth-singh10.github.io/Amaterasu/
 - [ ] Demo loads at https://sidharth-singh10.github.io/Amaterasu/demo/?demo=1
 - [ ] All links in the drafts return 200
 - [ ] `site/og.png` is the image used for link previews
-- [ ] A clean machine can install `@common-ground/canvas-chart` and run
+- [ ] A clean machine can install `@tenon-protocol/chart` and run
       `examples/chart-quickstart`
 
 ## Accuracy rules
@@ -56,8 +56,8 @@ questions in each thread.
 - GitHub: https://github.com/Sidharth-Singh10/Amaterasu
 - Spec: https://github.com/Sidharth-Singh10/Amaterasu/blob/master/spec/protocol.md
 - SDK: https://github.com/Sidharth-Singh10/Amaterasu/blob/master/docs/sdk.md
-- npm: https://www.npmjs.com/org/common-ground
-- MCP registry: https://registry.modelcontextprotocol.io/?search=io.github.Sidharth-Singh10%2Fcommon-ground
+- npm: https://www.npmjs.com/org/tenon-protocol
+- MCP registry: https://registry.modelcontextprotocol.io/?search=io.github.Sidharth-Singh10%2Ftenon
 
 ## After launch
 

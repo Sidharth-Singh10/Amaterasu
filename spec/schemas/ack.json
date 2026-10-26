@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:common-ground:protocol:1:ack",
-  "title": "Common Ground op ack",
+  "$id": "urn:tenon:protocol:1:ack",
+  "title": "Tenon op ack",
   "type": "object",
   "properties": {
     "v": {

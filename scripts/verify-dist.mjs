@@ -4,16 +4,16 @@ import { join, resolve } from "node:path"
 
 const root = resolve(import.meta.dirname, "..")
 const packages = [
-  "@common-ground/canvas-core",
-  "@common-ground/canvas-chart",
-  "@common-ground/canvas-graph",
-  "@common-ground/canvas-conformance",
-  "@common-ground/canvas-mcp",
+  "@tenon-protocol/core",
+  "@tenon-protocol/chart",
+  "@tenon-protocol/graph",
+  "@tenon-protocol/conformance",
+  "@tenon-protocol/mcp",
 ]
 
 const tempRoot = "/tmp/opencode"
 mkdirSync(tempRoot, { recursive: true })
-const work = mkdtempSync(join(tempRoot, "common-ground-dist-"))
+const work = mkdtempSync(join(tempRoot, "tenon-dist-"))
 const tarballs = join(work, "tarballs")
 mkdirSync(tarballs, { recursive: true })
 
@@ -33,7 +33,7 @@ if (archives.length !== packages.length) {
 
 writeFileSync(
   join(work, "package.json"),
-  `${JSON.stringify({ name: "common-ground-dist-smoke", private: true, type: "module" }, null, 2)}\n`,
+  `${JSON.stringify({ name: "tenon-dist-smoke", private: true, type: "module" }, null, 2)}\n`,
 )
 
 console.log("installing tarballs into a clean project")
@@ -52,10 +52,10 @@ execFileSync(
 writeFileSync(
   join(work, "smoke.mjs"),
   `import assert from "node:assert/strict"
-import { EnvelopeSchema, verifyAuditChain } from "@common-ground/canvas-core"
-import { DocStore } from "@common-ground/canvas-chart"
-import { GraphStore } from "@common-ground/canvas-graph"
-import { MemoryTarget, loadFixtures, runSuite } from "@common-ground/canvas-conformance"
+import { EnvelopeSchema, verifyAuditChain } from "@tenon-protocol/core"
+import { DocStore } from "@tenon-protocol/chart"
+import { GraphStore } from "@tenon-protocol/graph"
+import { MemoryTarget, loadFixtures, runSuite } from "@tenon-protocol/conformance"
 
 const envelope = EnvelopeSchema.parse({
   v: 1,
@@ -104,11 +104,11 @@ execFileSync(process.execPath, ["smoke.mjs"], { cwd: work, stdio: "inherit" })
 console.log("checking the MCP binary")
 const server = spawn(
   process.execPath,
-  [join(work, "node_modules/@common-ground/canvas-mcp/dist/main.js")],
+  [join(work, "node_modules/@tenon-protocol/mcp/dist/main.js")],
   {
     cwd: work,
     stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, COMMON_GROUND_URL: "http://127.0.0.1:9" },
+    env: { ...process.env, TENON_URL: "http://127.0.0.1:9" },
   },
 )
 
@@ -154,7 +154,7 @@ const response = await new Promise((resolvePromise, reject) => {
 
 server.kill()
 if (response.error) throw new Error(`MCP initialize failed: ${JSON.stringify(response.error)}`)
-if (response.result?.serverInfo?.name !== "common-ground") {
+if (response.result?.serverInfo?.name !== "tenon") {
   throw new Error(`unexpected MCP server name: ${JSON.stringify(response.result)}`)
 }
 

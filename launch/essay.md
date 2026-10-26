@@ -80,7 +80,7 @@ for decades. What is new is applying them to the visual workspace that an agent 
 
 ## One loop
 
-Common Ground turns those properties into one loop.
+Tenon turns those properties into one loop.
 
 1. **The agent sends an envelope.** It carries a protocol version, document id, turn id, sequence,
    actor, capability, op type, target, payload, idempotency key, and an optional rationale. The
@@ -136,7 +136,7 @@ ops. Multiplayer conflict resolution and offline editing are later work. Claimin
 be dishonest.
 
 It is not a replacement for MCP. It complements MCP. MCP standardizes how an agent discovers and
-calls a tool. Common Ground standardizes the state that tool mutates, the permission it runs under,
+calls a tool. Tenon standardizes the state that tool mutates, the permission it runs under,
 and the record it leaves behind. The MCP server in this repo is a thin client over the journal.
 
 It is not a UI framework. It does not render your canvas or prescribe your component tree. The
@@ -189,9 +189,9 @@ If we want agents to work inside the tools professionals already use, we need to
 document, not a picture of it. We need typed operations, stable ids, scoped authority, honest
 rejections, and a record that survives the session.
 
-MCP gave agents tools. The next layer gives them a shared workspace.
+MCP gave agents tools. Tenon gives them a shared workspace.
 
 ---
 
-*Common Ground is MIT licensed. The protocol, SDK, conformance fixtures, and reference app are at
+*Tenon is MIT licensed. The protocol, SDK, conformance fixtures, and reference app are at
 [github.com/Sidharth-Singh10/Amaterasu](https://github.com/Sidharth-Singh10/Amaterasu).*

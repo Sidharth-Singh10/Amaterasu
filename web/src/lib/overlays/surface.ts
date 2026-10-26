@@ -1,4 +1,4 @@
-import type { Annotation } from "@common-ground/canvas-chart"
+import type { Annotation } from "@tenon-protocol/chart"
 import type { Transform } from "@/lib/chart/transform"
 import { CanvasPainter, type Point } from "./painter"
 import { getRenderer } from "./registry"

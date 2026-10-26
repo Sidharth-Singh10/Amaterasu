@@ -1,5 +1,5 @@
 {
-  "name": "@common-ground/example-chart-quickstart",
+  "name": "@tenon-protocol/example-chart-quickstart",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "start": "node index.mjs"
   },
   "dependencies": {
-    "@common-ground/canvas-chart": "^0.1.0",
-    "@common-ground/canvas-core": "^0.1.0"
+    "@tenon-protocol/chart": "^0.1.0",
+    "@tenon-protocol/core": "^0.1.0"
   }
 }

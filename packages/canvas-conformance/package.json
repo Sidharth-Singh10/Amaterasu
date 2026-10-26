@@ -1,8 +1,8 @@
 {
-  "name": "@common-ground/canvas-conformance",
+  "name": "@tenon-protocol/conformance",
   "version": "0.1.0",
   "type": "module",
-  "description": "Language-agnostic conformance fixtures and runner for Common Ground",
+  "description": "Language-agnostic conformance fixtures and runner for Tenon",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
   },
   "keywords": [
-    "common-ground",
+    "tenon",
     "conformance",
     "protocol",
     "testing",
@@ -47,6 +47,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@common-ground/canvas-core": "^0.1.0"
+    "@tenon-protocol/core": "^0.1.0"
   }
 }

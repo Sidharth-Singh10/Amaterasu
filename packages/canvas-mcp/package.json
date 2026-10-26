@@ -1,10 +1,10 @@
 {
-  "name": "@common-ground/canvas-mcp",
+  "name": "@tenon-protocol/mcp",
   "version": "0.1.0",
   "type": "module",
-  "description": "MCP server for Common Ground document state, ops, undo, and history",
+  "description": "MCP server for Tenon document state, ops, undo, and history",
   "license": "MIT",
-  "mcpName": "io.github.Sidharth-Singh10/common-ground",
+  "mcpName": "io.github.Sidharth-Singh10/tenon",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Sidharth-Singh10/Amaterasu.git",
@@ -17,7 +17,7 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "common-ground",
+    "tenon",
     "ai-agents",
     "audit",
     "undo"
@@ -36,7 +36,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "common-ground-mcp": "./dist/main.js"
+    "tenon-mcp": "./dist/main.js"
   },
   "files": [
     "dist"
@@ -52,7 +52,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@common-ground/canvas-core": "^0.1.0",
+    "@tenon-protocol/core": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.6.5"
   }

@@ -1,8 +1,8 @@
 {
-  "name": "@common-ground/canvas-core",
+  "name": "@tenon-protocol/core",
   "version": "0.1.0",
   "type": "module",
-  "description": "Common Ground protocol: envelope, ack, capability, audit, and turn schemas",
+  "description": "Tenon protocol: envelope, ack, capability, audit, and turn schemas",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "url": "https://github.com/Sidharth-Singh10/Amaterasu/issues"
   },
   "keywords": [
-    "common-ground",
+    "tenon",
     "mcp",
     "model-context-protocol",
     "ai-agents",

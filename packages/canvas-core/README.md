@@ -1,6 +1,6 @@
-# @common-ground/canvas-core
+# @tenon-protocol/core
 
-Protocol primitives for **Common Ground**: typed operations that humans and AI agents apply to the
+Protocol primitives for **Tenon**: typed operations that humans and AI agents apply to the
 same visual document, with acknowledgements, capabilities, turns, undo, and a hash-chained audit
 log.
 
@@ -10,7 +10,7 @@ Schemas in [`spec/schemas/`](../../spec/schemas/) are generated from these zod d
 ## Install
 
 ```sh
-npm install @common-ground/canvas-core zod
+npm install @tenon-protocol/core zod
 ```
 
 ## What is in the box
@@ -34,7 +34,7 @@ metadata without breaking older ones. Domain payloads are validated by the adapt
 ## Validate an envelope
 
 ```ts
-import { EnvelopeSchema } from "@common-ground/canvas-core"
+import { EnvelopeSchema } from "@tenon-protocol/core"
 
 const parsed = EnvelopeSchema.safeParse({
   v: 1,
@@ -61,7 +61,7 @@ must carry one.
 ## Verify an audit chain
 
 ```ts
-import { verifyAuditChain, type HashFn } from "@common-ground/canvas-core"
+import { verifyAuditChain, type HashFn } from "@tenon-protocol/core"
 import { createHash } from "node:crypto"
 
 const sha256: HashFn = (input) => createHash("sha256").update(input).digest("hex")
@@ -75,9 +75,9 @@ it already has.
 
 ## Related packages
 
-- [`@common-ground/canvas-chart`](../canvas-chart) — chart adapter and `DocStore`
-- [`@common-ground/canvas-graph`](../canvas-graph) — graph adapter
-- [`@common-ground/canvas-mcp`](../canvas-mcp) — MCP server over a Common Ground journal
-- [`@common-ground/canvas-conformance`](../canvas-conformance) — fixtures and runner
+- [`@tenon-protocol/chart`](../canvas-chart) — chart adapter and `DocStore`
+- [`@tenon-protocol/graph`](../canvas-graph) — graph adapter
+- [`@tenon-protocol/mcp`](../canvas-mcp) — MCP server over a Tenon journal
+- [`@tenon-protocol/conformance`](../canvas-conformance) — fixtures and runner
 
 MIT licensed.

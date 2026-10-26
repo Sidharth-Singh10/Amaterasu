@@ -789,10 +789,13 @@ fn require_token(
     cap_id: &str,
 ) -> Result<CapabilityClaims, ApiError> {
     let token = headers
-        .get("x-cg-capability")
+        .get("x-tenon-capability")
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| {
-            ApiError::Forbidden("capability_denied", "missing X-CG-Capability token".into())
+            ApiError::Forbidden(
+                "capability_denied",
+                "missing X-Tenon-Capability token".into(),
+            )
         })?;
     let claims = state
         .journal
