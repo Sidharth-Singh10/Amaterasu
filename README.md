@@ -1,16 +1,18 @@
-# Amaterasu
+# Tenon
 
-A self-hosted, TradingView-style charting app for Indian markets, with an embedded AI agent
-that draws directly on your charts.
+Typed, reversible, auditable actions for humans and AI agents editing the same visual workspace.
 
 [![CI](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidharth-Singh10/Amaterasu/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-5d91e9.svg)](LICENSE)
 
-Amaterasu pairs live OHLC data from the INDmoney MCP with an [OpenCode](https://opencode.ai)
-agent that reads and annotates charts through a structured overlay protocol. Instead of
-screenshots, the agent works with chart state as data — OHLC arrays, visible ranges, and
-existing annotations — and draws trendlines, rectangles, Fibonacci retracements, channels, and
-computed indicator series through the same op DSL the mouse uses.
+Tenon is an open protocol for humans and AI agents editing the same workspace. Agents send typed
+operations; every op is acknowledged, attributable, reversible, scoped by a capability, and
+recorded in a hash-chained audit log. Instead of screenshots, the agent works with document state
+as data.
+
+The reference implementation is **Amaterasu**, a self-hosted, TradingView-style charting app for
+Indian markets. It pairs live OHLC data from the INDmoney MCP with an [OpenCode](https://opencode.ai)
+agent that reads and annotates charts through the same op DSL the mouse uses.
 
 > Not affiliated with INDmoney. Market data is provided by the INDmoney MCP.
 
@@ -18,11 +20,7 @@ computed indicator series through the same op DSL the mouse uses.
 > publication is intentionally paused. Until the release, use the workspace source in `packages/`;
 > the install commands below describe the published build.
 
-## Tenon
-
-Amaterasu is the reference app for **Tenon**, an open protocol for humans and AI agents
-editing the same visual workspace. Agents send typed operations; every op is acknowledged,
-attributable, reversible, scoped by a capability, and recorded in a hash-chained audit log.
+## Quickstart
 
 - [Landing page](https://sidharth-singh10.github.io/Amaterasu/)
 - [Interactive demo](https://sidharth-singh10.github.io/Amaterasu/demo/?demo=1)
@@ -58,7 +56,13 @@ The MCP server exposes a running journal to Claude Desktop, OpenCode, and other 
 npx -y @tenon-protocol/mcp
 ```
 
-## Features
+## Amaterasu reference app
+
+Amaterasu pairs live OHLC data from the INDmoney MCP with an OpenCode agent that reads and
+annotates charts. It draws trendlines, rectangles, Fibonacci retracements, channels, and computed
+indicator series through the same op DSL the mouse uses.
+
+### Features
 
 - **Live Indian market data** — candles, quotes, and symbol search via the INDmoney MCP, with
   INDmoney OAuth (DCR + PKCE).
@@ -74,7 +78,7 @@ npx -y @tenon-protocol/mcp
 - **Self-hosted** — one Rust service serves the API, SSE channels, and the built SPA; ships
   with an nginx + systemd deployment runbook.
 
-## Architecture
+### Architecture
 
 Three decoupled channels keep the data path independent of the agent:
 
